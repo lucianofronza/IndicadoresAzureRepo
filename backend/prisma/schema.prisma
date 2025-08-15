@@ -1,0 +1,217 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// @seed="npx tsx prisma/seed.ts"
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Configurações do Sistema
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   // Valor criptografado
+  description String?
+  isEncrypted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
+// Entidades principais
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  management  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  developers Developer[]
+  repositories Repository[]
+
+  @@map("teams")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  developers Developer[]
+
+  @@map("roles")
+}
+
+model Stack {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  developers Developer[]
+
+  @@map("stacks")
+}
+
+model Developer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  login     String   @unique
+  azureId   String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  
+  roleId    String?
+  role      Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  
+  stacks    Stack[]
+  
+  // Dados do Azure DevOps
+  pullRequests PullRequest[]
+  reviews      Review[]
+  comments     Comment[]
+  commits      Commit[]
+
+  @@map("developers")
+}
+
+model Repository {
+  id          String   @id @default(cuid())
+  name        String
+  url         String   @unique
+  organization String
+  project     String
+  azureId     String?  @unique
+  lastSyncAt  DateTime? // Data da última sincronização bem-sucedida
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  
+  pullRequests PullRequest[]
+  commits      Commit[]
+  syncJobs     SyncJob[]
+
+  @@map("repositories")
+}
+
+model PullRequest {
+  id              String   @id @default(cuid())
+  azureId         Int      @unique
+  title           String
+  description     String?
+  status          String
+  sourceBranch    String
+  targetBranch    String
+  createdAt       DateTime
+  updatedAt       DateTime
+  closedAt        DateTime?
+  mergedAt        DateTime?
+  cycleTimeDays   Float?
+  leadTimeDays    Float?
+  reviewTimeDays  Float?
+  filesChanged    Int?
+  linesAdded      Int?
+  linesDeleted    Int?
+  isDraft         Boolean  @default(false)
+
+  // Relacionamentos
+  repositoryId    String
+  repository      Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  
+  createdById     String
+  createdBy       Developer @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  reviews         Review[]
+  comments        Comment[]
+
+  @@map("pull_requests")
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  azureId     Int      @unique
+  status      String
+  vote        Int
+  createdAt   DateTime
+  updatedAt   DateTime
+
+  // Relacionamentos
+  pullRequestId String
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  
+  reviewerId    String
+  reviewer      Developer @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  azureId     Int      @unique
+  content     String
+  createdAt   DateTime
+  updatedAt   DateTime
+
+  // Relacionamentos
+  pullRequestId String
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  
+  authorId     String
+  author       Developer @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Commit {
+  id          String   @id @default(cuid())
+  azureId     String   @unique
+  message     String
+  hash        String
+  createdAt   DateTime
+
+  // Relacionamentos
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  
+  authorId     String
+  author       Developer @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("commits")
+}
+
+model SyncJob {
+  id            String    @id @default(cuid())
+  repositoryId  String
+  status        String    // 'pending' | 'running' | 'completed' | 'failed'
+  syncType      String    // 'full' | 'incremental'
+  startedAt     DateTime?
+  completedAt   DateTime?
+  error         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacionamentos
+  repository    Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@map("sync_jobs")
+}

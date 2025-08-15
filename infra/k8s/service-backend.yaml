@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: indicadores-backend-service
+  namespace: indicadores-azure
+  labels:
+    app: indicadores-backend
+spec:
+  selector:
+    app: indicadores-backend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: metrics
+    port: 9090
+    targetPort: 8080
+    path: /metrics
+  type: ClusterIP

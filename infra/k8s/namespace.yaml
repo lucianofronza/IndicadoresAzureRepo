@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: indicadores-azure
+  labels:
+    name: indicadores-azure
+    app: indicadores-azure

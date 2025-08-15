@@ -1,0 +1,20 @@
+Derrubar frontend
+pkill -f "npm run dev" && pkill -f "vite" && sleep 3
+
+Subir o frontend
+cd frontend && npm run dev
+
+conferir se subiu
+sleep 5 && ps aux | grep -E "(npm|vite)" | grep -v grep
+
+Derrubar todos os processos:
+pkill -f "npm run dev" && pkill -f "tsx watch" && pkill -f "vite"
+ou
+kill -9 679571 713618 713629
+
+subir backend
+Terminal: ./dev-backend.sh
+subir frontend
+Terminal: sleep 5 && ./dev-frontend.sh
+
+

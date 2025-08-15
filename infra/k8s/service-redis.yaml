@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: indicadores-redis
+  namespace: indicadores
+  labels:
+    app: indicadores-redis
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: indicadores-redis

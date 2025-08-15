@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: indicadores-config
+  namespace: indicadores
+data:
+  # Backend Configuration
+  NODE_ENV: "production"
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  
+  # Database Configuration
+  DATABASE_URL: "postgresql://user:password@postgres-service:5432/indicadores_azure"
+  
+  # Redis Configuration
+  REDIS_URL: "redis://indicadores-redis:6379"
+  
+  # Frontend Configuration
+  VITE_API_URL: "https://indicadores.example.com/api"
+  VITE_AZURE_CLIENT_ID: "your-azure-client-id"
+  
+  # Azure DevOps Configuration
+  AZURE_REDIRECT_URI: "https://indicadores.example.com/login"
+  
+  # Security Configuration
+  CORS_ORIGIN: "https://indicadores.example.com"
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  
+  # Metrics Configuration
+  METRICS_PORT: "9090"
+  METRICS_PATH: "/metrics"
