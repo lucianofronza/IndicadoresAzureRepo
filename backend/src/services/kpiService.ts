@@ -946,6 +946,26 @@ export class KpiService {
       }
     }
 
+    if (filters.roleId) {
+      if (entityType === 'commit') {
+        where.author = { roleId: filters.roleId };
+      } else if (entityType === 'review') {
+        where.reviewer = { roleId: filters.roleId };
+      } else {
+        where.createdBy = { roleId: filters.roleId };
+      }
+    }
+
+    if (filters.stackId) {
+      if (entityType === 'commit') {
+        where.author = { stacks: { some: { id: filters.stackId } } };
+      } else if (entityType === 'review') {
+        where.reviewer = { stacks: { some: { id: filters.stackId } } };
+      } else {
+        where.createdBy = { stacks: { some: { id: filters.stackId } } };
+      }
+    }
+
     return where;
   }
 
