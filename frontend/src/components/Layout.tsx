@@ -9,7 +9,7 @@ export const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar onCollapseChange={setIsSidebarCollapsed} />
-      <div className={`transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72'}`}>
+      <div className={`transition-all duration-300 ease-in-out relative z-10 ${isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72'}`}>
         <Header />
         <main className="py-10">
           <div className="px-4 sm:px-6 lg:px-8">

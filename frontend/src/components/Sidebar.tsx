@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import { 
   BarChart3, 
@@ -38,13 +39,23 @@ interface TooltipProps {
 
 const Tooltip: React.FC<TooltipProps> = ({ children, content, isVisible, delay = 500 }) => {
   const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
   const [timeoutId, setTimeoutId] = useState<number | null>(null)
+  const elementRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   const handleMouseEnter = () => {
     if (timeoutId) {
       clearTimeout(timeoutId)
     }
     const id = setTimeout(() => {
+      if (elementRef.current) {
+        const rect = elementRef.current.getBoundingClientRect()
+        setTooltipPosition({
+          x: rect.right + 12, // 12px de margem
+          y: rect.top + rect.height / 2
+        })
+      }
       setShowTooltip(true)
     }, delay)
     setTimeoutId(id)
@@ -57,20 +68,96 @@ const Tooltip: React.FC<TooltipProps> = ({ children, content, isVisible, delay =
     setShowTooltip(false)
   }
 
+  // Limpar tooltip quando o mouse sai da janela
+  useEffect(() => {
+    const handleMouseLeaveWindow = () => {
+      setShowTooltip(false)
+    }
+
+    if (showTooltip) {
+      document.addEventListener('mouseleave', handleMouseLeaveWindow)
+      return () => {
+        document.removeEventListener('mouseleave', handleMouseLeaveWindow)
+      }
+    }
+  }, [showTooltip])
+
+  // Limpar tooltip quando há clique em qualquer lugar da página
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowTooltip(false)
+    }
+
+    if (showTooltip) {
+      document.addEventListener('click', handleGlobalClick)
+      return () => {
+        document.removeEventListener('click', handleGlobalClick)
+      }
+    }
+  }, [showTooltip])
+
+  // Limpar tooltip quando há clique em qualquer lugar da página
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowTooltip(false)
+    }
+
+    if (showTooltip) {
+      document.addEventListener('click', handleGlobalClick)
+      return () => {
+        document.removeEventListener('click', handleGlobalClick)
+      }
+    }
+  }, [showTooltip])
+
+  useEffect(() => {
+    if (showTooltip && tooltipRef.current) {
+      // Pequeno delay para garantir que o elemento foi renderizado
+      const timer = setTimeout(() => {
+        if (tooltipRef.current) {
+          tooltipRef.current.style.opacity = '1'
+        }
+      }, 10)
+      return () => clearTimeout(timer)
+    }
+  }, [showTooltip])
+
+  // Auto-hide tooltip após 5 segundos como fallback
+  useEffect(() => {
+    if (showTooltip) {
+      const autoHideTimer = setTimeout(() => {
+        setShowTooltip(false)
+      }, 5000)
+      return () => clearTimeout(autoHideTimer)
+    }
+  }, [showTooltip])
+
   return (
-    <div 
-      className="relative group"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {children}
-      {isVisible && showTooltip && (
-        <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 min-w-max">
+    <>
+      <div 
+        ref={elementRef}
+        className="relative group"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </div>
+      {isVisible && showTooltip && createPortal(
+        <div 
+          ref={tooltipRef}
+          className="fixed px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-2xl pointer-events-none whitespace-nowrap z-[99999] min-w-max opacity-0 transition-opacity duration-200"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translateY(-50%)'
+          }}
+        >
           {content}
           <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-r-4 border-transparent border-r-gray-900"></div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 
@@ -141,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
 
       {/* Desktop sidebar */}
       <div className={cn(
-        'hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ease-in-out',
+        'hidden lg:fixed lg:inset-y-0 lg:z-[9998] lg:flex lg:flex-col transition-all duration-300 ease-in-out',
         isCollapsed ? 'lg:w-16' : 'lg:w-72'
       )}>
         <div className={cn(
