@@ -627,7 +627,7 @@ export const Dashboard: React.FC = () => {
                     yaxis: [
                       {
                         title: { text: 'Dias' },
-                        labels: { formatter: function (val) { return (val as number).toFixed(1) } },
+                        labels: { formatter: function (val) { return (val as number).toFixed(0) } },
                         min: 0,
                         max: function() {
                           const cycleTimeData = cycleTimeByTeamData.map((item: any) => item?.averageCycleTime || 0);
@@ -657,22 +657,22 @@ export const Dashboard: React.FC = () => {
                         {
                           formatter: function (val, opts) { 
                             if (opts.seriesIndex === 0) {
-                              return `Tempo 1ª Review: ${(val as number).toFixed(1)} dias`;
+                              return `${(val as number).toFixed(0)}`;
                             } else if (opts.seriesIndex === 1) {
-                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
+                              return `${(val as number).toFixed(0)}`;
                             } else {
-                              return `Quantidade PRs: ${(val as number).toFixed(0)}`;
+                              return `${(val as number).toFixed(0)}`;
                             }
                           }
                         },
                         {
                           formatter: function (val, opts) { 
                             if (opts.seriesIndex === 0) {
-                              return `Tempo 1ª Review: ${(val as number).toFixed(1)} dias`;
+                              return `${(val as number).toFixed(0)}`;
                             } else if (opts.seriesIndex === 1) {
-                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
+                              return `${(val as number).toFixed(0)}`;
                             } else {
-                              return `Quantidade PRs: ${(val as number).toFixed(0)}`;
+                              return `${(val as number).toFixed(0)}`;
                             }
                           }
                         }
@@ -916,18 +916,20 @@ export const Dashboard: React.FC = () => {
                       return `${percentage}%`;
                     }
                   },
-                  tooltip: { 
-                    custom: function({ series, seriesIndex, dataPointIndex }) {
-                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
+                  tooltip: {
+                    custom: function ({ series, seriesIndex, w }) {
+                      const label = series || 'Sem cargo informado';
                       const value = series[seriesIndex];
-                      const label = labels[dataPointIndex] || 'Desconhecido';
-                      const percentage = ((value / series.reduce((a: number, b: number) => a + b, 0)) * 100).toFixed(1);
-                      
-                      return `<div class="apexcharts-tooltip-box">
-                        <span>${label}</span><br/>
-                        <span>Quantidade: ${value}</span><br/>
-                        <span>Percentual: ${percentage}%</span>
-                      </div>`;
+                      const total = w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
+                      const percent = ((value / total) * 100).toFixed(1);
+        
+                      return `
+                        <div style="padding:6px 10px;">
+                          <strong>${label}</strong><br/>
+                          Valor: ${value}<br/>
+                          Percentual: ${percent}%
+                        </div>
+                      `;
                     }
                   },
                   legend: { 
