@@ -452,6 +452,89 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Pull Request x Review x Comments */}
+      <div className="card p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Pull Request x Review x Comments</h3>
+        {prReviewComments && Array.isArray(prReviewComments) && prReviewComments.length > 0 ? (
+          <div style={{ height: '400px' }}>
+            <ReactApexChart
+              options={{
+                chart: { 
+                  type: 'line',
+                  toolbar: { show: false },
+                  zoom: { enabled: false }
+                },
+                plotOptions: {
+                  bar: {
+                    horizontal: false,
+                    columnWidth: '55%',
+                  },
+                },
+                stroke: {
+                  width: [0, 3, 3],
+                  curve: 'smooth'
+                },
+                dataLabels: {
+                  enabled: false
+                },
+                xaxis: {
+                  categories: prReviewComments.map((item: any) => item?.developer?.name || 'Desenvolvedor Desconhecido'),
+                  labels: {
+                    style: { fontSize: '12px' },
+                    rotate: -45,
+                    rotateAlways: true,
+                    hideOverlappingLabels: true,
+                    showDuplicates: false,
+                    maxHeight: 60,
+                    trim: true
+                  }
+                },
+                yaxis: {
+                  title: {
+                    text: 'Quantidade'
+                  }
+                },
+                tooltip: {
+                  y: {
+                    formatter: function (val) {
+                      return `${val}`;
+                    }
+                  }
+                },
+                legend: { 
+                  position: 'top',
+                  horizontalAlign: 'center'
+                },
+                colors: ['#10B981', '#F59E0B', '#3B82F6']
+              }}
+              series={[
+                {
+                  name: 'Reviews',
+                  type: 'column',
+                  data: prReviewComments.map((item: any) => item?.reviews || 0)
+                },
+                {
+                  name: 'Pull Requests',
+                  type: 'line',
+                  data: prReviewComments.map((item: any) => item?.pullRequests || 0)
+                },
+                {
+                  name: 'Comments',
+                  type: 'line',
+                  data: prReviewComments.map((item: any) => item?.comments || 0)
+                }
+              ]}
+              type="line"
+              height={400}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-64 text-gray-500">
+            <p>Nenhum dado disponível para este gráfico</p>
+          </div>
+        )}
+      </div>
+
       {/* Pull Request x Commit por Time e Pull Request x Review por Time */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pull Request x Commit por Time */}
