@@ -902,6 +902,7 @@ export const Dashboard: React.FC = () => {
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Cargos por Time</h3>
           {kpis && kpis.rolesByTeam && Array.isArray(kpis.rolesByTeam) && kpis.rolesByTeam.length > 0 ? (
+
             <div style={{ height: '300px' }}>
               <ReactApexChart
                 options={{
@@ -911,38 +912,28 @@ export const Dashboard: React.FC = () => {
                     style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '12px' },
                     background: { enabled: false },
                     formatter: function (val) {
-                      const total = kpis?.rolesByTeam?.reduce((sum: number, item: any) => sum + (item?.count || 0), 0) || 1;
-                      const percentage = ((val as number / total) * 100).toFixed(1);
-                      return `${percentage}%`;
+                      return `${(val as number).toFixed(1)}%`;
                     }
                   },
                   tooltip: {
-                    custom: function ({ series, seriesIndex, w }) {
-                      const label = series || 'Sem cargo informado';
-                      const value = series[seriesIndex];
-                      const total = w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
-                      const percent = ((value / total) * 100).toFixed(1);
-        
-                      return `
-                        <div style="padding:6px 10px;">
-                          <strong>${label}</strong><br/>
-                          Valor: ${value}<br/>
-                          Percentual: ${percent}%
-                        </div>
-                      `;
+                    y: {
+                      formatter: function (val) {
+                        return `${val}`;
+                      }
                     }
                   },
                   legend: { 
                     position: 'bottom',
+                    show: true,
                     formatter: function (seriesName, opts) {
-                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
+                      const labels = kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.name || 'Sem cargo informado') || [];
                       return labels[opts.seriesIndex] || seriesName;
                     }
                   },
                   colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280']
                 }}
-                series={kpis?.rolesByTeam?.map((item: any) => item?.count || 0) || []}
-                labels={kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || []}
+                series={kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.count || 0) || []}
+                labels={kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.name || 'Sem cargo informado') || []}
                 type="pie"
                 height={300}
               />
