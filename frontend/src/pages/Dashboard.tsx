@@ -902,42 +902,84 @@ export const Dashboard: React.FC = () => {
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Cargos por Time</h3>
           {kpis && kpis.rolesByTeam && Array.isArray(kpis.rolesByTeam) && kpis.rolesByTeam.length > 0 ? (
+            (() => {
+              // Transformar dados para formato de colunas empilhadas
+              const teams = [...new Set(kpis.rolesByTeam?.map((item: any) => item.team) || [])];
+              const roles = [...new Set(kpis.rolesByTeam?.map((item: any) => item.role) || [])];
+              
+                             const series = roles.map(role => ({
+                 name: role,
+                 data: teams.map(team => {
+                   const item = kpis.rolesByTeam?.find((r: any) => r.team === team && r.role === role);
+                   return item ? item.count : 0;
+                 })
+               }));
 
-            <div style={{ height: '300px' }}>
-              <ReactApexChart
-                options={{
-                  chart: { type: 'pie', toolbar: { show: false } },
-                  dataLabels: {
-                    enabled: true,
-                    style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '12px' },
-                    background: { enabled: false },
-                    formatter: function (val) {
-                      return `${(val as number).toFixed(1)}%`;
-                    }
-                  },
-                  tooltip: {
-                    y: {
-                      formatter: function (val) {
-                        return `${val}`;
-                      }
-                    }
-                  },
-                  legend: { 
-                    position: 'bottom',
-                    show: true,
-                    formatter: function (seriesName, opts) {
-                      const labels = kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.name || 'Sem cargo informado') || [];
-                      return labels[opts.seriesIndex] || seriesName;
-                    }
-                  },
-                  colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280']
-                }}
-                series={kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.count || 0) || []}
-                labels={kpis?.rolesByTeam?.filter((item: any) => item?.count > 0).map((item: any) => item?.name || 'Sem cargo informado') || []}
-                type="pie"
-                height={300}
-              />
-            </div>
+              return (
+                <div style={{ height: '300px' }}>
+                  <ReactApexChart
+                    options={{
+                      chart: { 
+                        type: 'bar',
+                        stacked: true,
+                        toolbar: { show: false }
+                      },
+                      plotOptions: {
+                        bar: {
+                          horizontal: false,
+                          columnWidth: '55%',
+                        },
+                      },
+                      dataLabels: {
+                        enabled: true,
+                        style: { 
+                          colors: ['#ffffff'], 
+                          fontWeight: 'bold', 
+                          fontSize: '10px' 
+                        },
+                        background: { enabled: false },
+                        formatter: function (val) {
+                          return (val as number) > 0 ? (val as number).toString() : '';
+                        }
+                      },
+                      xaxis: {
+                        categories: teams,
+                        labels: {
+                          style: { fontSize: '12px' },
+                          rotate: 0,
+                          rotateAlways: false,
+                          hideOverlappingLabels: true,
+                          showDuplicates: false,
+                          maxHeight: 60,
+                          trim: true
+                        }
+                      },
+                      yaxis: {
+                        title: {
+                          text: 'Quantidade de Desenvolvedores'
+                        }
+                      },
+                      tooltip: {
+                        y: {
+                          formatter: function (val) {
+                            return `${val} desenvolvedores`;
+                          }
+                        }
+                      },
+                      legend: { 
+                        show: true,
+                        position: 'top',
+                        horizontalAlign: 'center'
+                      },
+                      colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280']
+                    }}
+                    series={series}
+                    type="bar"
+                    height={300}
+                  />
+                </div>
+              );
+            })()
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-500">
               <p>Nenhum dado disponível para este gráfico</p>

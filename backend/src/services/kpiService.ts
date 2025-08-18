@@ -780,7 +780,7 @@ export class KpiService {
       }),
       // Cargos por Time - baseado nos PRs filtrados
       prisma.developer.groupBy({
-        by: ['roleId'],
+        by: ['teamId', 'roleId'],
         where: {
           ...this.buildDeveloperWhereClause(filters),
           pullRequests: {
@@ -836,43 +836,32 @@ export class KpiService {
         })
     );
 
-    // Processar dados de Cargos por Time
+    // Processar dados de Cargos por Time para gráfico de colunas empilhadas
     const processedRolesByTeam = await Promise.all(
       rolesByTeam
         .map(async (item: any) => {
-          if (item.roleId === null) {
-            return {
-              name: 'Sem cargo informado',
-              count: item._count.id,
-            };
-          }
-          
-          const role = await prisma.role.findUnique({
-            where: { id: item.roleId },
+          const team = await prisma.team.findUnique({
+            where: { id: item.teamId },
             select: { name: true }
           });
+          
+          const role = item.roleId ? await prisma.role.findUnique({
+            where: { id: item.roleId },
+            select: { name: true }
+          }) : null;
+          
           return {
-            name: role?.name || 'Sem cargo informado',
+            team: team?.name || 'Sem Time',
+            role: role?.name || 'Sem cargo informado',
             count: item._count.id,
           };
         })
     );
 
-    // Filter out roles with zero developers and "Sem cargo informado" if no specific role filter
-    const hasRoleFilter = filters.roleId && filters.roleId !== 'all';
+    // Filter out items with zero developers
     const filteredRolesByTeam = processedRolesByTeam.filter((item: any) => {
-      // Always filter out roles with zero count
-      if (item.count === 0) return false;
-      
-      // Filter out "Sem cargo informado" if there's a specific role filter
-      if (hasRoleFilter && item.name === 'Sem cargo informado') return false;
-      
-      return true;
+      return item.count > 0;
     });
-
-    // Replace the array with filtered results
-    processedRolesByTeam.length = 0;
-    processedRolesByTeam.push(...filteredRolesByTeam);
 
     // Processar Top Developers
     const processedTopDevelopers = topDevelopers
@@ -905,7 +894,7 @@ export class KpiService {
       topDevelopers: processedTopDevelopers,
       pullRequestsByStatus: processedPullRequestsByStatus,
       pullRequestsByTeam: processedPullRequestsByTeam,
-      rolesByTeam: processedRolesByTeam,
+      rolesByTeam: filteredRolesByTeam,
     };
   }
 
