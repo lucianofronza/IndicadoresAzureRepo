@@ -713,7 +713,15 @@ export const Dashboard: React.FC = () => {
                     },
                     xaxis: { 
                       categories: cycleTimeByTeamData.map((item: any) => item?.team?.name || 'Sem time informado'),
-                      labels: { style: { fontSize: '12px' } }
+                      labels: { 
+                        style: { fontSize: '12px' },
+                        rotate: -45,
+                        rotateAlways: true,
+                        hideOverlappingLabels: true,
+                        showDuplicates: false,
+                        maxHeight: 60,
+                        trim: true
+                      }
                     },
                     yaxis: [
                       {
@@ -753,10 +761,20 @@ export const Dashboard: React.FC = () => {
                         }
                       ]
                     },
-                    legend: { position: 'top', horizontalAlign: 'left', offsetX: 40 },
+                    legend: { 
+                      position: 'top', 
+                      horizontalAlign: 'left', 
+                      offsetX: 40,
+                      showForSingleSeries: false,
+                      showForNullSeries: false,
+                      showForZeroSeries: false
+                    },
                     colors: ['#3B82F6', '#10B981', '#F59E0B'],
                     fill: { opacity: 1 },
-                    stroke: { width: [0, 0, 3], curve: 'smooth' }
+                    stroke: { width: [0, 3, 0], curve: 'smooth' },
+                    noData: {
+                      text: 'Nenhum dado disponível'
+                    }
                   }}
                   series={[
                     { 
@@ -805,7 +823,15 @@ export const Dashboard: React.FC = () => {
                   },
                   xaxis: { 
                     categories: filesChangedData.map((item: any) => item?.team?.name || 'Sem time informado'),
-                    labels: { style: { fontSize: '12px' } }
+                    labels: { 
+                      style: { fontSize: '12px' },
+                      rotate: -45,
+                      rotateAlways: true,
+                      hideOverlappingLabels: true,
+                      showDuplicates: false,
+                      maxHeight: 60,
+                      trim: true
+                    }
                   },
                   yaxis: [
                     {
@@ -820,6 +846,7 @@ export const Dashboard: React.FC = () => {
                     },
                     {
                       opposite: true,
+                      show: false,
                       title: { text: 'Total de PRs' },
                       labels: { formatter: function (val) { return (val as number).toFixed(0) } },
                       min: 0,
