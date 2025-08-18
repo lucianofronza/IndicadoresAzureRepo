@@ -1118,12 +1118,11 @@ export class KpiService {
   async getCycleTimeByTeam(filters: any): Promise<any> {
     const where = this.buildWhereClause(filters);
 
-    // Get PRs with cycle time data, grouped by creator
+    // Get all PRs grouped by creator (not just those with cycle time)
     const prData = await prisma.pullRequest.groupBy({
       by: ['createdById'],
       where: {
-        ...where,
-        cycleTimeDays: { not: null } // Only PRs with cycle time data
+        ...where
       },
       _count: {
         id: true,
@@ -1133,6 +1132,8 @@ export class KpiService {
         reviewTimeDays: true,
       },
     });
+
+
 
     // Get developer data with team information
     const developerIds = prData.map((item: any) => item.createdById);
@@ -1150,16 +1151,8 @@ export class KpiService {
       },
     });
 
-    // Get all teams that match the filter
-    const developerWhere = this.buildDeveloperWhereClause(filters);
+    // Get all teams (not just those that match the filter)
     const allTeams = await prisma.team.findMany({
-      where: {
-        developers: {
-          some: {
-            ...developerWhere
-          }
-        }
-      },
       select: {
         id: true,
         name: true
@@ -1207,8 +1200,16 @@ export class KpiService {
         if (teamData.has(teamName)) {
           const teamEntry = teamData.get(teamName);
           teamEntry.pullRequests += item._count.id;
-          teamEntry.totalCycleTime += (item._avg.cycleTimeDays || 0) * item._count.id;
-          teamEntry.totalReviewTime += (item._avg.reviewTimeDays || 0) * item._count.id;
+          
+          // Only add cycle time if it exists
+          if (item._avg.cycleTimeDays) {
+            teamEntry.totalCycleTime += item._avg.cycleTimeDays * item._count.id;
+          }
+          
+          // Only add review time if it exists
+          if (item._avg.reviewTimeDays) {
+            teamEntry.totalReviewTime += item._avg.reviewTimeDays * item._count.id;
+          }
         }
       }
     });
@@ -1216,8 +1217,15 @@ export class KpiService {
     // Calculate averages
     teamData.forEach((teamEntry) => {
       if (teamEntry.pullRequests > 0) {
-        teamEntry.averageCycleTime = Math.round((teamEntry.totalCycleTime / teamEntry.pullRequests) * 10) / 10; // Keep in days, round to 1 decimal
-        teamEntry.averageReviewTime = Math.round((teamEntry.totalReviewTime / teamEntry.pullRequests) * 10) / 10; // Keep in days, round to 1 decimal
+        // Calculate cycle time average only if we have cycle time data
+        if (teamEntry.totalCycleTime > 0) {
+          teamEntry.averageCycleTime = Math.round((teamEntry.totalCycleTime / teamEntry.pullRequests) * 10) / 10; // Keep in days, round to 1 decimal
+        }
+        
+        // Calculate review time average only if we have review time data
+        if (teamEntry.totalReviewTime > 0) {
+          teamEntry.averageReviewTime = Math.round((teamEntry.totalReviewTime / teamEntry.pullRequests) * 10) / 10; // Keep in days, round to 1 decimal
+        }
       }
     });
 

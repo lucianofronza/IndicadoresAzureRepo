@@ -452,102 +452,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Reviews realizados e Cargos por Time */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Reviews realizados */}
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Reviews realizados</h3>
-          {reviewsPerformedData && Array.isArray(reviewsPerformedData) && reviewsPerformedData.length > 0 ? (
-            <div style={{ height: '300px' }}>
-              <ReactApexChart
-                options={{
-                  chart: { type: 'bar', toolbar: { show: false } },
-                  plotOptions: { bar: { horizontal: false, dataLabels: { position: 'top' } } },
-                  dataLabels: {
-                    enabled: true,
-                    style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '14px' },
-                    background: { enabled: false },
-                    formatter: function (val) { return (val as number).toFixed(0) }
-                  },
-                  xaxis: { 
-                    categories: reviewsPerformedData.map((item: any) => item?.team?.name || 'Sem time informado'), 
-                    labels: { style: { fontSize: '12px' } } 
-                  },
-                  yaxis: { title: { text: 'Quantidade de Reviews' } },
-                  tooltip: { y: { formatter: function (val) { return val.toString() } } },
-                  legend: { position: 'top', horizontalAlign: 'left', offsetX: 40 },
-                  colors: ['#3B82F6'],
-                  fill: { opacity: 1 }
-                }}
-                series={[
-                  { name: 'Reviews', data: reviewsPerformedData.map((item: any) => item?.count || 0) }
-                ]}
-                type="bar"
-                height={300}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              <p>Nenhum dado disponível para este gráfico</p>
-            </div>
-          )}
-        </div>
-
-        {/* Cargos por Time */}
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Cargos por Time</h3>
-          {kpis && kpis.rolesByTeam && Array.isArray(kpis.rolesByTeam) && kpis.rolesByTeam.length > 0 ? (
-            <div style={{ height: '300px' }}>
-              <ReactApexChart
-                options={{
-                  chart: { type: 'pie', toolbar: { show: false } },
-                  dataLabels: {
-                    enabled: true,
-                    style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '12px' },
-                    background: { enabled: false },
-                    formatter: function (val) {
-                      const total = kpis?.rolesByTeam?.reduce((sum: number, item: any) => sum + (item?.count || 0), 0) || 1;
-                      const percentage = ((val as number / total) * 100).toFixed(1);
-                      return `${percentage}%`;
-                    }
-                  },
-                  tooltip: { 
-                    custom: function({ series, seriesIndex, dataPointIndex }) {
-                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
-                      const value = series[seriesIndex];
-                      const label = labels[dataPointIndex] || 'Desconhecido';
-                      const percentage = ((value / series.reduce((a: number, b: number) => a + b, 0)) * 100).toFixed(1);
-                      
-                      return `<div class="apexcharts-tooltip-box">
-                        <span>${label}</span><br/>
-                        <span>Quantidade: ${value}</span><br/>
-                        <span>Percentual: ${percentage}%</span>
-                      </div>`;
-                    }
-                  },
-                  legend: { 
-                    position: 'bottom',
-                    formatter: function (seriesName, opts) {
-                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
-                      return labels[opts.seriesIndex] || seriesName;
-                    }
-                  },
-                  colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280']
-                }}
-                series={kpis?.rolesByTeam?.map((item: any) => item?.count || 0) || []}
-                labels={kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || []}
-                type="pie"
-                height={300}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              <p>Nenhum dado disponível para este gráfico</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Pull Request x Commit por Time e Pull Request x Review por Time */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pull Request x Commit por Time */}
@@ -706,10 +610,7 @@ export const Dashboard: React.FC = () => {
                       } 
                     },
                     dataLabels: {
-                      enabled: true,
-                      style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '12px' },
-                      background: { enabled: false },
-                      formatter: function (val) { return (val as number).toFixed(1) }
+                      enabled: false
                     },
                     xaxis: { 
                       categories: cycleTimeByTeamData.map((item: any) => item?.team?.name || 'Sem time informado'),
@@ -721,17 +622,33 @@ export const Dashboard: React.FC = () => {
                         showDuplicates: false,
                         maxHeight: 60,
                         trim: true
-                      }
+                      }                      
                     },
                     yaxis: [
                       {
                         title: { text: 'Dias' },
-                        labels: { formatter: function (val) { return (val as number).toFixed(1) } }
+                        labels: { formatter: function (val) { return (val as number).toFixed(1) } },
+                        min: 0,
+                        max: function() {
+                          const cycleTimeData = cycleTimeByTeamData.map((item: any) => item?.averageCycleTime || 0);
+                          const reviewTimeData = cycleTimeByTeamData.map((item: any) => item?.averageReviewTime || 0);
+                          const maxTime = Math.max(...cycleTimeData, ...reviewTimeData);
+                          // Usar uma escala mais equilibrada para evitar colunas muito pequenas
+                          return maxTime * 1.2; // 20% acima do máximo
+                        },
+                        seriesName: ['Tempo 1ª Review', 'Cycle Time']
                       },
                       {
                         opposite: true,
                         title: { text: 'Quantidade de PRs' },
-                        labels: { formatter: function (val) { return (val as number).toFixed(0) } }
+                        labels: { formatter: function (val) { return (val as number).toFixed(0) } },
+                        min: 0,
+                        max: function() {
+                          const prData = cycleTimeByTeamData.map((item: any) => item?.pullRequests || 0);
+                          const maxPRs = Math.max(...prData);
+                          return maxPRs * 1.5; // 50% acima do máximo
+                        },
+                        seriesName: 'Quantidade PRs'
                       }
                     ],
                     tooltip: { 
@@ -740,22 +657,22 @@ export const Dashboard: React.FC = () => {
                         {
                           formatter: function (val, opts) { 
                             if (opts.seriesIndex === 0) {
-                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
+                              return `Tempo 1ª Review: ${(val as number).toFixed(1)} dias`;
                             } else if (opts.seriesIndex === 1) {
-                              return `Tempo para 1ª Review: ${(val as number).toFixed(1)} dias`;
+                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
                             } else {
-                              return `Quantidade de PRs: ${(val as number).toFixed(0)}`;
+                              return `Quantidade PRs: ${(val as number).toFixed(0)}`;
                             }
                           }
                         },
                         {
                           formatter: function (val, opts) { 
                             if (opts.seriesIndex === 0) {
-                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
+                              return `Tempo 1ª Review: ${(val as number).toFixed(1)} dias`;
                             } else if (opts.seriesIndex === 1) {
-                              return `Tempo para 1ª Review: ${(val as number).toFixed(1)} dias`;
+                              return `Cycle Time: ${(val as number).toFixed(1)} dias`;
                             } else {
-                              return `Quantidade de PRs: ${(val as number).toFixed(0)}`;
+                              return `Quantidade PRs: ${(val as number).toFixed(0)}`;
                             }
                           }
                         }
@@ -771,26 +688,26 @@ export const Dashboard: React.FC = () => {
                     },
                     colors: ['#3B82F6', '#10B981', '#F59E0B'],
                     fill: { opacity: 1 },
-                    stroke: { width: [0, 3, 0], curve: 'smooth' },
+                    stroke: { width: [0, 0, 3], curve: 'smooth' },
                     noData: {
                       text: 'Nenhum dado disponível'
                     }
                   }}
                   series={[
                     { 
-                      name: 'Cycle Time', 
-                      type: 'column',
-                      data: cycleTimeByTeamData.map((item: any) => item?.averageCycleTime || 0)
-                    },
-                    { 
                       name: 'Tempo 1ª Review', 
                       type: 'column',
                       data: cycleTimeByTeamData.map((item: any) => item?.averageReviewTime || 0)
                     },
                     { 
+                      name: 'Cycle Time', 
+                      type: 'column',
+                      data: cycleTimeByTeamData.map((item: any) => item?.averageCycleTime || 0)
+                    },
+                    { 
                       name: 'Quantidade PRs', 
                       type: 'line',
-                      data: cycleTimeByTeamData.map((item: any) => item?.pullRequestCount || 0)
+                      data: cycleTimeByTeamData.map((item: any) => item?.pullRequests || 0)
                     }
                   ]}
                   type="line"
@@ -903,8 +820,8 @@ export const Dashboard: React.FC = () => {
                     showForSingleSeries: false,
                     showForNullSeries: false,
                     showForZeroSeries: false
-                  },
-                  colors: ['#3B82F6', '#10B981', '#F59E0B'],
+                  },                  
+                  colors: ['#3B82F6', '#F59E0B', '#10B981' ],
                   fill: { opacity: 1 },
                   stroke: { width: [0, 3, 0], curve: 'smooth' },
                   noData: {
@@ -939,6 +856,103 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+            {/* Reviews realizados e Cargos por Time */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Reviews realizados */}
+        <div className="card p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Reviews realizados</h3>
+          {reviewsPerformedData && Array.isArray(reviewsPerformedData) && reviewsPerformedData.length > 0 ? (
+            <div style={{ height: '300px' }}>
+              <ReactApexChart
+                options={{
+                  chart: { type: 'bar', toolbar: { show: false } },
+                  plotOptions: { bar: { horizontal: false, dataLabels: { position: 'top' } } },
+                  dataLabels: {
+                    enabled: true,
+                    style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '14px' },
+                    background: { enabled: false },
+                    formatter: function (val) { return (val as number).toFixed(0) }
+                  },
+                  xaxis: { 
+                    categories: reviewsPerformedData.map((item: any) => item?.team?.name || 'Sem time informado'), 
+                    labels: { style: { fontSize: '12px' } } 
+                  },
+                  yaxis: { title: { text: 'Quantidade de Reviews' } },
+                  tooltip: { y: { formatter: function (val) { return val.toString() } } },
+                  legend: { position: 'top', horizontalAlign: 'left', offsetX: 40 },
+                  colors: ['#3B82F6'],
+                  fill: { opacity: 1 }
+                }}
+                series={[
+                  { name: 'Reviews', data: reviewsPerformedData.map((item: any) => item?.count || 0) }
+                ]}
+                type="bar"
+                height={300}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <p>Nenhum dado disponível para este gráfico</p>
+            </div>
+          )}
+        </div>
+
+        {/* Cargos por Time */}
+        <div className="card p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Cargos por Time</h3>
+          {kpis && kpis.rolesByTeam && Array.isArray(kpis.rolesByTeam) && kpis.rolesByTeam.length > 0 ? (
+            <div style={{ height: '300px' }}>
+              <ReactApexChart
+                options={{
+                  chart: { type: 'pie', toolbar: { show: false } },
+                  dataLabels: {
+                    enabled: true,
+                    style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '12px' },
+                    background: { enabled: false },
+                    formatter: function (val) {
+                      const total = kpis?.rolesByTeam?.reduce((sum: number, item: any) => sum + (item?.count || 0), 0) || 1;
+                      const percentage = ((val as number / total) * 100).toFixed(1);
+                      return `${percentage}%`;
+                    }
+                  },
+                  tooltip: { 
+                    custom: function({ series, seriesIndex, dataPointIndex }) {
+                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
+                      const value = series[seriesIndex];
+                      const label = labels[dataPointIndex] || 'Desconhecido';
+                      const percentage = ((value / series.reduce((a: number, b: number) => a + b, 0)) * 100).toFixed(1);
+                      
+                      return `<div class="apexcharts-tooltip-box">
+                        <span>${label}</span><br/>
+                        <span>Quantidade: ${value}</span><br/>
+                        <span>Percentual: ${percentage}%</span>
+                      </div>`;
+                    }
+                  },
+                  legend: { 
+                    position: 'bottom',
+                    formatter: function (seriesName, opts) {
+                      const labels = kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || [];
+                      return labels[opts.seriesIndex] || seriesName;
+                    }
+                  },
+                  colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280']
+                }}
+                series={kpis?.rolesByTeam?.map((item: any) => item?.count || 0) || []}
+                labels={kpis?.rolesByTeam?.map((item: any) => item?.name || 'Sem cargo informado') || []}
+                type="pie"
+                height={300}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <p>Nenhum dado disponível para este gráfico</p>
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Top 10 - Cycle time Pull Request (dias) */}
       <div className="card">
