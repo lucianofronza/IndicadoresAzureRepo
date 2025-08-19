@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Search, GitBranch, ExternalLink, BarChart3 } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, GitBranch, BarChart3 } from 'lucide-react'
 import { Repository, CreateRepositoryData, UpdateRepositoryData } from '@/types'
 import api from '@/services/api'
 

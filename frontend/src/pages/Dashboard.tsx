@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PaginatedSelect } from '@/components/PaginatedSelect'
+import { DateRangePicker } from '@/components/DateRangePicker'
 import ReactApexChart from 'react-apexcharts'
 import { 
   GitPullRequest, 
@@ -227,26 +228,16 @@ export const Dashboard: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data Início
+              Período
             </label>
-            <input
-              type="date"
-              value={filters.startDate || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data Fim
-            </label>
-            <input
-              type="date"
-              value={filters.endDate || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-              className="input"
+            <DateRangePicker
+              startDate={filters.startDate || ''}
+              endDate={filters.endDate || ''}
+              onDateChange={(startDate, endDate) => 
+                setFilters(prev => ({ ...prev, startDate, endDate }))
+              }
             />
           </div>
           <div>
@@ -305,35 +296,6 @@ export const Dashboard: React.FC = () => {
               className="w-full"
             />
           </div>
-        </div>
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => setFilters({
-              startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              endDate: new Date().toISOString().split('T')[0],
-            })}
-            className="btn btn-secondary btn-sm"
-          >
-            Últimos 7 dias
-          </button>
-          <button
-            onClick={() => setFilters({
-              startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              endDate: new Date().toISOString().split('T')[0],
-            })}
-            className="btn btn-secondary btn-sm"
-          >
-            Últimos 30 dias
-          </button>
-          <button
-            onClick={() => setFilters({
-              startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-              endDate: new Date().toISOString().split('T')[0],
-            })}
-            className="btn btn-secondary btn-sm"
-          >
-            Este mês
-          </button>
         </div>
       </div>
 
@@ -561,7 +523,7 @@ export const Dashboard: React.FC = () => {
                     background: {
                       enabled: false
                     },
-                    formatter: function (val, opts) {
+                    formatter: function (_val, opts) {
                       const originalData = prCommitData[opts.dataPointIndex];
                       const originalValue = opts.seriesIndex === 0 ? originalData?.pullRequests : originalData?.commits;
                       return originalValue || 0;
@@ -645,7 +607,7 @@ export const Dashboard: React.FC = () => {
                     background: {
                       enabled: false
                     },
-                    formatter: function (val, opts) {
+                    formatter: function (_val, opts) {
                       const originalData = prReviewTeamData[opts.dataPointIndex];
                       const originalValue = opts.seriesIndex === 0 ? originalData?.pullRequests : originalData?.reviews;
                       return originalValue || 0;
