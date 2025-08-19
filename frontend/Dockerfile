@@ -29,5 +29,5 @@ EXPOSE 5173
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:5173/ || exit 1
 
-# Start application in development mode
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Start application in development mode with Docker config
+CMD ["npm", "run", "dev", "--", "--config", "vite.config.docker.ts", "--host", "0.0.0.0"]
