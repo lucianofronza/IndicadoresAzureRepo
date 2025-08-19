@@ -864,7 +864,22 @@ export const Dashboard: React.FC = () => {
                     } 
                   },
                   dataLabels: {
-                    enabled: false
+                    enabled: true,
+                    style: {
+                      colors: ['#FFFFFF'],
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    },
+                    background: {
+                      enabled: false
+                    },
+                    formatter: function (val, opts) {
+                      // Only show labels for column series (index 0 and 1)
+                      if (opts.seriesIndex <= 1) {
+                        return (val as number).toFixed(0);
+                      }
+                      return '';
+                    }
                   },
                   xaxis: { 
                     categories: filesChangedData.map((item: any) => item?.team?.name || 'Sem time informado'),
@@ -880,36 +895,26 @@ export const Dashboard: React.FC = () => {
                   },
                   yaxis: [
                     {
-                      title: { text: 'Total de arquivos' },
+                      title: { text: 'Total de arquivos e PRs' },
                       labels: { formatter: function (val) { return (val as number).toFixed(0) } },
                       min: 0,
                       max: function() {
                         const filesData = filesChangedData.map((item: any) => item?.totalFilesChanged || 0);
-                        const maxFiles = Math.max(...filesData);
-                        return maxFiles * 1.2; // 20% acima do máximo
-                      }
-                    },
-                    {
-                      opposite: true,
-                      show: false,
-                      title: { text: 'Total de PRs' },
-                      labels: { formatter: function (val) { return (val as number).toFixed(0) } },
-                      min: 0,
-                      max: function() {
                         const prData = filesChangedData.map((item: any) => item?.pullRequests || 0);
-                        const maxPRs = Math.max(...prData);
-                        return maxPRs * 1.5; // 50% acima do máximo
-                      }
+                        const maxValue = Math.max(...filesData, ...prData);
+                        return maxValue * 1.2; // 20% acima do máximo
+                      },
+                      seriesName: ['Total de arquivos alterados', 'Pull requests']
                     },
                     {
                       opposite: true,
                       title: { text: 'Média de arquivos' },
-                      labels: { formatter: function (val) { return (val as number).toFixed(1) } },
+                      labels: { formatter: function (val) { return (val as number).toFixed(0) } },
                       min: 0,
                       max: function() {
                         const avgData = filesChangedData.map((item: any) => item?.averageFilesChanged || 0);
                         const maxAvg = Math.max(...avgData);
-                        return maxAvg * 2; // 100% acima do máximo para melhor visualização
+                        return maxAvg * 1.5; // 50% acima do máximo para melhor visualização
                       },
                       seriesName: 'Média de arquivos alterados'
                     }
@@ -924,7 +929,7 @@ export const Dashboard: React.FC = () => {
                           } else if (opts.seriesIndex === 1) {
                             return `${(val as number).toFixed(0)}`;
                           } else {
-                            return `${(val as number).toFixed(1)}`;
+                            return `${(val as number).toFixed(0)}`;
                           }
                         }
                       },
@@ -935,7 +940,7 @@ export const Dashboard: React.FC = () => {
                           } else if (opts.seriesIndex === 1) {
                             return `${(val as number).toFixed(0)}`;
                           } else {
-                            return `${(val as number).toFixed(1)}`;
+                            return `${(val as number).toFixed(0)}`;
                           }
                         }
                       }
@@ -949,9 +954,9 @@ export const Dashboard: React.FC = () => {
                     showForNullSeries: false,
                     showForZeroSeries: false
                   },                  
-                  colors: ['#3B82F6', '#F59E0B', '#10B981' ],
+                  colors: ['#3B82F6', '#10B981', '#F59E0B'],
                   fill: { opacity: 1 },
-                  stroke: { width: [0, 3, 0], curve: 'smooth' },
+                  stroke: { width: [0, 0, 3], curve: 'smooth' },
                   noData: {
                     text: 'Nenhum dado disponível'
                   }
@@ -964,12 +969,12 @@ export const Dashboard: React.FC = () => {
                   },
                   { 
                     name: 'Pull requests', 
-                    type: 'line',
+                    type: 'column',
                     data: filesChangedData.map((item: any) => item?.pullRequests || 0)
                   },
                   { 
                     name: 'Média de arquivos alterados', 
-                    type: 'column',
+                    type: 'line',
                     data: filesChangedData.map((item: any) => item?.averageFilesChanged || 0)
                   }
                 ]}
@@ -1000,7 +1005,7 @@ export const Dashboard: React.FC = () => {
                     enabled: true,
                     style: { colors: ['#ffffff'], fontWeight: 'bold', fontSize: '14px' },
                     background: { enabled: false },
-                    formatter: function (val) { return (val as number).toFixed(0) }
+                                          formatter: function (val: any) { return (val as number).toFixed(0) }
                   },
                   xaxis: { 
                     categories: reviewsPerformedData.map((item: any) => item?.team?.name || 'Sem time informado'), 
