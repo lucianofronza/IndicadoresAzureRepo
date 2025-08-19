@@ -551,7 +551,22 @@ export const Dashboard: React.FC = () => {
                       dataLabels: { position: 'center' }
                     } 
                   },
-                  dataLabels: { enabled: false },
+                  dataLabels: { 
+                    enabled: true,
+                    style: {
+                      colors: ['#FFFFFF'],
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    },
+                    background: {
+                      enabled: false
+                    },
+                    formatter: function (val, opts) {
+                      const originalData = prCommitData[opts.dataPointIndex];
+                      const originalValue = opts.seriesIndex === 0 ? originalData?.pullRequests : originalData?.commits;
+                      return originalValue || 0;
+                    }
+                  },
                   xaxis: { 
                     categories: prCommitData.map((item: any) => item?.team?.name || 'Sem time informado'),
                     labels: { style: { fontSize: '12px' } },
