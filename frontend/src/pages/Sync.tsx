@@ -55,7 +55,7 @@ export const Sync: React.FC = () => {
       const response = await api.post(`/sync/${repositoryId}`, { syncType })
       return response.data
     },
-    onSuccess: (data, { repositoryId, syncType }) => {
+    onSuccess: (_data, { repositoryId, syncType }) => {
       queryClient.invalidateQueries({ queryKey: ['sync-statuses'] })
       const repoName = repositoriesData?.data?.find((repo: Repository) => repo.id === repositoryId)?.name
       const syncTypeText = syncType === 'full' ? 'completa' : 'incremental'

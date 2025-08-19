@@ -78,7 +78,7 @@ export const AzureDevOpsDemo: React.FC = () => {
       })
       return response.data
     },
-    onSuccess: (data, repository) => {
+    onSuccess: (_data, repository) => {
       toast.success(`Repositório "${repository.name}" adicionado ao monitoramento!`)
       setAddingRepositories(prev => {
         const newSet = new Set(prev)
@@ -232,7 +232,7 @@ export const AzureDevOpsDemo: React.FC = () => {
                     >
                       <h3 className="font-medium text-gray-900">{repo.name}</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        Projeto: {typeof repo.project === 'object' ? repo.project.name : repo.project}
+                        Projeto: {typeof repo.project === 'object' && repo.project ? (repo.project as any).name : repo.project}
                       </p>
                     </div>
                     

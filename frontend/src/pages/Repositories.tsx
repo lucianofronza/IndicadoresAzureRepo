@@ -502,8 +502,8 @@ const RepositoryStatsModal: React.FC<RepositoryStatsModalProps> = ({ repository,
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Informações Adicionais</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Última Sincronização:</span> {repository.lastSyncAt ? 
-                      new Date(repository.lastSyncAt).toLocaleString('pt-BR') : 'Nunca'}
+                    <span className="font-medium">Última Sincronização:</span> {(repository as any).lastSyncAt ? 
+                      new Date((repository as any).lastSyncAt).toLocaleString('pt-BR') : 'Nunca'}
                   </div>
                 </div>
               </div>
@@ -545,7 +545,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
     organization: repository?.organization || '',
     project: repository?.project || '',
     url: repository?.url || '',
-    azureId: repository?.azureId || '',
+    azureId: (repository as any)?.azureId || '',
     teamId: repository?.teamId || '',
   })
 
