@@ -64,11 +64,22 @@ router.get('/status', asyncHandler(async (req, res) => {
 // Validate Azure DevOps connection
 router.post('/validate', asyncHandler(async (req, res) => {
   try {
-    const isValid = await azureDevOpsService.validateConnection();
+    const { organization, personalAccessToken } = req.body;
+
+    if (!organization || !personalAccessToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_PARAMETERS',
+        message: 'Organization and personal access token are required',
+      });
+    }
+
+    const isValid = await azureDevOpsService.validateConnectionWithCredentials(organization, personalAccessToken);
 
     if (isValid) {
       logger.info({
         requestId: req.requestId,
+        organization,
       }, 'Azure DevOps connection validated successfully');
 
       res.json({
@@ -90,7 +101,7 @@ router.post('/validate', asyncHandler(async (req, res) => {
     res.status(400).json({
       success: false,
       error: 'CONNECTION_ERROR',
-      message: 'Failed to validate Azure DevOps connection. Please configure the organization and personal access token.',
+      message: 'Failed to validate Azure DevOps connection. Please check your organization and personal access token.',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }

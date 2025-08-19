@@ -114,6 +114,44 @@ export class AzureDevOpsService {
     }
   }
 
+  async validateConnectionWithCredentials(organization: string, personalAccessToken: string): Promise<boolean> {
+    try {
+      const baseUrl = `https://dev.azure.com/${organization}`;
+      
+      logger.info({ 
+        organization,
+        hasToken: !!personalAccessToken,
+        tokenLength: personalAccessToken.length
+      }, 'Validating Azure DevOps connection with provided credentials');
+      
+      const response = await axios.get(`${baseUrl}/_apis/projects?api-version=7.0&$top=1`, {
+        headers: this.getAuthHeaders(personalAccessToken),
+        timeout: 10000, // 10 seconds timeout
+      });
+
+      logger.info({ 
+        organization,
+        status: response.status,
+        hasData: !!response.data,
+        projectCount: response.data?.value?.length || 0
+      }, 'Azure DevOps connection validation successful');
+
+      return response.status === 200;
+    } catch (error: any) {
+      const status = error.response?.status;
+      const errorMessage = error.response?.data?.message || error.message;
+      
+      logger.error({ 
+        organization,
+        status,
+        error: errorMessage,
+        responseData: error.response?.data
+      }, 'Azure DevOps connection validation failed');
+      
+      return false;
+    }
+  }
+
   async checkApiStatus(): Promise<{
     isAvailable: boolean;
     rateLimitRemaining?: number;
