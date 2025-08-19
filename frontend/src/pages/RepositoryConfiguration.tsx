@@ -23,7 +23,7 @@ interface AzureConfig {
   personalAccessToken: string
 }
 
-export const AzureDevOpsDemo: React.FC = () => {
+export const RepositoryConfiguration: React.FC = () => {
   const [azureConfig, setAzureConfig] = useState<AzureConfig>({
     organization: '',
     personalAccessToken: ''
@@ -59,7 +59,7 @@ export const AzureDevOpsDemo: React.FC = () => {
         toast.error(result.message || 'Erro ao validar conexão. Verifique a organização e o token.')
       }
     },
-    onError: (error) => {
+    onError: () => {
       setIsConfigValid(false)
       setIsValidating(false)
       toast.error('Erro ao validar conexão. Verifique a organização e o token.')
@@ -198,10 +198,10 @@ export const AzureDevOpsDemo: React.FC = () => {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Integração Azure DevOps
+          Repositórios Azure DevOps
         </h1>
         <p className="text-gray-600">
-          Configure sua conexão com Azure DevOps e gerencie repositórios
+          Configure sua conexão com Azure DevOps e inclua repositórios para monitoramento
         </p>
       </div>
 

@@ -7,7 +7,7 @@ import { Roles } from '@/pages/Roles'
 import { Stacks } from '@/pages/Stacks'
 import { Repositories } from '@/pages/Repositories'
 import { Sync } from '@/pages/Sync'
-import { AzureDevOpsDemo } from '@/pages/AzureDevOpsDemo'
+import { RepositoryConfiguration } from '@/pages/RepositoryConfiguration'
 import { SystemConfig } from '@/pages/SystemConfig'
 
 function App() {
@@ -21,7 +21,7 @@ function App() {
         <Route path="stacks" element={<Stacks />} />
         <Route path="repositories" element={<Repositories />} />
         <Route path="sync" element={<Sync />} />
-        <Route path="azure-devops" element={<AzureDevOpsDemo />} />
+        <Route path="azure-devops" element={<RepositoryConfiguration />} />
         <Route path="system-config" element={<SystemConfig />} />
       </Route>
     </Routes>
