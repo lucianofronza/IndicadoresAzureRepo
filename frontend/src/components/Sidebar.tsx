@@ -167,7 +167,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
 
   const toggleCollapse = () => {
     const newCollapsed = !isCollapsed

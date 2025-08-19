@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 
 export const Layout: React.FC = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
 
   return (
     <div className="min-h-screen bg-gray-50">
