@@ -723,7 +723,22 @@ export const Dashboard: React.FC = () => {
                       } 
                     },
                     dataLabels: {
-                      enabled: false
+                      enabled: true,
+                      style: {
+                        colors: ['#FFFFFF'],
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      },
+                      background: {
+                        enabled: false
+                      },
+                      formatter: function (val, opts) {
+                        // Only show labels for column series (index 0 and 1)
+                        if (opts.seriesIndex <= 1) {
+                          return (val as number).toFixed(1);
+                        }
+                        return '';
+                      }
                     },
                     xaxis: { 
                       categories: cycleTimeByTeamData.map((item: any) => item?.team?.name || 'Sem time informado'),
