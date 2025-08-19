@@ -66,7 +66,25 @@ export interface Team {
   url: string
 }
 
+export interface AzureConfig {
+  organization: string
+  personalAccessToken: string
+}
+
 class AzureDevOpsApi {
+  // Validate Azure DevOps connection
+  async validateConnection(config: AzureConfig): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await api.post('/azure-devops/validate', config)
+      return { success: true, message: response.data.message }
+    } catch (error: any) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Erro ao validar conexão' 
+      }
+    }
+  }
+
   // Get repositories for a specific project
   async getRepositories(projectId?: string): Promise<Repository[]> {
     if (!projectId) {
