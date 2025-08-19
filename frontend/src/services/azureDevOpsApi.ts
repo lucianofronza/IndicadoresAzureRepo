@@ -71,9 +71,15 @@ export interface AzureConfig {
   personalAccessToken: string
 }
 
+export interface ValidationResult {
+  success: boolean
+  message?: string
+  sessionId?: string
+}
+
 class AzureDevOpsApi {
   // Validate Azure DevOps connection
-  async validateConnection(config: AzureConfig): Promise<{ success: boolean; message?: string }> {
+  async validateConnection(config: AzureConfig): Promise<ValidationResult> {
     try {
       console.log('Validating Azure DevOps connection with config:', {
         organization: config.organization,
@@ -85,7 +91,11 @@ class AzureDevOpsApi {
       
       console.log('Azure DevOps validation response:', response.data)
       
-      return { success: true, message: response.data.message }
+      return { 
+        success: true, 
+        message: response.data.message,
+        sessionId: response.data.data?.sessionId
+      }
     } catch (error: any) {
       console.error('Azure DevOps validation error:', {
         status: error.response?.status,
@@ -101,27 +111,47 @@ class AzureDevOpsApi {
   }
 
   // Get repositories for a specific project
-  async getRepositories(projectId?: string): Promise<Repository[]> {
+  async getRepositories(projectId?: string, sessionId?: string): Promise<Repository[]> {
     if (!projectId) {
       // If no projectId is provided, return empty array
       return []
     }
-    const response = await api.get(`/azure-devops/projects/${projectId}/repositories`)
+    
+    const headers: any = {}
+    if (sessionId) {
+      headers['x-session-id'] = sessionId
+    }
+    
+    const response = await api.get(`/azure-devops/projects/${projectId}/repositories`, {
+      headers
+    })
     return response.data.data
   }
 
   // Get pull requests for a repository
-  async getPullRequests(repositoryId: string, top: number = 100): Promise<PullRequest[]> {
+  async getPullRequests(repositoryId: string, top: number = 100, sessionId?: string): Promise<PullRequest[]> {
+    const headers: any = {}
+    if (sessionId) {
+      headers['x-session-id'] = sessionId
+    }
+    
     const response = await api.get(`/azure-devops/repositories/${repositoryId}/pull-requests`, {
-      params: { top }
+      params: { top },
+      headers
     })
     return response.data.data
   }
 
   // Get commits for a repository
-  async getCommits(repositoryId: string, top: number = 100): Promise<Commit[]> {
+  async getCommits(repositoryId: string, top: number = 100, sessionId?: string): Promise<Commit[]> {
+    const headers: any = {}
+    if (sessionId) {
+      headers['x-session-id'] = sessionId
+    }
+    
     const response = await api.get(`/azure-devops/repositories/${repositoryId}/commits`, {
-      params: { top }
+      params: { top },
+      headers
     })
     return response.data.data
   }
@@ -150,9 +180,13 @@ class AzureDevOpsApi {
     return response.data.data
   }
 
-  // Get projects
-  async getProjects(): Promise<Project[]> {
-    const response = await api.get('/azure-devops/projects')
+  // Get projects with session credentials
+  async getProjects(sessionId: string): Promise<Project[]> {
+    const response = await api.get('/azure-devops/projects', {
+      headers: {
+        'x-session-id': sessionId
+      }
+    })
     return response.data.data
   }
 

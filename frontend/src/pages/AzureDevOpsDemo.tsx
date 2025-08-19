@@ -31,6 +31,7 @@ export const AzureDevOpsDemo: React.FC = () => {
   const [showToken, setShowToken] = useState(false)
   const [isConfigValid, setIsConfigValid] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
+  const [sessionId, setSessionId] = useState<string>('')
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [selectedRepository, setSelectedRepository] = useState<string>('')
   const [addingRepositories, setAddingRepositories] = useState<Set<string>>(new Set())
@@ -40,12 +41,21 @@ export const AzureDevOpsDemo: React.FC = () => {
   // Validate Azure DevOps connection
   const validateConnectionMutation = useMutation({
     mutationFn: async (config: AzureConfig) => {
-      return await azureDevOpsApi.validateConnection(config)
+      console.log('validateConnectionMutation.mutationFn called with:', config)
+      const result = await azureDevOpsApi.validateConnection(config)
+      console.log('validateConnectionMutation result:', result)
+      return result
     },
     onSuccess: (result) => {
+      console.log('validateConnectionMutation.onSuccess called with:', result)
       if (result.success) {
         setIsConfigValid(true)
         setIsValidating(false)
+        // Store sessionId if provided
+        if (result.sessionId) {
+          setSessionId(result.sessionId)
+          console.log('SessionId stored:', result.sessionId)
+        }
         toast.success(result.message || 'Conexão com Azure DevOps validada com sucesso!')
       } else {
         setIsConfigValid(false)
@@ -53,7 +63,8 @@ export const AzureDevOpsDemo: React.FC = () => {
         toast.error(result.message || 'Erro ao validar conexão. Verifique a organização e o token.')
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('validateConnectionMutation.onError called with:', error)
       setIsConfigValid(false)
       setIsValidating(false)
       toast.error('Erro ao validar conexão. Verifique a organização e o token.')
@@ -62,32 +73,32 @@ export const AzureDevOpsDemo: React.FC = () => {
 
   // Fetch repositories for selected project
   const { data: repositories, isLoading: reposLoading, error: reposError } = useQuery({
-    queryKey: ['azure-devops-repositories', selectedProject],
-    queryFn: () => azureDevOpsApi.getRepositories(selectedProject),
-    enabled: !!selectedProject && isConfigValid,
+    queryKey: ['azure-devops-repositories', selectedProject, sessionId],
+    queryFn: () => azureDevOpsApi.getRepositories(selectedProject, sessionId),
+    enabled: !!selectedProject && isConfigValid && !!sessionId,
     retry: 1,
   })
 
-  // Fetch projects
+  // Fetch projects with session credentials
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
-    queryKey: ['azure-devops-projects'],
-    queryFn: () => azureDevOpsApi.getProjects(),
-    enabled: isConfigValid,
+    queryKey: ['azure-devops-projects', sessionId],
+    queryFn: () => azureDevOpsApi.getProjects(sessionId),
+    enabled: isConfigValid && !!sessionId,
     retry: 1,
   })
 
   // Fetch pull requests for selected repository
   const { data: pullRequests, isLoading: prsLoading } = useQuery({
-    queryKey: ['azure-devops-pullrequests', selectedRepository],
-    queryFn: () => azureDevOpsApi.getPullRequests(selectedRepository, 50),
-    enabled: !!selectedRepository && isConfigValid,
+    queryKey: ['azure-devops-pullrequests', selectedRepository, sessionId],
+    queryFn: () => azureDevOpsApi.getPullRequests(selectedRepository, 50, sessionId),
+    enabled: !!selectedRepository && isConfigValid && !!sessionId,
   })
 
   // Fetch commits for selected repository
   const { data: commits, isLoading: commitsLoading } = useQuery({
-    queryKey: ['azure-devops-commits', selectedRepository],
-    queryFn: () => azureDevOpsApi.getCommits(selectedRepository, 50),
-    enabled: !!selectedRepository && isConfigValid,
+    queryKey: ['azure-devops-commits', selectedRepository, sessionId],
+    queryFn: () => azureDevOpsApi.getCommits(selectedRepository, 50, sessionId),
+    enabled: !!selectedRepository && isConfigValid && !!sessionId,
   })
 
   // Fetch configured repositories to check if already monitored
@@ -131,11 +142,19 @@ export const AzureDevOpsDemo: React.FC = () => {
   })
 
   const handleValidateConnection = () => {
+    console.log('handleValidateConnection called with config:', {
+      organization: azureConfig.organization,
+      hasToken: !!azureConfig.personalAccessToken,
+      tokenLength: azureConfig.personalAccessToken.length
+    })
+    
     if (!azureConfig.organization || !azureConfig.personalAccessToken) {
+      console.log('Validation failed: missing organization or token')
       toast.error('Por favor, preencha a organização e o token de acesso pessoal.')
       return
     }
 
+    console.log('Starting validation...')
     setIsValidating(true)
     validateConnectionMutation.mutate(azureConfig)
   }
