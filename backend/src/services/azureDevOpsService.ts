@@ -229,12 +229,54 @@ export class AzureDevOpsService {
       return response.data.value.map((project: any) => ({
         id: project.id,
         name: project.name,
-        description: project.description,
+        description: project.description || '',
         url: project.url,
       }));
     } catch (error) {
       logger.error('Failed to get Azure DevOps projects:', error);
-      throw new Error('Failed to fetch projects from Azure DevOps');
+      throw error;
+    }
+  }
+
+  async getProjectsWithCredentials(organization: string, personalAccessToken: string): Promise<AzureDevOpsProject[]> {
+    try {
+      const baseUrl = `https://dev.azure.com/${organization}`;
+      
+      logger.info({ 
+        organization,
+        hasToken: !!personalAccessToken,
+        tokenLength: personalAccessToken.length
+      }, 'Getting Azure DevOps projects with provided credentials');
+      
+      const response = await axios.get(`${baseUrl}/_apis/projects?api-version=7.0`, {
+        headers: this.getAuthHeaders(personalAccessToken),
+      });
+
+      const projects = response.data.value.map((project: any) => ({
+        id: project.id,
+        name: project.name,
+        description: project.description || '',
+        url: project.url,
+      }));
+
+      logger.info({ 
+        organization,
+        projectCount: projects.length
+      }, 'Azure DevOps projects retrieved successfully');
+
+      return projects;
+    } catch (error: any) {
+      const status = error.response?.status;
+      const errorMessage = error.response?.data?.message || error.message;
+      
+      logger.error({ 
+        organization,
+        status,
+        error: errorMessage,
+        responseData: error.response?.data
+      }, 'Failed to get Azure DevOps projects');
+      
+      throw error;
     }
   }
 
@@ -247,6 +289,33 @@ export class AzureDevOpsService {
         `${baseUrl}/${projectId}/_apis/git/repositories?api-version=7.0`,
         {
           headers: this.getAuthHeaders(config.personalAccessToken),
+        }
+      );
+
+      return response.data.value.map((repo: any) => ({
+        id: repo.id,
+        name: repo.name,
+        url: repo.url,
+        project: {
+          id: repo.project.id,
+          name: repo.project.name,
+        },
+        defaultBranch: repo.defaultBranch,
+      }));
+    } catch (error) {
+      logger.error('Failed to get Azure DevOps repositories:', error);
+      throw new Error('Failed to fetch repositories from Azure DevOps');
+    }
+  }
+
+  async getRepositoriesWithCredentials(organization: string, personalAccessToken: string, projectId: string): Promise<AzureDevOpsRepository[]> {
+    try {
+      const baseUrl = `https://dev.azure.com/${organization}`;
+      
+      const response = await axios.get(
+        `${baseUrl}/${projectId}/_apis/git/repositories?api-version=7.0`,
+        {
+          headers: this.getAuthHeaders(personalAccessToken),
         }
       );
 
@@ -316,6 +385,87 @@ export class AzureDevOpsService {
       }));
     } catch (error) {
       logger.error('Failed to get Azure DevOps pull requests:', error);
+      throw new Error('Failed to fetch pull requests from Azure DevOps');
+    }
+  }
+
+  async getPullRequestsWithCredentials(organization: string, personalAccessToken: string, repositoryId: string, searchCriteria?: any): Promise<AzureDevOpsPullRequest[]> {
+    try {
+      const baseUrl = `https://dev.azure.com/${organization}`;
+      
+      const params = new URLSearchParams({
+        'api-version': '7.0',
+        'searchCriteria.status': searchCriteria?.status || 'active',
+        // Removendo targetRefName para buscar PRs para qualquer branch
+      });
+
+      if (searchCriteria?.createdBy) {
+        params.append('searchCriteria.createdBy', searchCriteria.createdBy);
+      }
+
+      if (searchCriteria?.fromDate) {
+        params.append('searchCriteria.fromDate', searchCriteria.fromDate);
+      }
+
+      if (searchCriteria?.toDate) {
+        params.append('searchCriteria.toDate', searchCriteria.toDate);
+      }
+
+      const url = `${baseUrl}/_apis/git/repositories/${repositoryId}/pullrequests?${params.toString()}`;
+      
+      logger.info({
+        organization,
+        repositoryId,
+        hasToken: !!personalAccessToken
+      }, 'Fetching Azure DevOps pull requests');
+
+      const response = await axios.get(url, {
+        headers: this.getAuthHeaders(personalAccessToken),
+      });
+
+      logger.info({
+        organization,
+        repositoryId,
+        responseStatus: response.status,
+        pullRequestCount: response.data.value?.length || 0,
+        hasData: !!response.data.value
+      }, 'Azure DevOps pull requests response received');
+
+      if (!response.data.value) {
+        logger.warn({
+          organization,
+          repositoryId,
+          responseData: response.data
+        }, 'No pull requests data in response');
+        return [];
+      }
+
+      return response.data.value.map((pr: any) => ({
+        id: pr.pullRequestId,
+        title: pr.title,
+        description: pr.description,
+        status: pr.status,
+        createdBy: {
+          id: pr.createdBy.id,
+          displayName: pr.createdBy.displayName,
+          uniqueName: pr.createdBy.uniqueName,
+        },
+        creationDate: pr.creationDate,
+        closedDate: pr.closedDate,
+        mergeStatus: pr.mergeStatus,
+        isDraft: pr.isDraft,
+        url: pr.url,
+        sourceRefName: pr.sourceRefName,
+        targetRefName: pr.targetRefName,
+      }));
+    } catch (error) {
+      logger.error({
+        organization,
+        repositoryId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      }, 'Failed to get Azure DevOps pull requests');
       throw new Error('Failed to fetch pull requests from Azure DevOps');
     }
   }
@@ -414,6 +564,82 @@ export class AzureDevOpsService {
       }));
     } catch (error) {
       logger.error('Failed to get Azure DevOps commits:', error);
+      throw new Error('Failed to fetch commits from Azure DevOps');
+    }
+  }
+
+  async getCommitsWithCredentials(organization: string, personalAccessToken: string, repositoryId: string, searchCriteria?: any): Promise<AzureDevOpsCommit[]> {
+    try {
+      const baseUrl = `https://dev.azure.com/${organization}`;
+      
+      const params = new URLSearchParams({
+        'api-version': '7.0',
+      });
+
+      if (searchCriteria?.fromDate) {
+        params.append('fromDate', searchCriteria.fromDate);
+      }
+
+      if (searchCriteria?.toDate) {
+        params.append('toDate', searchCriteria.toDate);
+      }
+
+      if (searchCriteria?.author) {
+        params.append('author', searchCriteria.author);
+      }
+
+      const url = `${baseUrl}/_apis/git/repositories/${repositoryId}/commits?${params.toString()}`;
+      
+      logger.info({
+        organization,
+        repositoryId,
+        hasToken: !!personalAccessToken
+      }, 'Fetching Azure DevOps commits');
+
+      const response = await axios.get(url, {
+        headers: this.getAuthHeaders(personalAccessToken),
+      });
+
+      logger.info({
+        organization,
+        repositoryId,
+        responseStatus: response.status,
+        commitCount: response.data.value?.length || 0,
+        hasData: !!response.data.value
+      }, 'Azure DevOps commits response received');
+
+      if (!response.data.value) {
+        logger.warn({
+          organization,
+          repositoryId,
+          responseData: response.data
+        }, 'No commits data in response');
+        return [];
+      }
+
+      return response.data.value.map((commit: any) => ({
+        commitId: commit.commitId,
+        author: {
+          name: commit.author.name,
+          email: commit.author.email,
+          date: commit.author.date,
+        },
+        committer: {
+          name: commit.committer.name,
+          email: commit.committer.email,
+          date: commit.committer.date,
+        },
+        comment: commit.comment,
+        url: commit.url,
+      }));
+    } catch (error) {
+      logger.error({
+        organization,
+        repositoryId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      }, 'Failed to get Azure DevOps commits');
       throw new Error('Failed to fetch commits from Azure DevOps');
     }
   }

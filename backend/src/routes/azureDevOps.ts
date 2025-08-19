@@ -6,6 +6,9 @@ import { AzureDevOpsService } from '@/services/azureDevOpsService';
 const router = Router();
 const azureDevOpsService = new AzureDevOpsService();
 
+// Store temporary credentials for the session
+const sessionCredentials = new Map<string, { organization: string; personalAccessToken: string }>();
+
 // Get Azure DevOps configuration
 router.get('/config', asyncHandler(async (req, res) => {
   try {
@@ -77,15 +80,21 @@ router.post('/validate', asyncHandler(async (req, res) => {
     const isValid = await azureDevOpsService.validateConnectionWithCredentials(organization, personalAccessToken);
 
     if (isValid) {
+      // Store credentials for this session
+      const sessionId = req.requestId || `session_${Date.now()}`;
+      sessionCredentials.set(sessionId, { organization, personalAccessToken });
+
       logger.info({
         requestId: req.requestId,
         organization,
+        sessionId,
       }, 'Azure DevOps connection validated successfully');
 
       res.json({
         success: true,
         data: {
           message: 'Connection validated successfully',
+          sessionId,
         },
         message: 'Azure DevOps connection is valid',
       });
@@ -107,14 +116,38 @@ router.post('/validate', asyncHandler(async (req, res) => {
   }
 }));
 
-// Get Azure DevOps projects
+// Get Azure DevOps projects using session credentials
 router.get('/projects', asyncHandler(async (req, res) => {
   try {
-    const projects = await azureDevOpsService.getProjects();
+    const sessionId = req.headers['x-session-id'] as string;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_SESSION',
+        message: 'Session ID is required. Please validate your connection first.',
+      });
+    }
+
+    const credentials = sessionCredentials.get(sessionId);
+    
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_SESSION',
+        message: 'Session expired. Please validate your connection again.',
+      });
+    }
+
+    const projects = await azureDevOpsService.getProjectsWithCredentials(
+      credentials.organization, 
+      credentials.personalAccessToken
+    );
 
     logger.info({
       projectCount: projects.length,
       requestId: req.requestId,
+      organization: credentials.organization,
     }, 'Azure DevOps projects retrieved successfully');
 
     res.json({
@@ -133,17 +166,42 @@ router.get('/projects', asyncHandler(async (req, res) => {
   }
 }));
 
-// Get Azure DevOps repositories for a project
+// Get Azure DevOps repositories for a project using session credentials
 router.get('/projects/:projectId/repositories', asyncHandler(async (req, res) => {
   const { projectId } = req.params;
 
   try {
-    const repositories = await azureDevOpsService.getRepositories(projectId);
+    const sessionId = req.headers['x-session-id'] as string;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_SESSION',
+        message: 'Session ID is required. Please validate your connection first.',
+      });
+    }
+
+    const credentials = sessionCredentials.get(sessionId);
+    
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_SESSION',
+        message: 'Session expired. Please validate your connection again.',
+      });
+    }
+
+    const repositories = await azureDevOpsService.getRepositoriesWithCredentials(
+      credentials.organization, 
+      credentials.personalAccessToken, 
+      projectId
+    );
 
     logger.info({
       projectId,
       repositoryCount: repositories.length,
       requestId: req.requestId,
+      organization: credentials.organization,
     }, 'Azure DevOps repositories retrieved successfully');
 
     res.json({
@@ -162,23 +220,49 @@ router.get('/projects/:projectId/repositories', asyncHandler(async (req, res) =>
   }
 }));
 
-// Get Azure DevOps pull requests for a repository
+// Get Azure DevOps pull requests for a repository using session credentials
 router.get('/repositories/:repositoryId/pull-requests', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;
   const { status, fromDate, toDate } = req.query;
 
   try {
+    const sessionId = req.headers['x-session-id'] as string;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_SESSION',
+        message: 'Session ID is required. Please validate your connection first.',
+      });
+    }
+
+    const credentials = sessionCredentials.get(sessionId);
+    
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_SESSION',
+        message: 'Session expired. Please validate your connection again.',
+      });
+    }
+
     const searchCriteria: any = {};
     if (status) searchCriteria.status = status;
     if (fromDate) searchCriteria.fromDate = fromDate;
     if (toDate) searchCriteria.toDate = toDate;
 
-    const pullRequests = await azureDevOpsService.getPullRequests(repositoryId, searchCriteria);
+    const pullRequests = await azureDevOpsService.getPullRequestsWithCredentials(
+      credentials.organization,
+      credentials.personalAccessToken,
+      repositoryId,
+      searchCriteria
+    );
 
     logger.info({
       repositoryId,
       pullRequestCount: pullRequests.length,
       requestId: req.requestId,
+      organization: credentials.organization,
     }, 'Azure DevOps pull requests retrieved successfully');
 
     res.json({
@@ -197,23 +281,49 @@ router.get('/repositories/:repositoryId/pull-requests', asyncHandler(async (req,
   }
 }));
 
-// Get Azure DevOps commits for a repository
+// Get Azure DevOps commits for a repository using session credentials
 router.get('/repositories/:repositoryId/commits', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;
   const { fromDate, toDate, author } = req.query;
 
   try {
+    const sessionId = req.headers['x-session-id'] as string;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_SESSION',
+        message: 'Session ID is required. Please validate your connection first.',
+      });
+    }
+
+    const credentials = sessionCredentials.get(sessionId);
+    
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_SESSION',
+        message: 'Session expired. Please validate your connection again.',
+      });
+    }
+
     const searchCriteria: any = {};
     if (fromDate) searchCriteria.fromDate = fromDate;
     if (toDate) searchCriteria.toDate = toDate;
     if (author) searchCriteria.author = author;
 
-    const commits = await azureDevOpsService.getCommits(repositoryId, searchCriteria);
+    const commits = await azureDevOpsService.getCommitsWithCredentials(
+      credentials.organization,
+      credentials.personalAccessToken,
+      repositoryId,
+      searchCriteria
+    );
 
     logger.info({
       repositoryId,
       commitCount: commits.length,
       requestId: req.requestId,
+      organization: credentials.organization,
     }, 'Azure DevOps commits retrieved successfully');
 
     res.json({

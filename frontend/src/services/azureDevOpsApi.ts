@@ -81,15 +81,7 @@ class AzureDevOpsApi {
   // Validate Azure DevOps connection
   async validateConnection(config: AzureConfig): Promise<ValidationResult> {
     try {
-      console.log('Validating Azure DevOps connection with config:', {
-        organization: config.organization,
-        hasToken: !!config.personalAccessToken,
-        tokenLength: config.personalAccessToken.length
-      })
-      
       const response = await api.post('/azure-devops/validate', config)
-      
-      console.log('Azure DevOps validation response:', response.data)
       
       return { 
         success: true, 
@@ -97,12 +89,6 @@ class AzureDevOpsApi {
         sessionId: response.data.data?.sessionId
       }
     } catch (error: any) {
-      console.error('Azure DevOps validation error:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      })
-      
       return { 
         success: false, 
         message: error.response?.data?.message || 'Erro ao validar conexão' 
@@ -139,6 +125,7 @@ class AzureDevOpsApi {
       params: { top },
       headers
     })
+    
     return response.data.data
   }
 
@@ -153,6 +140,7 @@ class AzureDevOpsApi {
       params: { top },
       headers
     })
+    
     return response.data.data
   }
 

@@ -41,20 +41,16 @@ export const AzureDevOpsDemo: React.FC = () => {
   // Validate Azure DevOps connection
   const validateConnectionMutation = useMutation({
     mutationFn: async (config: AzureConfig) => {
-      console.log('validateConnectionMutation.mutationFn called with:', config)
       const result = await azureDevOpsApi.validateConnection(config)
-      console.log('validateConnectionMutation result:', result)
       return result
     },
     onSuccess: (result) => {
-      console.log('validateConnectionMutation.onSuccess called with:', result)
       if (result.success) {
         setIsConfigValid(true)
         setIsValidating(false)
         // Store sessionId if provided
         if (result.sessionId) {
           setSessionId(result.sessionId)
-          console.log('SessionId stored:', result.sessionId)
         }
         toast.success(result.message || 'Conexão com Azure DevOps validada com sucesso!')
       } else {
@@ -64,7 +60,6 @@ export const AzureDevOpsDemo: React.FC = () => {
       }
     },
     onError: (error) => {
-      console.error('validateConnectionMutation.onError called with:', error)
       setIsConfigValid(false)
       setIsValidating(false)
       toast.error('Erro ao validar conexão. Verifique a organização e o token.')
@@ -142,19 +137,11 @@ export const AzureDevOpsDemo: React.FC = () => {
   })
 
   const handleValidateConnection = () => {
-    console.log('handleValidateConnection called with config:', {
-      organization: azureConfig.organization,
-      hasToken: !!azureConfig.personalAccessToken,
-      tokenLength: azureConfig.personalAccessToken.length
-    })
-    
     if (!azureConfig.organization || !azureConfig.personalAccessToken) {
-      console.log('Validation failed: missing organization or token')
       toast.error('Por favor, preencha a organização e o token de acesso pessoal.')
       return
     }
 
-    console.log('Starting validation...')
     setIsValidating(true)
     validateConnectionMutation.mutate(azureConfig)
   }
