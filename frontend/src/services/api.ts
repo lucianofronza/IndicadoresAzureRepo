@@ -12,6 +12,14 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
+    console.error('API Error Interceptor:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    })
+    
     if (error.response?.status >= 500) {
       toast.error('Erro interno do servidor. Tente novamente mais tarde.')
     } else if (error.response?.data?.message) {
