@@ -82,26 +82,9 @@ cd indicadores-azure-repos
 #### Backend
 ```bash
 cd backend
-cp ../env.example .env
-```
-
-Edite o arquivo `.env`:
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/indicadores_azure"
-
-# Redis
-REDIS_URL="redis://localhost:6379"
-
-# Azure DevOps (configurado por repositório na aplicação)
-# Não é mais necessário configurar aqui
-
-
-
-# Environment
-NODE_ENV="development"
-PORT=8080
-LOG_LEVEL="info"
+# Para desenvolvimento local, use as mesmas variáveis do Docker
+# Copie o arquivo de exemplo e configure conforme necessário
+cp ../env.docker.example .env
 ```
 
 #### Frontend

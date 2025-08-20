@@ -19,7 +19,7 @@ git clone <repository-url>
 cd IndicadoresAzureRepo
 
 # Copie o arquivo de exemplo
-cp env.example .env
+cp env.docker.example .env
 
 # Configure as variáveis no .env
 # Veja seção "Variáveis de Ambiente" abaixo

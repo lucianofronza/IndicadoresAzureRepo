@@ -28,9 +28,9 @@ echo "✅ Pré-requisitos verificados"
 # Copiar arquivo de exemplo de variáveis de ambiente
 if [ ! -f .env ]; then
     echo "📝 Copiando arquivo de variáveis de ambiente..."
-    cp env.example .env
+    cp env.docker.example .env
     echo "⚠️  Configure as variáveis no arquivo .env antes de continuar"
-    echo "   Especialmente AZURE_CLIENT_ID e AZURE_CLIENT_SECRET"
+    echo "   Especialmente POSTGRES_PASSWORD e ENCRYPTION_KEY"
 fi
 
 # Instalar dependências do backend

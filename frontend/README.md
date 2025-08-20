@@ -20,9 +20,8 @@ Aplicação React para o dashboard de indicadores de desenvolvedores do Azure Re
 # Instalar dependências
 npm install
 
-# Configurar variáveis de ambiente
-cp .env.example .env
-# Editar .env com suas configurações
+# Configurar variáveis de ambiente (opcional)
+# Crie um arquivo .env se necessário para configurações específicas
 ```
 
 ## 🔧 Desenvolvimento
