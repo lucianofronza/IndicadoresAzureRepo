@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { encrypt } from '../src/utils/encryption'
 
 const prisma = new PrismaClient()
 
@@ -139,6 +140,7 @@ async function main() {
       project: 'indicadores',
       url: 'https://dev.azure.com/mycompany/indicadores/_git/backend-api',
       teamId: team1.id,
+      personalAccessToken: encrypt('sample-token-for-seed'), // Token de exemplo criptografado
     },
   })
 
@@ -151,6 +153,7 @@ async function main() {
       project: 'indicadores',
       url: 'https://dev.azure.com/mycompany/indicadores/_git/frontend-app',
       teamId: team2.id,
+      personalAccessToken: encrypt('sample-token-for-seed'), // Token de exemplo criptografado
     },
   })
 
