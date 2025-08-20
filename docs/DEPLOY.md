@@ -91,7 +91,7 @@ kubectl create secret generic indicadores-secrets \
   --from-literal=REDIS_URL="redis://redis:6379" \
   --from-literal=AZURE_CLIENT_ID="your-azure-client-id" \
   --from-literal=AZURE_CLIENT_SECRET="your-azure-client-secret" \
-  --from-literal=JWT_SECRET="your-jwt-secret" \
+  
   -n indicadores-azure
 ```
 
@@ -163,8 +163,7 @@ AZURE_CLIENT_ID="your-azure-client-id"
 AZURE_CLIENT_SECRET="your-azure-client-secret"
 AZURE_REDIRECT_URI="http://localhost:8080/auth/azure/callback"
 
-# JWT
-JWT_SECRET="your-jwt-secret-change-in-production"
+
 
 # App
 NODE_ENV="development"
@@ -188,7 +187,7 @@ data:
   REDIS_URL: <base64-encoded-redis-url>
   AZURE_CLIENT_ID: <base64-encoded-azure-client-id>
   AZURE_CLIENT_SECRET: <base64-encoded-azure-client-secret>
-  JWT_SECRET: <base64-encoded-jwt-secret>
+  
 ```
 
 ## Configuração Azure DevOps

@@ -56,7 +56,6 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
       PORT: ${PORT:-8080}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
-      JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:

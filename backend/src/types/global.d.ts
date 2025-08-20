@@ -9,7 +9,7 @@ declare global {
       AZURE_CLIENT_ID: string;
       AZURE_CLIENT_SECRET: string;
       AZURE_REDIRECT_URI: string;
-      JWT_SECRET: string;
+    
       ENCRYPTION_KEY: string;
       LOG_LEVEL?: string;
       FRONTEND_URL?: string;

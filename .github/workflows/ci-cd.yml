@@ -40,7 +40,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://test:test@localhost:5432/test_db
         REDIS_URL: redis://localhost:6379
-        JWT_SECRET: test-secret
+
         ENCRYPTION_KEY: test-encryption-key-32-chars!!
 
     - name: Upload coverage to Codecov

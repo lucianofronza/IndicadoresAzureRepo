@@ -53,8 +53,7 @@ services:
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
       AZURE_REDIRECT_URI: http://localhost:8080/auth/azure/callback
-      # JWT Secret (generate a secure one)
-      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
+
       # Frontend URL
       FRONTEND_URL: http://localhost:5173
     ports:

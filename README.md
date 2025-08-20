@@ -96,8 +96,7 @@ REDIS_URL="redis://localhost:6379"
 # Azure DevOps (configurado por repositório na aplicação)
 # Não é mais necessário configurar aqui
 
-# JWT
-JWT_SECRET="your-jwt-secret-change-in-production"
+
 
 # Environment
 NODE_ENV="development"
@@ -147,7 +146,6 @@ nano .env.docker
 **Variáveis obrigatórias no `.env.docker`:**
 ```env
 POSTGRES_PASSWORD=your_secure_password_here
-JWT_SECRET=your_secure_jwt_secret_here
 ENCRYPTION_KEY=your_32_character_encryption_key
 ```
 

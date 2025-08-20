@@ -12,7 +12,6 @@ echo "🔍 Validating environment variables..."
 # Required variables for Docker
 required_vars=(
   "POSTGRES_PASSWORD"
-  "JWT_SECRET"
   "ENCRYPTION_KEY"
 )
 
@@ -54,10 +53,7 @@ if [ ${#missing_vars[@]} -ne 0 ]; then
   exit 1
 fi
 
-# Validate JWT_SECRET security
-if [ "${#JWT_SECRET}" -lt 32 ]; then
-  echo "⚠️  Warning: JWT_SECRET should be at least 32 characters long for security"
-fi
+
 
 # Validate ENCRYPTION_KEY format
 if [ "${#ENCRYPTION_KEY}" -ne 32 ]; then
