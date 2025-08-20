@@ -2,7 +2,7 @@ import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { NotFoundError } from '@/middlewares/errorHandler';
-import { SystemConfigService } from './systemConfigService';
+
 
 interface AzurePullRequest {
   pullRequestId: number;
@@ -62,20 +62,26 @@ interface AzureFileChange {
 }
 
 export class AzureSyncService {
-  private systemConfigService = new SystemConfigService();
+  private async getAzureToken(repositoryId: string): Promise<string> {
+    // Get Personal Access Token from repository configuration
+    const repository = await prisma.repository.findUnique({
+      where: { id: repositoryId },
+      select: { personalAccessToken: true }
+    });
 
-  private async getAzureToken(): Promise<string> {
-    // Get Personal Access Token from system configuration
-    const token = await this.systemConfigService.getDecryptedValue('azure_devops_personal_access_token');
-
-    if (!token) {
-      throw new Error('Azure DevOps Personal Access Token not configured');
+    if (!repository || !repository.personalAccessToken) {
+      throw new Error(`Azure DevOps Personal Access Token not configured for repository ${repositoryId}`);
     }
 
+    // Decrypt the token
+    const { decrypt } = await import('@/utils/encryption');
+    const token = decrypt(repository.personalAccessToken);
+
     logger.info({ 
+      repositoryId,
       hasToken: !!token, 
       tokenLength: token.length
-    }, 'Azure DevOps token configuration');
+    }, 'Azure DevOps token configuration from repository');
 
     return token;
   }
@@ -154,7 +160,7 @@ export class AzureSyncService {
     logger.info({ repositoryId, repositoryName: repository.name, syncType }, 'Starting Azure sync');
 
     try {
-      const token = await this.getAzureToken();
+      const token = await this.getAzureToken(repositoryId);
       
       // Phase 1: Sync basic PR data, commits, reviews and comments (always needed for KPIs)
       await this.syncPullRequestsBasic(repository, token, syncType);

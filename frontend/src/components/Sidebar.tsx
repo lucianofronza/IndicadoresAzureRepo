@@ -10,7 +10,6 @@ import {
   GitBranch, 
   RefreshCw,
   GitPullRequest,
-  Settings,
   Menu,
   X,
   ChevronLeft,
@@ -27,7 +26,7 @@ const navigation = [
   { name: 'Repositórios', href: '/repositories', icon: GitBranch },
   { name: 'Sincronização', href: '/sync', icon: RefreshCw },
   { name: 'Azure DevOps', href: '/azure-devops', icon: GitPullRequest },
-  { name: 'Configurações', href: '/system-config', icon: Settings },
+
 ]
 
 interface TooltipProps {

@@ -11,7 +11,7 @@ import { apiRateLimiter } from '@/middlewares/security';
 
 // Import routes
 import healthRoutes from '@/routes/health';
-import systemConfigRoutes from '@/routes/systemConfig';
+
 import teamRoutes from '@/routes/teams';
 import roleRoutes from '@/routes/roles';
 import stackRoutes from '@/routes/stacks';
@@ -139,7 +139,7 @@ app.get('/metrics', async (req, res) => {
 
 // API routes
 app.use('/api/health', healthRoutes);
-app.use('/api/system-config', systemConfigRoutes);
+
 app.use('/api/teams', teamRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/stacks', stackRoutes);
@@ -157,7 +157,7 @@ app.get('/api', (req, res) => {
     description: 'API para análise de indicadores de desenvolvedores do Azure Repos',
     endpoints: {
       health: '/api/health',
-      systemConfig: '/api/system-config',
+  
       teams: '/api/teams',
       roles: '/api/roles',
       stacks: '/api/stacks',

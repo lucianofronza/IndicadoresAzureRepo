@@ -9,60 +9,7 @@ const azureDevOpsService = new AzureDevOpsService();
 // Store temporary credentials for the session
 const sessionCredentials = new Map<string, { organization: string; personalAccessToken: string }>();
 
-// Get Azure DevOps configuration
-router.get('/config', asyncHandler(async (req, res) => {
-  try {
-    const config = await azureDevOpsService.getConfig();
 
-    logger.info({
-      requestId: req.requestId,
-    }, 'Azure DevOps configuration retrieved successfully');
-
-    res.json({
-      success: true,
-      data: {
-        organization: config.organization,
-      },
-      message: 'Configuration retrieved successfully',
-    });
-  } catch (error) {
-    logger.error('Failed to get Azure DevOps configuration:', error);
-    res.status(400).json({
-      success: false,
-      error: 'CONFIG_ERROR',
-      message: 'Failed to get Azure DevOps configuration. Please configure the organization and personal access token.',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-}));
-
-// Check Azure DevOps API status and rate limits
-router.get('/status', asyncHandler(async (req, res) => {
-  try {
-    const status = await azureDevOpsService.checkApiStatus();
-
-    logger.info({
-      requestId: req.requestId,
-      status: status.isAvailable,
-      rateLimitRemaining: status.rateLimitRemaining,
-      rateLimitReset: status.rateLimitReset,
-    }, 'Azure DevOps API status checked successfully');
-
-    res.json({
-      success: true,
-      data: status,
-      message: 'API status checked successfully',
-    });
-  } catch (error) {
-    logger.error('Failed to check Azure DevOps API status:', error);
-    res.status(500).json({
-      success: false,
-      error: 'STATUS_CHECK_ERROR',
-      message: 'Failed to check Azure DevOps API status',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-}));
 
 // Validate Azure DevOps connection
 router.post('/validate', asyncHandler(async (req, res) => {
