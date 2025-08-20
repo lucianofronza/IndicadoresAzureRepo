@@ -103,6 +103,7 @@ kubectl apply -f infra/k8s/namespace.yaml
 
 # Aplicar secrets e configmaps
 kubectl apply -f infra/k8s/secret.yaml
+# Aplicar configmap (configure as variáveis primeiro)
 kubectl apply -f infra/k8s/configmap.yaml
 
 # Deploy PostgreSQL (se não usar serviço gerenciado)
