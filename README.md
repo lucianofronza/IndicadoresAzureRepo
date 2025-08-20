@@ -297,17 +297,86 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 
 ### Scripts Úteis
 
+#### 🚀 Scripts de Desenvolvimento
 ```bash
 # Backend
 npm run dev          # Desenvolvimento
 npm run build        # Build para produção
 npm run db:migrate   # Executar migrações
-npm run db:seed      # Popular banco com dados de teste
+npm run db:seed      # Popular banco com dados básicos
+npm run db:seed:demo # Popular banco com dados completos de demonstração
 
 # Frontend
 npm run dev          # Desenvolvimento
 npm run build        # Build para produção
 npm run preview      # Preview da build
+```
+
+#### 🛠️ Scripts de Manutenção (Backend)
+
+**População de Dados:**
+```bash
+# Seed básico (estrutura mínima)
+cd backend && npm run db:seed
+
+# Seed completo com dados de demonstração
+cd backend && npm run db:seed:demo
+```
+
+**Análise de Desenvolvedores:**
+```bash
+# Mostrar estatísticas atuais
+cd backend && npx tsx scripts/show-developer-stats.ts
+
+# Redistribuir desenvolvedores sem time
+cd backend && npx tsx scripts/redistribute-developers.ts
+
+# Reverter redistribuição
+cd backend && npx tsx scripts/revert-developer-redistribution.ts
+
+# Normalizar nomes de desenvolvedores
+cd backend && npx tsx scripts/normalize-developer-names.ts
+```
+
+#### 📊 Scripts de Docker
+```bash
+# Produção
+./scripts/docker-start.sh
+
+# Desenvolvimento
+./scripts/docker-dev.sh
+
+# Staging/Homologação
+./scripts/docker-staging.sh
+```
+
+#### 🎯 Casos de Uso dos Scripts
+
+**1. Configuração Inicial:**
+```bash
+# Popular banco com dados de demonstração
+cd backend && npm run db:seed:demo
+```
+
+**2. Análise de Dados:**
+```bash
+# Ver estatísticas dos desenvolvedores
+cd backend && npx tsx scripts/show-developer-stats.ts
+```
+
+**3. Teste de Gráficos:**
+```bash
+# Redistribuir desenvolvedores para testar gráficos
+cd backend && npx tsx scripts/redistribute-developers.ts
+
+# Reverter após teste
+cd backend && npx tsx scripts/revert-developer-redistribution.ts
+```
+
+**4. Limpeza de Dados:**
+```bash
+# Normalizar nomes de desenvolvedores
+cd backend && npx tsx scripts/normalize-developer-names.ts
 ```
 
 ## 📈 Monitoramento
