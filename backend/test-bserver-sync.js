@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const axios = require('axios');
+const { decrypt } = require('./src/utils/encryption');
 
 const prisma = new PrismaClient();
 
@@ -39,11 +40,12 @@ async function testBServerSync() {
     // Testar conexão com Azure DevOps
     console.log('\n🔗 Testando conexão com Azure DevOps...');
     
-    const token = process.env.AZURE_PERSONAL_ACCESS_TOKEN;
-    if (!token) {
-      console.log('❌ Token do Azure DevOps não configurado');
+    if (!repository.personalAccessToken) {
+      console.log('❌ Token do Azure DevOps não configurado para este repositório');
       return;
     }
+    
+    const token = decrypt(repository.personalAccessToken);
     
     const baseUrl = `https://dev.azure.com/${repository.organization}/${repository.project}/_apis/git`;
     const testUrl = `${baseUrl}/pullrequests?api-version=7.0&$top=1&searchCriteria.status=all`;

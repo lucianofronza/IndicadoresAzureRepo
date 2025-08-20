@@ -1,17 +1,27 @@
 const axios = require('axios');
+const { PrismaClient } = require('@prisma/client');
+const { decrypt } = require('./src/utils/encryption');
+
+const prisma = new PrismaClient();
 
 async function testAzureAPIs() {
   console.log('🔍 Testando URLs da API do Azure DevOps...');
   
-  const token = process.env.AZURE_PERSONAL_ACCESS_TOKEN;
-  const organization = 'bennertec';
-  const project = 'BServer';
-  const prId = 229; // PR que estava dando erro
-  
-  if (!token) {
-    console.log('❌ Token do Azure DevOps não configurado');
-    return;
-  }
+  try {
+    // Buscar o repositório BServer
+    const repository = await prisma.repository.findFirst({
+      where: { name: 'BServer' }
+    });
+    
+    if (!repository || !repository.personalAccessToken) {
+      console.log('❌ Repositório BServer não encontrado ou sem token configurado');
+      return;
+    }
+    
+    const token = decrypt(repository.personalAccessToken);
+    const organization = repository.organization;
+    const project = repository.project;
+    const prId = 229; // PR que estava dando erro
   
   const headers = {
     'Authorization': `Basic ${Buffer.from(`:${token}`).toString('base64')}`,
@@ -100,6 +110,12 @@ async function testAzureAPIs() {
     console.log(`Status: ${error.response?.status}`);
     console.log(`Erro: ${error.response?.data?.message || error.message}`);
   }
+  
+  } catch (error) {
+    console.error('❌ Erro no teste:', error.message);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-testAzureAPIs().catch(console.error);
+testAzureAPIs();

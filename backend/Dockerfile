@@ -2,8 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma and wget for health checks
+RUN apk add --no-cache openssl wget
 
 # Copy package files
 COPY package*.json ./
@@ -28,12 +28,16 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
-# Expose port
+# Expose port (will be overridden by environment variable)
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/healthz', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
 
-# Start application in development mode
-CMD ["npm", "run", "dev"]
+# Validate environment variables before starting
+COPY --chown=nodejs:nodejs scripts/validate-env.sh /app/scripts/validate-env.sh
+RUN chmod +x /app/scripts/validate-env.sh
+
+# Start application with environment validation
+CMD ["sh", "-c", "/app/scripts/validate-env.sh && npm run dev"]

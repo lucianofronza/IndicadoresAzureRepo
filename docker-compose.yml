@@ -6,18 +6,18 @@ services:
     image: postgres:15-alpine
     container_name: indicadores-postgres
     environment:
-      POSTGRES_DB: indicadores_azure
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: masterkey
+      POSTGRES_DB: ${POSTGRES_DB:-indicadores_azure}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d indicadores_azure"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure}"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
       - indicadores-network
 
@@ -26,14 +26,17 @@ services:
     image: redis:7-alpine
     container_name: indicadores-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-0}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
       - indicadores-network
 
@@ -42,24 +45,22 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: indicadores-backend-new
+    container_name: indicadores-backend
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:masterkey@postgres:5432/indicadores_azure
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-indicadores_azure}
       REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_URL: redis://redis:6379
-      PORT: 8080
-      LOG_LEVEL: debug
-      # Azure DevOps Personal Access Token (configure these)
-      AZURE_PERSONAL_ACCESS_TOKEN: ${AZURE_PERSONAL_ACCESS_TOKEN:-}
-      AZURE_ORGANIZATION: ${AZURE_ORGANIZATION:-}
-      # JWT Secret (generate a secure one)
-      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
-      # Frontend URL
-      FRONTEND_URL: http://localhost:5173
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_URL: redis://redis:${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-0}
+      PORT: ${PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:${PORT:-8080}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,10 +70,10 @@ services:
       - ./backend:/app
       - /app/node_modules
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT:-8080}/healthz"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
     networks:
       - indicadores-network
@@ -85,7 +86,7 @@ services:
       dockerfile: Dockerfile
     container_name: indicadores-frontend
     ports:
-      - "3000:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
       backend:
         condition: service_healthy
@@ -94,9 +95,9 @@ services:
     user: "1001:1001"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 10s
     networks:
       - indicadores-network

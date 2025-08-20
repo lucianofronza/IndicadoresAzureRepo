@@ -93,9 +93,8 @@ DATABASE_URL="postgresql://user:password@localhost:5432/indicadores_azure"
 # Redis
 REDIS_URL="redis://localhost:6379"
 
-# Azure DevOps Personal Access Token
-AZURE_PERSONAL_ACCESS_TOKEN="your-azure-devops-personal-access-token"
-AZURE_ORGANIZATION="your-azure-devops-organization"
+# Azure DevOps (configurado por repositório na aplicação)
+# Não é mais necessário configurar aqui
 
 # JWT
 JWT_SECRET="your-jwt-secret-change-in-production"
@@ -136,16 +135,41 @@ npm install
 
 ### 4. Execução com Docker Compose
 
+#### Configuração Inicial
 ```bash
-# Na raiz do projeto
+# Copiar arquivo de exemplo de variáveis de ambiente
+cp env.docker.example .env.docker
+
+# Editar as variáveis obrigatórias
+nano .env.docker
+```
+
+**Variáveis obrigatórias no `.env.docker`:**
+```env
+POSTGRES_PASSWORD=your_secure_password_here
+JWT_SECRET=your_secure_jwt_secret_here
+ENCRYPTION_KEY=your_32_character_encryption_key
+```
+
+#### Execução Automática (Recomendado)
+```bash
+# Usar script de inicialização (valida variáveis automaticamente)
+./scripts/docker-start.sh
+```
+
+#### Execução Manual
+```bash
+# Validar variáveis de ambiente
+./scripts/validate-env.sh
+
+# Iniciar serviços
 docker-compose up -d
 ```
 
 A aplicação estará disponível em:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
-- Grafana: http://localhost:3001
-- Prometheus: http://localhost:9090
+- Frontend: http://localhost:5173 (configurável via FRONTEND_PORT)
+- Backend API: http://localhost:8080 (configurável via BACKEND_PORT)
+- Health Check: http://localhost:8080/healthz
 
 ### 5. Execução Local
 
@@ -175,26 +199,19 @@ npm run dev
 5. Defina o escopo para sua organização
 6. Copie o token gerado
 
-### 2. Configurar no Ambiente
+### 2. Configurar na Aplicação
 
-Adicione o token no arquivo `.env` do backend:
-```env
-AZURE_PERSONAL_ACCESS_TOKEN="your-generated-token"
-AZURE_ORGANIZATION="your-organization-name"
-```
+**IMPORTANTE**: As credenciais do Azure DevOps agora são configuradas por repositório na aplicação, não mais via variáveis de ambiente.
 
-### 3. Validar Conexão
+1. **Acesse**: http://localhost:5173/azure-devops
+2. **Configure**: Informe a organização e token para cada repositório
+3. **Adicione**: Selecione os repositórios para monitorar
 
-A aplicação validará automaticamente a conexão com Azure DevOps ao iniciar. Você pode também testar via API:
+### 3. Configuração de Repositórios
 
-```bash
-curl -X POST http://localhost:8080/api/azure-devops/validate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "organization": "your-organization",
-    "personalAccessToken": "your-token"
-  }'
-```
+1. **Vá em**: http://localhost:5173/repositories
+2. **Edite**: Cada repositório pode ter seu próprio token
+3. **Gerencie**: Tokens são criptografados no banco de dados
 
 ## 🚀 Deploy em Produção
 
