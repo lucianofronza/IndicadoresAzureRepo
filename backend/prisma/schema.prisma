@@ -99,6 +99,7 @@ model Repository {
   organization String
   project     String
   azureId     String?  @unique
+  personalAccessToken String? // Token criptografado para Azure DevOps
   lastSyncAt  DateTime? // Data da última sincronização bem-sucedida
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

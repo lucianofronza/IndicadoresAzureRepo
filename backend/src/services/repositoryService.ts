@@ -3,6 +3,7 @@ import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Repository, CreateRepositoryDto, UpdateRepositoryDto, PaginationParams, PaginatedResponse } from '@/types';
 import { NotFoundError, ConflictError } from '@/middlewares/errorHandler';
+import { encrypt, decrypt } from '@/utils/encryption';
 import bcrypt from 'bcryptjs';
 
 export class RepositoryService {
@@ -25,8 +26,21 @@ export class RepositoryService {
       prisma.repository.count(),
     ]);
 
+    // Descriptografar tokens para todos os repositórios
+    const repositoriesWithDecryptedTokens = repositories.map(repo => {
+      if (repo.personalAccessToken) {
+        try {
+          repo.personalAccessToken = decrypt(repo.personalAccessToken);
+        } catch (error) {
+          logger.warn({ repositoryId: repo.id }, 'Failed to decrypt personal access token');
+          repo.personalAccessToken = null;
+        }
+      }
+      return repo;
+    });
+
     return {
-      data: repositories as Repository[],
+      data: repositoriesWithDecryptedTokens as Repository[],
       pagination: {
         page,
         pageSize,
@@ -36,6 +50,28 @@ export class RepositoryService {
         hasPrev: page > 1,
       },
     };
+  }
+
+  async getRepositoryCredentials(id: string): Promise<{ organization: string; personalAccessToken: string } | null> {
+    const repository = await prisma.repository.findUnique({
+      where: { id },
+      select: { organization: true, personalAccessToken: true }
+    });
+
+    if (!repository || !repository.personalAccessToken) {
+      return null;
+    }
+
+    try {
+      const decryptedToken = decrypt(repository.personalAccessToken);
+      return {
+        organization: repository.organization,
+        personalAccessToken: decryptedToken
+      };
+    } catch (error) {
+      logger.warn({ repositoryId: id }, 'Failed to decrypt personal access token');
+      return null;
+    }
   }
 
   async getById(id: string): Promise<Repository> {
@@ -57,6 +93,17 @@ export class RepositoryService {
     });
 
     if (!repository) throw new NotFoundError('Repository');
+    
+    // Descriptografar o token se existir
+    if (repository.personalAccessToken) {
+      try {
+        repository.personalAccessToken = decrypt(repository.personalAccessToken);
+      } catch (error) {
+        logger.warn({ repositoryId: id }, 'Failed to decrypt personal access token');
+        repository.personalAccessToken = null;
+      }
+    }
+    
     return repository as Repository;
   }
 
@@ -68,6 +115,7 @@ export class RepositoryService {
       project: data.project,
       url: data.url,
       azureId: data.azureId,
+      personalAccessToken: data.personalAccessToken ? encrypt(data.personalAccessToken) : null,
     };
 
     // Only include teamId if it's not empty
@@ -85,6 +133,16 @@ export class RepositoryService {
       },
     });
 
+    // Descriptografar o token se existir
+    if (repository.personalAccessToken) {
+      try {
+        repository.personalAccessToken = decrypt(repository.personalAccessToken);
+      } catch (error) {
+        logger.warn({ repositoryId: repository.id }, 'Failed to decrypt personal access token');
+        repository.personalAccessToken = null;
+      }
+    }
+
     logger.info({ repositoryId: repository.id, repositoryName: repository.name }, 'Repository created successfully');
     return repository as Repository;
   }
@@ -100,6 +158,11 @@ export class RepositoryService {
       url: data.url,
       azureId: data.azureId,
     };
+
+    // Tratar o personalAccessToken: se fornecido, criptografar; se não fornecido, manter o existente
+    if (data.personalAccessToken !== undefined) {
+      updateData.personalAccessToken = data.personalAccessToken ? encrypt(data.personalAccessToken) : null;
+    }
 
     // Only include teamId if it's not empty
     if (data.teamId && data.teamId.trim() !== '') {
@@ -120,6 +183,16 @@ export class RepositoryService {
         },
       },
     });
+
+    // Descriptografar o token se existir
+    if (repository.personalAccessToken) {
+      try {
+        repository.personalAccessToken = decrypt(repository.personalAccessToken);
+      } catch (error) {
+        logger.warn({ repositoryId: id }, 'Failed to decrypt personal access token');
+        repository.personalAccessToken = null;
+      }
+    }
 
     logger.info({ repositoryId: repository.id, repositoryName: repository.name }, 'Repository updated successfully');
     return repository;

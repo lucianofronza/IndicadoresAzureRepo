@@ -104,6 +104,8 @@ export interface Repository extends BaseEntity {
   organization: string;
   project: string;
   url: string;
+  azureId?: string;
+  personalAccessToken?: string; // Token criptografado
   lastSyncAt?: Date;
   teamId: string | null;
   team?: Team;
@@ -116,8 +118,7 @@ export interface CreateRepositoryDto {
   project: string;
   url: string;
   azureId?: string;
-  clientId: string;
-  clientSecret: string;
+  personalAccessToken?: string; // Token criptografado
   teamId?: string;
 }
 
@@ -127,8 +128,7 @@ export interface UpdateRepositoryDto {
   project?: string;
   url?: string;
   azureId?: string;
-  clientId?: string;
-  clientSecret?: string;
+  personalAccessToken?: string; // Token criptografado
   teamId?: string;
 }
 

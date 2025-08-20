@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Search, GitBranch, BarChart3 } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, GitBranch, BarChart3, Eye, EyeOff } from 'lucide-react'
 import { Repository, CreateRepositoryData, UpdateRepositoryData } from '@/types'
 import api from '@/services/api'
 
@@ -546,8 +546,24 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
     project: repository?.project || '',
     url: repository?.url || '',
     azureId: (repository as any)?.azureId || '',
+    personalAccessToken: (repository as any)?.personalAccessToken || '',
     teamId: repository?.teamId || '',
   })
+  const [showToken, setShowToken] = useState(false)
+
+  // Atualizar o formulário quando o repositório mudar
+  useEffect(() => {
+    const newFormData = {
+      name: repository?.name || '',
+      organization: repository?.organization || '',
+      project: repository?.project || '',
+      url: repository?.url || '',
+      azureId: (repository as any)?.azureId || '',
+      personalAccessToken: (repository as any)?.personalAccessToken || '',
+      teamId: repository?.teamId || '',
+    }
+    setFormData(newFormData)
+  }, [repository])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -628,6 +644,35 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
               />
               <p className="text-xs text-gray-500 mt-1">
                 GUID do repositório no Azure DevOps (opcional para sincronização manual)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Personal Access Token
+              </label>
+              <div className="relative">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={formData.personalAccessToken}
+                  onChange={(e) => setFormData(prev => ({ ...prev, personalAccessToken: e.target.value }))}
+                  className="input w-full pr-10"
+                  placeholder="Token de acesso pessoal do Azure DevOps"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showToken ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Token criptografado para autenticação com Azure DevOps (opcional)
               </p>
             </div>
 

@@ -56,6 +56,8 @@ export interface Repository extends BaseEntity {
   organization: string
   project: string
   url: string
+  azureId?: string
+  personalAccessToken?: string
   teamId?: string
   team?: Team
   _count?: {
@@ -264,6 +266,7 @@ export interface CreateRepositoryData {
   project: string
   url: string
   azureId?: string
+  personalAccessToken?: string
   teamId?: string
 }
 
@@ -273,5 +276,6 @@ export interface UpdateRepositoryData {
   project?: string
   url?: string
   azureId?: string
+  personalAccessToken?: string
   teamId?: string
 }

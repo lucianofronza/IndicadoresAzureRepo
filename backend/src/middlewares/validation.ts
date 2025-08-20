@@ -83,6 +83,7 @@ export const createRepositorySchema = z.object({
   project: z.string().min(1, 'Projeto é obrigatório').max(100, 'Projeto muito longo'),
   url: z.string().url('URL inválida'),
   azureId: z.string().optional(),
+  personalAccessToken: z.string().optional(),
   teamId: z.string().optional(),
 });
 
@@ -92,6 +93,7 @@ export const updateRepositorySchema = z.object({
   project: z.string().min(1, 'Projeto é obrigatório').max(100, 'Projeto muito longo').optional(),
   url: z.string().url('URL inválida').optional(),
   azureId: z.string().optional(),
+  personalAccessToken: z.string().optional(),
   teamId: z.string().optional(),
 });
 
