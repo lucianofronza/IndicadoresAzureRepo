@@ -22,14 +22,14 @@ Uma aplicação web fullstack para análise de indicadores individuais de desenv
 
 ### 🔄 Sincronização
 - **Sincronização Manual**: Botão "Sync now" para cada repositório
-- **Sincronização Automática**: Jobs agendados para atualização periódica
+- **Sincronização Inteligente**: Completa para repositórios nunca sincronizados, incremental para os demais
 - **Idempotência**: Processamento seguro sem duplicação
 - **Paginação**: Suporte a grandes volumes de dados
 - **Rate Limiting**: Respeito aos limites da API Azure DevOps
 
 ### 🔐 Integração Azure DevOps
-- **Personal Access Token**: Autenticação simplificada com PAT
-- **Configuração Centralizada**: Token configurado no arquivo .env
+- **Personal Access Token**: Autenticação por repositório com PAT criptografado
+- **Configuração por Repositório**: Cada repositório pode ter seu próprio token
 - **Acesso a Repositórios**: Leitura de dados de múltiplos projetos
 - **Validação de Conexão**: Verificação automática de credenciais
 
@@ -90,12 +90,8 @@ cp ../env.docker.example .env
 #### Frontend
 ```bash
 cd frontend
-cp .env.example .env
-```
-
-Edite o arquivo `.env`:
-```env
-VITE_API_URL="http://localhost:8080/api"
+# O frontend não precisa de arquivo .env para desenvolvimento local
+# O Vite configura automaticamente o proxy para /api -> http://localhost:8080/api
 ```
 
 ### 3. Instalação das Dependências
@@ -254,7 +250,7 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 
 ### 1. Configuração Inicial
 
-1. **Acesse a aplicação**: http://localhost:3000
+1. **Acesse a aplicação**: http://localhost:5173
 2. **Configure Times**: Vá em "Times" e adicione suas equipes
 3. **Configure Cargos**: Vá em "Cargos" e adicione os roles da empresa
 4. **Configure Stacks**: Vá em "Stacks" e adicione as tecnologias utilizadas
@@ -291,7 +287,7 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 │   │   └── config/     # Configurações
 │   └── package.json
 ├── infra/              # Configurações de infraestrutura
-├── docs/               # Documentação
+├── scripts/            # Scripts de automação
 └── docker-compose.yml  # Orquestração local
 ```
 
