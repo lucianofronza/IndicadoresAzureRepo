@@ -129,7 +129,7 @@ export const Stacks: React.FC = () => {
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '' })}
-              className="btn btn-secondary btn-sm w-full"
+              className="btn btn-secondary btn-md w-full"
             >
               Limpar Filtros
             </button>
