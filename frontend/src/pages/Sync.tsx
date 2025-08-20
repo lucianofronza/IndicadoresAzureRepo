@@ -55,11 +55,10 @@ export const Sync: React.FC = () => {
       const response = await api.post(`/sync/${repositoryId}`, { syncType })
       return response.data
     },
-    onSuccess: (_data, { repositoryId, syncType }) => {
+    onSuccess: (_data, { repositoryId }) => {
       queryClient.invalidateQueries({ queryKey: ['sync-statuses'] })
       const repoName = repositoriesData?.data?.find((repo: Repository) => repo.id === repositoryId)?.name
-      const syncTypeText = syncType === 'full' ? 'completa' : 'incremental'
-      toast.success(`Sincronização ${syncTypeText} iniciada para ${repoName || 'repositório'}`)
+      toast.success(`Sincronização iniciada para ${repoName || 'repositório'}`)
     },
     onError: (error: any, { repositoryId }) => {
       const repoName = repositoriesData?.data?.find((repo: Repository) => repo.id === repositoryId)?.name
@@ -220,6 +219,9 @@ export const Sync: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">
             Gerencie a sincronização com Azure DevOps
           </p>
+          <p className="mt-1 text-xs text-gray-400">
+            A sincronização é automática: completa para repositórios nunca sincronizados, incremental para os demais
+          </p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -232,19 +234,7 @@ export const Sync: React.FC = () => {
             disabled={syncMutation.isPending}
           >
             <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            Sincronizar Todos (Incremental)
-          </button>
-          <button 
-            className="btn btn-secondary btn-md"
-            onClick={() => {
-              repositoriesData?.data?.forEach((repo: Repository) => {
-                handleSync(repo.id, 'full')
-              })
-            }}
-            disabled={syncMutation.isPending}
-          >
-            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            Sincronizar Todos (Completa)
+            Sincronizar Todos
           </button>
         </div>
       </div>
@@ -390,7 +380,7 @@ export const Sync: React.FC = () => {
                             <button
                               onClick={() => handleSync(repository.id)}
                               className="text-blue-600 hover:text-blue-900"
-                              title="Sincronização Incremental"
+                              title="Sincronizar (automático: completa se nunca sincronizado, incremental se já sincronizado)"
                               disabled={syncMutation.isPending}
                             >
                               <Play className="h-4 w-4" />
