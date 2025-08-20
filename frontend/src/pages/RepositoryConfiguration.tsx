@@ -114,6 +114,7 @@ export const RepositoryConfiguration: React.FC = () => {
         project: repository.project?.name || '',
         url: repository.url,
         azureId: repository.id,
+        personalAccessToken: azureConfig.personalAccessToken, // Adicionar o token criptografado
       })
       return response.data
     },
