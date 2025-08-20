@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: indicadores-postgres-prod
+    container_name: indicadores-postgres-dev
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-indicadores_azure}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -12,23 +12,23 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
+      - postgres_data_dev:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure}"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - indicadores-network-prod
+      - indicadores-network-dev
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: indicadores-redis-prod
+    container_name: indicadores-redis-dev
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data_prod:/data
+      - redis_data_dev:/data
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
@@ -38,16 +38,16 @@ services:
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - indicadores-network-prod
+      - indicadores-network-dev
 
-  # Backend API
+  # Backend API (Development)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: indicadores-backend-prod
+    container_name: indicadores-backend-dev
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-indicadores_azure}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
@@ -55,7 +55,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
       PORT: ${PORT:-8080}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_LEVEL: debug
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
@@ -66,6 +66,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
+      - ./backend:/app
       - /app/node_modules
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT:-8080}/healthz"]
@@ -74,15 +75,15 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
     networks:
-      - indicadores-network-prod
+      - indicadores-network-dev
     restart: unless-stopped
 
-  # Frontend Application
+  # Frontend Application (Development)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: indicadores-frontend-prod
+    container_name: indicadores-frontend-dev
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
@@ -98,15 +99,15 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 10s
     networks:
-      - indicadores-network-prod
+      - indicadores-network-dev
     restart: unless-stopped
 
 volumes:
-  postgres_data_prod:
+  postgres_data_dev:
     driver: local
-  redis_data_prod:
+  redis_data_dev:
     driver: local
 
 networks:
-  indicadores-network-prod:
+  indicadores-network-dev:
     driver: bridge

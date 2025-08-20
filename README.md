@@ -132,18 +132,42 @@ POSTGRES_PASSWORD=your_secure_password_here
 ENCRYPTION_KEY=your_32_character_encryption_key
 ```
 
-#### Execução Automática (Recomendado)
+#### Ambientes Disponíveis
+
+**🛠️ Desenvolvimento (Recomendado para desenvolvedores):**
 ```bash
-# Usar script de inicialização (valida variáveis automaticamente)
+# Ambiente com hot-reload e volumes montados
+./scripts/docker-dev.sh
+```
+
+**🧪 Staging/Homologação:**
+```bash
+# Ambiente de teste similar à produção
+./scripts/docker-staging.sh
+```
+
+**🚀 Produção:**
+```bash
+# Ambiente de produção otimizado
 ./scripts/docker-start.sh
 ```
 
-#### Execução Manual
+#### Estrutura dos Arquivos Docker Compose
+
+Todos os arquivos Docker Compose estão organizados na raiz do projeto:
+
+| Arquivo | Ambiente | Propósito |
+|---------|----------|-----------|
+| `docker-compose.yml` | Produção | Ambiente de produção otimizado |
+| `docker-compose.dev.yml` | Desenvolvimento | Hot-reload e volumes montados |
+| `docker-compose.staging.yml` | Staging | Ambiente de teste similar à produção |
+
+#### Execução Manual (Produção)
 ```bash
 # Validar variáveis de ambiente
 ./scripts/validate-env.sh
 
-# Iniciar serviços
+# Iniciar serviços de produção
 docker-compose up -d
 ```
 

@@ -4,31 +4,31 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: indicadores-postgres-prod
+    container_name: indicadores-postgres-staging
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-indicadores_azure}
+      POSTGRES_DB: ${POSTGRES_DB:-indicadores_azure_staging}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
+      - postgres_data_staging:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure_staging}"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - indicadores-network-prod
+      - indicadores-network-staging
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: indicadores-redis-prod
+    container_name: indicadores-redis-staging
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data_prod:/data
+      - redis_data_staging:/data
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
@@ -38,24 +38,24 @@ services:
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - indicadores-network-prod
+      - indicadores-network-staging
 
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: indicadores-backend-prod
+    container_name: indicadores-backend-staging
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-indicadores_azure}
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-indicadores_azure_staging}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_URL: redis://redis:${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
       PORT: ${PORT:-8080}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
@@ -74,7 +74,7 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
     networks:
-      - indicadores-network-prod
+      - indicadores-network-staging
     restart: unless-stopped
 
   # Frontend Application
@@ -82,7 +82,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: indicadores-frontend-prod
+    container_name: indicadores-frontend-staging
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
@@ -98,15 +98,15 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 10s
     networks:
-      - indicadores-network-prod
+      - indicadores-network-staging
     restart: unless-stopped
 
 volumes:
-  postgres_data_prod:
+  postgres_data_staging:
     driver: local
-  redis_data_prod:
+  redis_data_staging:
     driver: local
 
 networks:
-  indicadores-network-prod:
+  indicadores-network-staging:
     driver: bridge

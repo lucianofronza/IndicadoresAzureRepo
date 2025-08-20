@@ -28,17 +28,17 @@ cp env.docker.example .env
 ### 2. Executar com Docker Compose
 
 ```bash
-# Navegar para o diretório de compose
-cd infra/compose
+# Iniciar ambiente de staging (recomendado para testes)
+./scripts/docker-staging.sh
 
-# Iniciar todos os serviços
-docker-compose up -d
+# Ou iniciar ambiente de produção
+./scripts/docker-start.sh
 
 # Verificar logs
-docker-compose logs -f
+docker-compose -f docker-compose.staging.yml logs -f
 
 # Parar serviços
-docker-compose down
+docker-compose -f docker-compose.staging.yml down
 ```
 
 ### 3. Executar Localmente (sem Docker)
