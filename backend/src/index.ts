@@ -1,4 +1,8 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import path from 'path';
+
+// Load environment variables from .env.docker in the project root
+config({ path: path.resolve(__dirname, '../../.env.docker') });
 import express from 'express';
 import compression from 'compression';
 import { logger } from '@/utils/logger';
