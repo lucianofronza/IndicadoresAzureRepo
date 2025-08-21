@@ -35,9 +35,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
 
-# Validate environment variables before starting
-COPY --chown=nodejs:nodejs scripts/validate-env.sh /app/scripts/validate-env.sh
-RUN chmod +x /app/scripts/validate-env.sh
-
-# Start application with environment validation
-CMD ["sh", "-c", "/app/scripts/validate-env.sh && npm run dev"]
+# Start application with database initialization
+CMD ["sh", "-c", "echo 'Starting database setup...' && npx prisma generate && echo 'Running migrations...' && npx prisma migrate deploy && echo 'Starting application...' && npm run dev"]

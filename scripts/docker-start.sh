@@ -49,19 +49,19 @@ echo "   Frontend: localhost:${FRONTEND_PORT:-5173}"
 echo ""
 
 # Start services
-docker-compose up -d
+docker-compose --env-file .env.docker up -d
 
 echo "⏳ Waiting for services to be ready..."
 
 # Wait for PostgreSQL
 echo "   Waiting for PostgreSQL..."
-until docker-compose exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure} > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure} > /dev/null 2>&1; do
   sleep 2
 done
 
 # Wait for Redis
 echo "   Waiting for Redis..."
-until docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker exec -T redis redis-cli ping > /dev/null 2>&1; do
   sleep 2
 done
 
@@ -86,7 +86,7 @@ echo "   Backend API: http://localhost:${BACKEND_PORT:-8080}"
 echo "   Health Check: http://localhost:${BACKEND_PORT:-8080}/healthz"
 echo ""
 echo "🔧 Useful commands:"
-echo "   View logs: docker-compose logs -f"
-echo "   Stop services: docker-compose down"
-echo "   Restart services: docker-compose restart"
-echo "   View status: docker-compose ps"
+echo "   View logs: docker-compose --env-file .env.docker logs -f"
+echo "   Stop services: docker-compose --env-file .env.docker down"
+echo "   Restart services: docker-compose --env-file .env.docker restart"
+echo "   View status: docker-compose --env-file .env.docker ps"
