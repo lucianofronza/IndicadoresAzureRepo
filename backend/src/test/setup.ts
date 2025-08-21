@@ -8,11 +8,5 @@ process.env.JWT_SECRET = 'test-secret-key';
 process.env.AZURE_CLIENT_ID = 'test-client-id';
 process.env.AZURE_CLIENT_SECRET = 'test-client-secret';
 
-// Global test setup
-beforeAll(async () => {
-  // Setup code that runs before all tests
-});
-
-afterAll(async () => {
-  // Cleanup code that runs after all tests
-});
+// Note: Jest globals (beforeAll, afterAll) are automatically available in test files
+// This setup file is for environment configuration only
