@@ -21,45 +21,7 @@ interface AzurePullRequest {
   description?: string;
 }
 
-interface AzureCommit {
-  commitId: string;
-  author: {
-    name: string;
-    email: string;
-    date: string;
-  };
-  comment: string;
-}
 
-interface AzureReview {
-  id: number;
-  reviewer: {
-    displayName: string;
-    uniqueName: string;
-  };
-  vote: number;
-  submittedDate: string;
-}
-
-interface AzureComment {
-  id: number;
-  author: {
-    displayName: string;
-    uniqueName: string;
-  };
-  content: string;
-  publishedDate: string;
-}
-
-interface AzureFileChange {
-  changeId: number;
-  item: {
-    path: string;
-  };
-  changeType: string;
-  additions?: number;
-  deletions?: number;
-}
 
 export class AzureSyncService {
   private async getAzureToken(repositoryId: string): Promise<string> {
@@ -195,17 +157,11 @@ export class AzureSyncService {
       syncType
     }, 'Starting basic pull requests sync');
 
-    // Build URL based on sync type
-    let pullRequestsUrl: string;
-    
+    // Log sync type
     if (syncType === 'incremental' && repository.lastSyncAt) {
-      // Incremental sync: only get PRs updated since last sync
       const lastSyncDate = repository.lastSyncAt.toISOString();
-      pullRequestsUrl = `${baseUrl}/pullrequests?api-version=7.0&$skip=${skip}&$top=${top}&searchCriteria.status=all&searchCriteria.updatedAfter=${lastSyncDate}`;
       logger.info({ repositoryId: repository.id, lastSyncAt: lastSyncDate }, 'Performing incremental sync');
     } else {
-      // Full sync: get all PRs (either syncType is 'full' or lastSyncAt is null)
-      pullRequestsUrl = `${baseUrl}/pullrequests?api-version=7.0&$skip=${skip}&$top=${top}&searchCriteria.status=all`;
       logger.info({ 
         repositoryId: repository.id, 
         syncType, 
@@ -395,7 +351,7 @@ export class AzureSyncService {
   }
 
   // Sync basic PR data (essential for core KPIs)
-  private async syncPullRequestBasic(repository: any, azurePR: AzurePullRequest, token: string): Promise<void> {
+  private async syncPullRequestBasic(repository: any, azurePR: AzurePullRequest, _token: string): Promise<void> {
     try {
       // Find or create developer
       const developer = await this.findOrCreateDeveloper(azurePR.createdBy);
@@ -461,12 +417,12 @@ export class AzureSyncService {
   }
 
   // Sync reviews for a specific PR
-  private async syncReviewsForPR(repository: any, pr: any, token: string): Promise<void> {
+  private async syncReviewsForPR(repository: any, pr: any, _token: string): Promise<void> {
     const baseUrl = `https://dev.azure.com/${repository.organization}/${repository.project}/_apis/git`;
     const reviewsUrl = `${baseUrl}/repositories/${repository.azureId}/pullrequests/${pr.azureId}/reviews?api-version=7.0`;
     
     try {
-      const reviewsData = await this.makeAzureRequest(reviewsUrl, token);
+      const reviewsData = await this.makeAzureRequest(reviewsUrl, _token);
 
       if (!reviewsData || !reviewsData.value || !Array.isArray(reviewsData.value)) {
         return;
@@ -506,12 +462,12 @@ export class AzureSyncService {
   }
 
   // Sync comments for a specific PR
-  private async syncCommentsForPR(repository: any, pr: any, token: string): Promise<void> {
+  private async syncCommentsForPR(repository: any, pr: any, _token: string): Promise<void> {
     const baseUrl = `https://dev.azure.com/${repository.organization}/${repository.project}/_apis/git`;
     const commentsUrl = `${baseUrl}/repositories/${repository.azureId}/pullrequests/${pr.azureId}/threads?api-version=7.0`;
     
     try {
-      const threadsData = await this.makeAzureRequest(commentsUrl, token);
+      const threadsData = await this.makeAzureRequest(commentsUrl, _token);
 
       if (!threadsData || !threadsData.value || !Array.isArray(threadsData.value)) {
         return;
