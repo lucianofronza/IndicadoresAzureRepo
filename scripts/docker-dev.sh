@@ -3,7 +3,8 @@
 # ========================================
 # DOCKER DEVELOPMENT ENVIRONMENT SCRIPT
 # ========================================
-# This script starts the development environment with hot-reload
+# This script starts only the database services for development
+# Backend and Frontend should be run locally for better performance
 
 set -e
 
@@ -37,14 +38,12 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
-echo "🚀 Starting Development services..."
+echo "🚀 Starting Development services (Database only)..."
 echo "   Database: ${POSTGRES_DB:-indicadores_azure}@localhost:${POSTGRES_PORT:-5432}"
 echo "   Redis: localhost:${REDIS_PORT:-6379}"
-echo "   Backend: localhost:${BACKEND_PORT:-8080}"
-echo "   Frontend: localhost:${FRONTEND_PORT:-5173}"
 echo ""
 
-# Start development services
+# Start only database services
 docker-compose --env-file .env.docker -f docker-compose.dev.yml up -d
 
 echo "⏳ Waiting for services to be ready..."
@@ -61,31 +60,30 @@ until docker-compose --env-file .env.docker -f docker-compose.dev.yml exec -T re
   sleep 2
 done
 
-# Wait for Backend
-echo "   Waiting for Backend..."
-until curl -f http://localhost:${BACKEND_PORT:-8080}/healthz > /dev/null 2>&1; do
-  sleep 5
-done
-
-# Wait for Frontend
-echo "   Waiting for Frontend..."
-until curl -f http://localhost:${FRONTEND_PORT:-5173}/ > /dev/null 2>&1; do
-  sleep 5
-done
-
 echo ""
-echo "🎉 Development environment is ready!"
+echo "🎉 Database services are ready!"
 echo ""
-echo "📊 Application URLs:"
-echo "   Frontend: http://localhost:${FRONTEND_PORT:-5173}"
-echo "   Backend API: http://localhost:${BACKEND_PORT:-8080}"
-echo "   Health Check: http://localhost:${BACKEND_PORT:-8080}/healthz"
+echo "📊 Database URLs:"
+echo "   PostgreSQL: localhost:${POSTGRES_PORT:-5432}"
+echo "   Redis: localhost:${REDIS_PORT:-6379}"
+echo ""
+echo "🚀 Next steps - Start Backend and Frontend locally:"
+echo ""
+echo "   Backend:"
+echo "   cd backend"
+echo "   npm install"
+echo "   npm run dev"
+echo ""
+echo "   Frontend:"
+echo "   cd frontend"
+echo "   npm install"
+echo "   npm run dev"
 echo ""
 echo "🔧 Development Features:"
 echo "   ✅ Hot-reload enabled for backend and frontend"
-echo "   ✅ Volumes mounted for live code changes"
-echo "   ✅ Debug mode enabled"
-echo "   ✅ Development containers isolated"
+echo "   ✅ Fast development cycle"
+echo "   ✅ Database services isolated in containers"
+echo "   ✅ Easy debugging and logging"
 echo ""
 echo "🔧 Useful commands:"
 echo "   View logs: docker-compose --env-file .env.docker -f docker-compose.dev.yml logs -f"
