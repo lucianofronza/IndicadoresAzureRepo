@@ -137,23 +137,33 @@ openssl rand -base64 24
 
 #### Ambientes Disponíveis
 
-**🛠️ Desenvolvimento (Recomendado para desenvolvedores):**
+**🛠️ Desenvolvimento Local (Recomendado):**
 ```bash
-# Ambiente com hot-reload e volumes montados
+# Apenas banco em containers, apps rodam localmente
+./scripts/dev-local.sh
+```
+*Ideal para desenvolvimento: máximo performance e hot-reload*
+
+**🐳 Desenvolvimento com Containers (Legado):**
+```bash
+# Tudo em containers (mais lento para desenvolvimento)
 ./scripts/docker-dev.sh
 ```
+*Útil para testar configurações de containers*
 
 **🧪 Staging/Homologação:**
 ```bash
 # Ambiente de teste similar à produção
 ./scripts/docker-staging.sh
 ```
+*Para testes de integração e homologação*
 
 **🚀 Produção:**
 ```bash
 # Ambiente de produção otimizado
 ./scripts/docker-start.sh
 ```
+*Para deploy em produção*
 
 #### Estrutura dos Arquivos Docker Compose
 
@@ -179,17 +189,38 @@ A aplicação estará disponível em:
 - Backend API: http://localhost:8080 (configurável via BACKEND_PORT)
 - Health Check: http://localhost:8080/healthz
 
-### 5. Execução Local
+### 5. Desenvolvimento Local (Recomendado)
 
-#### Backend
+Para desenvolvimento, recomendamos usar apenas os serviços de banco em containers e rodar as aplicações localmente para máxima performance.
+
+#### Configuração Rápida
 ```bash
-cd backend
-npm run dev
+# 1. Subir apenas banco de dados
+./scripts/dev-local.sh
+
+# 2. Em terminal separado - Backend
+cd backend && npm run dev
+
+# 3. Em terminal separado - Frontend
+cd frontend && npm run dev
 ```
 
-#### Frontend
+#### Vantagens do Desenvolvimento Local
+- **⚡ Velocidade**: Hot-reload instantâneo sem rebuild de containers
+- **🐛 Debugging**: Logs diretos e breakpoints funcionais
+- **🔧 Flexibilidade**: Fácil de parar/iniciar apenas as aplicações
+- **💾 Persistência**: Dados do banco preservados entre restarts
+
+#### Execução Manual (Alternativa)
 ```bash
+# Backend
+cd backend
+npm install
+npm run dev
+
+# Frontend
 cd frontend
+npm install
 npm run dev
 ```
 
@@ -276,6 +307,49 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 
 ## 🔧 Desenvolvimento
 
+### Troubleshooting de Desenvolvimento
+
+#### Problemas Comuns
+
+**Backend não conecta ao banco:**
+```bash
+# Verificar se PostgreSQL está rodando
+docker-compose --env-file .env.docker -f docker-compose.dev.yml ps
+
+# Verificar logs do PostgreSQL
+docker-compose --env-file .env.docker -f docker-compose.dev.yml logs postgres
+```
+
+**Frontend não conecta ao backend:**
+```bash
+# Verificar se backend está rodando na porta 8080
+curl http://localhost:8080/healthz
+
+# Verificar se proxy está configurado no Vite
+# O frontend deve fazer proxy de /api para http://localhost:8080/api
+```
+
+**Dependências desatualizadas:**
+```bash
+# Backend
+cd backend && rm -rf node_modules package-lock.json && npm install
+
+# Frontend
+cd frontend && rm -rf node_modules package-lock.json && npm install
+```
+
+**Reset completo do ambiente:**
+```bash
+# Parar todos os serviços
+docker-compose --env-file .env.docker -f docker-compose.dev.yml down -v
+
+# Remover volumes (cuidado: perde dados)
+docker volume rm indicadoresazurerepo_postgres_data_dev indicadoresazurerepo_redis_data_dev
+
+# Reiniciar
+./scripts/dev-local.sh
+```
+
 ### Estrutura do Projeto
 
 ```
@@ -298,6 +372,41 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 ├── docker-compose.yml  # Orquestração de produção
 ├── docker-compose.dev.yml  # Orquestração de desenvolvimento
 └── docker-compose.staging.yml  # Orquestração de staging
+```
+
+### Fluxo de Desenvolvimento
+
+#### 1. Configuração Inicial
+```bash
+# Clone e configure o ambiente
+git clone <repository>
+cd indicadores-azure-repos
+cp env.docker.example .env.docker
+# Edite .env.docker com suas configurações
+
+# Suba apenas os serviços de banco
+./scripts/dev-local.sh
+```
+
+#### 2. Desenvolvimento Diário
+```bash
+# Terminal 1: Backend
+cd backend && npm run dev
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+
+# Terminal 3: Logs do banco (opcional)
+docker-compose --env-file .env.docker -f docker-compose.dev.yml logs -f
+```
+
+#### 3. Testes e Dados
+```bash
+# Popular banco com dados de teste
+cd backend && npm run db:seed
+
+# Popular banco com dados completos
+cd backend && npm run db:seed:demo
 ```
 
 ### Scripts Úteis
@@ -352,7 +461,10 @@ cd backend && npx tsx scripts/normalize-developer-names.ts
 # Produção
 ./scripts/docker-start.sh
 
-# Desenvolvimento
+# Desenvolvimento (recomendado)
+./scripts/dev-local.sh
+
+# Desenvolvimento (legado - tudo em containers)
 ./scripts/docker-dev.sh
 
 # Staging/Homologação
