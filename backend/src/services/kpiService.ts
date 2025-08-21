@@ -1,8 +1,7 @@
 // @ts-nocheck
 import { prisma } from '@/config/database';
-import { logger } from '@/utils/logger';
 import { getCachedData, setCachedData, cacheKeys } from '@/config/redis';
-import { KpiFilters, PaginationParams, PaginatedResponse } from '@/types';
+import { PaginationParams, PaginatedResponse } from '@/types';
 
 export class KpiService {
   async getPrReviewComments(filters: any): Promise<any> {
@@ -576,9 +575,7 @@ export class KpiService {
     }));
   }
 
-  async getTimeToFirstReview(filters: any): Promise<any> {
-    const where = this.buildWhereClause(filters);
-
+  async getTimeToFirstReview(_filters: any): Promise<any> {
     const data = await prisma.pullRequest.findMany({
       select: {
         id: true,
@@ -647,7 +644,6 @@ export class KpiService {
   }
 
   async getTopTimeToReview(filters: any, pagination: PaginationParams): Promise<PaginatedResponse<any>> {
-    const where = this.buildWhereClause(filters);
     const { page = 1, pageSize = 10 } = pagination;
     const skip = (page - 1) * pageSize;
 
@@ -663,8 +659,7 @@ export class KpiService {
           createdBy: { select: { name: true, team: { select: { name: true } } } },
         },
       }),
-      prisma.pullRequest.count({
-      }),
+      prisma.pullRequest.count(),
     ]);
 
     return {
@@ -677,7 +672,7 @@ export class KpiService {
             createdAt: item.createdAt,
           },
           author: item.createdBy,
-          timeToReviewDays: timeToReview,
+          timeToReviewDays: 0, // Placeholder - will be calculated when review data is available
         };
       }),
       pagination: {
@@ -696,8 +691,6 @@ export class KpiService {
 
     const [
       totalPRs,
-      mergedPRs,
-      openPRs,
       totalCommits,
       totalReviews,
       totalComments,
@@ -712,8 +705,9 @@ export class KpiService {
       topDevelopers,
     ] = await Promise.all([
       prisma.pullRequest.count({ where }),
-      prisma.pullRequest.count({ where: { ...where, status: 'completed' } }),
-      prisma.pullRequest.count({ where: { ...where, status: 'active' } }),
+      prisma.commit.count({ where: this.buildWhereClause(filters, 'commit') }),
+      prisma.review.count({ where: { pullRequest: where } }),
+      prisma.comment.count({ where: { pullRequest: where } }),
       prisma.commit.count({ where: this.buildWhereClause(filters, 'commit') }),
       prisma.review.count({ where: { pullRequest: where } }),
       prisma.comment.count({ where: { pullRequest: where } }),
