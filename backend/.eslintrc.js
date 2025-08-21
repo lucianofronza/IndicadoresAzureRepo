@@ -34,5 +34,11 @@ module.exports = {
         '@typescript-eslint/no-explicit-any': 'off',
       },
     },
+    {
+      files: ['**/config/database.ts'],
+      rules: {
+        'no-var': 'off', // Allow var in global declarations
+      },
+    },
   ],
 };
