@@ -1,5 +1,16 @@
 const { PrismaClient } = require('@prisma/client');
-const { encrypt } = require('../src/utils/encryption');
+const crypto = require('crypto');
+
+// Função de criptografia simples para o seed
+function encrypt(text) {
+  const algorithm = 'aes-256-cbc';
+  const key = Buffer.from(process.env.ENCRYPTION_KEY || 'default-key-32-chars-long', 'utf8');
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipher(algorithm, key);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
 
 const prisma = new PrismaClient();
 
@@ -228,7 +239,7 @@ async function seedDatabase() {
     console.log('\n📦 Criando repositórios...');
     const repositories = await Promise.all([
       prisma.repository.upsert({
-        where: { name: 'BServer' },
+        where: { url: 'https://dev.azure.com/bennertec/BServer/_git/BServer' },
         update: {},
         create: {
           name: 'BServer',
@@ -240,7 +251,7 @@ async function seedDatabase() {
         }
       }),
       prisma.repository.upsert({
-        where: { name: 'BennerLicense' },
+        where: { url: 'https://dev.azure.com/bennertec/BServer/_git/BennerLicense' },
         update: {},
         create: {
           name: 'BennerLicense',
@@ -252,7 +263,7 @@ async function seedDatabase() {
         }
       }),
       prisma.repository.upsert({
-        where: { name: 'Frontend-App' },
+        where: { url: 'https://dev.azure.com/bennertec/Frontend/_git/Frontend-App' },
         update: {},
         create: {
           name: 'Frontend-App',
@@ -292,10 +303,12 @@ async function seedDatabase() {
         developerUsage[createdBy.id]++;
 
         const pr = {
-          azureId: `pr-${repository.name.toLowerCase()}-${i + 1}`,
+          azureId: 10000 + (repositories.indexOf(repository) * NUM_PULL_REQUESTS) + i + 1,
           title: randomChoice(PR_TITLES),
           description: `Descrição do PR ${i + 1} para ${repository.name}`,
           status: status,
+          sourceBranch: `feature/pr-${i + 1}`,
+          targetBranch: 'main',
           createdAt: createdAt,
           updatedAt: randomDate(createdAt, endDate),
           mergedAt: mergedAt,
@@ -332,10 +345,11 @@ async function seedDatabase() {
           const reviewDate = randomDate(pr.createdAt, pr.mergedAt || new Date());
           
           const review = {
-            azureId: `review-${pr.azureId}-${j + 1}`,
+            azureId: pr.azureId * 10 + j + 1,
             status: randomChoice(REVIEW_STATUSES),
-            comment: randomChoice(REVIEW_COMMENTS),
+            vote: randomChoice([1, 5, 10]), // Azure DevOps vote values
             createdAt: reviewDate,
+            updatedAt: reviewDate,
             pullRequestId: pr.id,
             reviewerId: reviewer.id
           };

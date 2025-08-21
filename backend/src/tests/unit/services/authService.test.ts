@@ -40,7 +40,7 @@ describe('AuthService', () => {
   describe('getAuthorizationUrl', () => {
     it('should return correct authorization URL', () => {
       const state = 'test-state';
-      const redirectUri = 'http://localhost:3000/callback';
+      const redirectUri = 'http://localhost:5173/callback';
 
       const url = authService.getAuthorizationUrl(state, redirectUri);
 

@@ -92,6 +92,7 @@ cp ../env.docker.example .env
 cd frontend
 # O frontend não precisa de arquivo .env para desenvolvimento local
 # O Vite configura automaticamente o proxy para /api -> http://localhost:8080/api
+# A aplicação roda em http://localhost:5173 por padrão
 ```
 
 ### 3. Instalação das Dependências
@@ -126,6 +127,12 @@ nano .env.docker
 ```env
 POSTGRES_PASSWORD=your_secure_password_here
 ENCRYPTION_KEY=your_32_character_encryption_key
+```
+
+**Geração da ENCRYPTION_KEY:**
+```bash
+# Gerar chave de 32 caracteres
+openssl rand -base64 24
 ```
 
 #### Ambientes Disponíveis
@@ -288,7 +295,9 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 │   └── package.json
 ├── infra/              # Configurações de infraestrutura
 ├── scripts/            # Scripts de automação
-└── docker-compose.yml  # Orquestração local
+├── docker-compose.yml  # Orquestração de produção
+├── docker-compose.dev.yml  # Orquestração de desenvolvimento
+└── docker-compose.staging.yml  # Orquestração de staging
 ```
 
 ### Scripts Úteis
@@ -317,6 +326,10 @@ cd backend && npm run db:seed
 
 # Seed completo com dados de demonstração
 cd backend && npm run db:seed:demo
+
+# Executar seed dentro do container Docker
+docker-compose --env-file .env.docker -f docker-compose.dev.yml exec backend npm run db:seed
+docker-compose --env-file .env.docker -f docker-compose.dev.yml exec backend npm run db:seed:demo
 ```
 
 **Análise de Desenvolvedores:**

@@ -42,19 +42,19 @@ echo "   Frontend: localhost:${FRONTEND_PORT:-5173}"
 echo ""
 
 # Start staging services
-docker-compose -f docker-compose.staging.yml up -d
+docker-compose --env-file .env.docker -f docker-compose.staging.yml up -d
 
 echo "⏳ Waiting for services to be ready..."
 
 # Wait for PostgreSQL
 echo "   Waiting for PostgreSQL..."
-until docker-compose -f docker-compose.staging.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure_staging} > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker -f docker-compose.staging.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure_staging} > /dev/null 2>&1; do
   sleep 2
 done
 
 # Wait for Redis
 echo "   Waiting for Redis..."
-until docker-compose -f docker-compose.staging.yml exec -T redis redis-cli ping > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker -f docker-compose.staging.yml exec -T redis redis-cli ping > /dev/null 2>&1; do
   sleep 2
 done
 
@@ -85,7 +85,7 @@ echo "   ✅ Testing environment ready"
 echo "   ✅ Staging containers isolated"
 echo ""
 echo "🔧 Useful commands:"
-echo "   View logs: docker-compose -f docker-compose.staging.yml logs -f"
-echo "   Stop services: docker-compose -f docker-compose.staging.yml down"
-echo "   Restart services: docker-compose -f docker-compose.staging.yml restart"
-echo "   View status: docker-compose -f docker-compose.staging.yml ps"
+echo "   View logs: docker-compose --env-file .env.docker -f docker-compose.staging.yml logs -f"
+echo "   Stop services: docker-compose --env-file .env.docker -f docker-compose.staging.yml down"
+echo "   Restart services: docker-compose --env-file .env.docker -f docker-compose.staging.yml restart"
+echo "   View status: docker-compose --env-file .env.docker -f docker-compose.staging.yml ps"

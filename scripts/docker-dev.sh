@@ -7,6 +7,9 @@
 
 set -e
 
+# Set Docker Compose timeout to avoid build timeouts
+export COMPOSE_HTTP_TIMEOUT=300
+
 echo "🐳 Starting Indicadores Azure Repos Development Environment..."
 
 # Check if .env.docker exists
@@ -42,19 +45,19 @@ echo "   Frontend: localhost:${FRONTEND_PORT:-5173}"
 echo ""
 
 # Start development services
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose --env-file .env.docker -f docker-compose.dev.yml up -d
 
 echo "⏳ Waiting for services to be ready..."
 
 # Wait for PostgreSQL
 echo "   Waiting for PostgreSQL..."
-until docker-compose -f docker-compose.dev.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure} > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker -f docker-compose.dev.yml exec -T postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-indicadores_azure} > /dev/null 2>&1; do
   sleep 2
 done
 
 # Wait for Redis
 echo "   Waiting for Redis..."
-until docker-compose -f docker-compose.dev.yml exec -T redis redis-cli ping > /dev/null 2>&1; do
+until docker-compose --env-file .env.docker -f docker-compose.dev.yml exec -T redis redis-cli ping > /dev/null 2>&1; do
   sleep 2
 done
 
@@ -85,7 +88,7 @@ echo "   ✅ Debug mode enabled"
 echo "   ✅ Development containers isolated"
 echo ""
 echo "🔧 Useful commands:"
-echo "   View logs: docker-compose -f docker-compose.dev.yml logs -f"
-echo "   Stop services: docker-compose -f docker-compose.dev.yml down"
-echo "   Restart services: docker-compose -f docker-compose.dev.yml restart"
-echo "   View status: docker-compose -f docker-compose.dev.yml ps"
+echo "   View logs: docker-compose --env-file .env.docker -f docker-compose.dev.yml logs -f"
+echo "   Stop services: docker-compose --env-file .env.docker -f docker-compose.dev.yml down"
+echo "   Restart services: docker-compose --env-file .env.docker -f docker-compose.dev.yml restart"
+echo "   View status: docker-compose --env-file .env.docker -f docker-compose.dev.yml ps"
