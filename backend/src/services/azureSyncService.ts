@@ -327,7 +327,7 @@ export class AzureSyncService {
     logger.info({ repositoryId: repository.id, syncType }, 'Starting additional data sync for detailed KPIs');
 
     // Build where clause based on sync type
-    let whereClause: any = { repositoryId: repository.id };
+    const whereClause: any = { repositoryId: repository.id };
     
     if (syncType === 'incremental' && repository.lastSyncAt) {
       // For incremental sync, only get PRs updated since last sync
