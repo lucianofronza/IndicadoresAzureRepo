@@ -351,6 +351,7 @@ export class AzureSyncService {
   }
 
   // Sync basic PR data (essential for core KPIs)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   private async syncPullRequestBasic(repository: any, azurePR: AzurePullRequest, _token: string): Promise<void> {
     try {
       // Find or create developer

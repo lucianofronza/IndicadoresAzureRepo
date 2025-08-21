@@ -575,6 +575,7 @@ export class KpiService {
     }));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   async getTimeToFirstReview(_filters: any): Promise<any> {
     const data = await prisma.pullRequest.findMany({
       select: {
