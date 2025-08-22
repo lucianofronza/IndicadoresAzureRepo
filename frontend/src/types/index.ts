@@ -87,7 +87,7 @@ export interface PullRequest extends BaseEntity {
   author?: Developer
   commits?: Commit[]
   reviews?: Review[]
-  comments?: Comment[]
+  comments?: PrComment[]
   filesChanged?: PrFileChanged[]
 }
 
@@ -114,7 +114,7 @@ export interface Review extends BaseEntity {
 }
 
 // Comment types
-export interface Comment extends BaseEntity {
+export interface PrComment extends BaseEntity {
   pullRequestId: string
   authorDevId: string
   body: string
