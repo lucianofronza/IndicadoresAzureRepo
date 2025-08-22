@@ -2,9 +2,8 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Repository, CreateRepositoryDto, UpdateRepositoryDto, PaginationParams, PaginatedResponse } from '@/types';
-import { NotFoundError, ConflictError } from '@/middlewares/errorHandler';
+import { NotFoundError } from '@/middlewares/errorHandler';
 import { encrypt, decrypt } from '@/utils/encryption';
-import bcrypt from 'bcryptjs';
 
 export class RepositoryService {
   async getAll(params: PaginationParams): Promise<PaginatedResponse<Repository>> {

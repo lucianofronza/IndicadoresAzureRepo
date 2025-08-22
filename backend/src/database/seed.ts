@@ -47,7 +47,7 @@ async function main() {
     create: { name: 'Mid-level Developer' },
   });
 
-  const juniorDev = await prisma.role.upsert({
+  await prisma.role.upsert({
     where: { name: 'Junior Developer' },
     update: {},
     create: { name: 'Junior Developer' },
@@ -104,7 +104,7 @@ async function main() {
     },
   });
 
-  const dev2 = await prisma.developer.upsert({
+  await prisma.developer.upsert({
     where: { login: 'jane.smith' },
     update: {},
     create: {
@@ -162,7 +162,7 @@ async function main() {
   });
 
   // Create repositories
-  const repo1 = await prisma.repository.create({
+  await prisma.repository.create({
     data: {
       name: 'backend-api',
       organization: 'mycompany',
@@ -174,7 +174,7 @@ async function main() {
     },
   });
 
-  const repo2 = await prisma.repository.create({
+  await prisma.repository.create({
     data: {
       name: 'frontend-app',
       organization: 'mycompany',

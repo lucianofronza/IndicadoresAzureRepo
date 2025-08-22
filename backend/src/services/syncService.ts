@@ -1,6 +1,6 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { acquireLock, releaseLock, cacheKeys, setCachedData, getCachedData } from '@/config/redis';
+import { acquireLock, releaseLock, cacheKeys } from '@/config/redis';
 import { NotFoundError, ConflictError } from '@/middlewares/errorHandler';
 import { AzureSyncService } from './azureSyncService';
 
