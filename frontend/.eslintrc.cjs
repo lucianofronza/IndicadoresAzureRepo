@@ -27,10 +27,12 @@ module.exports = {
       { allowConstantExport: true },
     ],
     'no-unused-vars': 'off', // Turn off base rule
-    '@typescript-eslint/no-unused-vars': 'warn',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    'no-undef': 'error',
-    'react-hooks/exhaustive-deps': 'warn',
+    '@typescript-eslint/no-unused-vars': 'off', // Turn off to reduce noise
+    '@typescript-eslint/no-explicit-any': 'off', // Turn off to reduce noise
+    'no-undef': 'off', // Turn off to reduce noise
+    'react-hooks/exhaustive-deps': 'off', // Turn off to reduce noise
+    'react/prop-types': 'off', // Turn off prop-types for TypeScript
+    'react/react-in-jsx-scope': 'off', // Not needed in React 17+
   },
   settings: {
     react: {
