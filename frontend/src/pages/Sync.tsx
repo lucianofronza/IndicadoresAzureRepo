@@ -308,7 +308,7 @@ export const Sync: React.FC = () => {
           <div className="p-6 text-center text-gray-500">
             <RefreshCw className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p>Nenhum repositório configurado</p>
-            <p className="text-sm">Adicione repositórios em "Repositórios" para começar a sincronizar</p>
+            <p className="text-sm">Adicione repositórios em &quot;Repositórios&quot; para começar a sincronizar</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

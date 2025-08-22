@@ -66,7 +66,8 @@ export const errorHandler = (
   error: AppError | Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  _next: NextFunction
 ): void => {
   let appError: AppError;
 
