@@ -1,0 +1,20 @@
+# Code Owners
+# This file defines who is responsible for different parts of the codebase
+
+# Global owners
+* @lucianofronza
+
+# Backend specific
+/backend/ @lucianofronza
+
+# Frontend specific  
+/frontend/ @lucianofronza
+
+# Infrastructure and DevOps
+/infra/ @lucianofronza
+/.github/ @lucianofronza
+/docker-compose*.yml @lucianofronza
+
+# Documentation
+/README.md @lucianofronza
+/docs/ @lucianofronza
