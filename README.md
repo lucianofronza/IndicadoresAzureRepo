@@ -73,8 +73,8 @@ Uma aplicação web fullstack para análise de indicadores individuais de desenv
 
 ### 1. Clone o repositório
 ```bash
-git clone https://github.com/seu-usuario/indicadores-azure-repos.git
-cd indicadores-azure-repos
+git clone https://github.com/lucianofronza/IndicadoresAzureRepo.git
+cd IndicadoresAzureRepo
 ```
 
 ### 2. Configuração do Ambiente

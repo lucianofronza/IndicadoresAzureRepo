@@ -9,9 +9,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "team-leads"
+      - "lucianofronza"
     assignees:
-      - "backend-team"
+      - "lucianofronza"
     commit-message:
       prefix: "chore(backend)"
       include: "scope"
@@ -36,9 +36,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "team-leads"
+      - "lucianofronza"
     assignees:
-      - "frontend-team"
+      - "lucianofronza"
     commit-message:
       prefix: "chore(frontend)"
       include: "scope"
@@ -63,9 +63,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "team-leads"
+      - "lucianofronza"
     assignees:
-      - "devops-team"
+      - "lucianofronza"
     commit-message:
       prefix: "chore(docker)"
       include: "scope"
@@ -86,9 +86,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "team-leads"
+      - "lucianofronza"
     assignees:
-      - "devops-team"
+      - "lucianofronza"
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
@@ -104,9 +104,9 @@ updates:
       time: "06:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "security-team"
+      - "lucianofronza"
     assignees:
-      - "security-team"
+      - "lucianofronza"
     commit-message:
       prefix: "security(backend)"
       include: "scope"
@@ -125,9 +125,9 @@ updates:
       time: "06:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "security-team"
+      - "lucianofronza"
     assignees:
-      - "security-team"
+      - "lucianofronza"
     commit-message:
       prefix: "security(frontend)"
       include: "scope"
