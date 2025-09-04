@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Building2 } from 'lucide-react'
 import { Team, CreateTeamData } from '@/types'
 import { formatDate } from '@/lib/utils'
+import { usePermissions } from '@/hooks/usePermissions'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -10,6 +11,7 @@ export const Teams: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   const { data: teams, isLoading } = useQuery({
     queryKey: ['teams'],
@@ -100,13 +102,15 @@ export const Teams: React.FC = () => {
             Gerencie os times da organização
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="btn btn-primary btn-md"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Time
-        </button>
+        {canWrite('teams') && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="btn btn-primary btn-md"
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Teams List */}
@@ -148,18 +152,24 @@ export const Teams: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(team)}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(team.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canWrite('teams') && (
+                        <button
+                          onClick={() => handleEdit(team)}
+                          className="text-primary-600 hover:text-primary-900"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDelete('teams') && (
+                        <button
+                          onClick={() => handleDelete(team.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

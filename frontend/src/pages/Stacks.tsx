@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Palette } from 'lucide-react'
 import { Stack, CreateStackData, UpdateStackData } from '@/types'
+import { usePermissions } from '@/hooks/usePermissions'
 import api from '@/services/api'
 
 export const Stacks: React.FC = () => {
@@ -19,6 +20,7 @@ export const Stacks: React.FC = () => {
   })
 
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   // Fetch stacks
   const { data: stacksData, isLoading } = useQuery({
@@ -98,19 +100,21 @@ export const Stacks: React.FC = () => {
             Gerencie as stacks tecnológicas da organização
           </p>
         </div>
-        <button 
-          className="btn btn-primary btn-md"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Nova Stack
-        </button>
+        {canWrite('stacks') && (
+          <button 
+            className="btn btn-primary btn-md"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
       <div className="card p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Search className="h-5 w-5 text-gray-500" />
+          <Palette className="h-5 w-5 text-gray-500" />
           <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -194,18 +198,24 @@ export const Stacks: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(stack)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(stack.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canWrite('stacks') && (
+                          <button
+                            onClick={() => handleEditClick(stack)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete('stacks') && (
+                          <button
+                            onClick={() => handleDelete(stack.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

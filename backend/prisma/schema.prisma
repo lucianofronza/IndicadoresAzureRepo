@@ -205,3 +205,54 @@ model SyncJob {
 
   @@map("sync_jobs")
 }
+
+// Autenticação e Usuários
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  login     String   @unique
+  password  String   // Senha criptografada
+  roleId    String   // Referência obrigatória para UserRole
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relacionamentos
+  role      UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  tokens    UserToken[]
+
+  @@map("users")
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] // Array de permissões
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  users       User[]
+
+  @@map("user_roles")
+}
+
+model UserToken {
+  id           String   @id @default(cuid())
+  userId       String
+  accessToken  String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  isRevoked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_tokens")
+}
