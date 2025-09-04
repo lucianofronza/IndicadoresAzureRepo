@@ -7,11 +7,8 @@ import {
   UserCreateInput, 
   UserUpdateInput, 
   LoginRequest, 
-  LoginResponse,
   RefreshTokenRequest,
-  RefreshTokenResponse,
-  ChangePasswordRequest,
-  DbUser
+  ChangePasswordRequest
 } from '@/types/auth';
 import { CustomError } from '@/middlewares/errorHandler';
 
@@ -26,7 +23,8 @@ export class AuthService {
    * Converter usuário do banco para tipo da API
    */
   private convertDbUserToUser(dbUser: any): Omit<User, 'password'> {
-    const { password, ...userWithoutPassword } = dbUser;
+    const userWithoutPassword = Object.assign({}, dbUser);
+    delete userWithoutPassword.password;
     return {
       ...userWithoutPassword,
       role: userWithoutPassword.role || null // Retornar o objeto role completo
@@ -99,7 +97,7 @@ export class AuthService {
   /**
    * Fazer login do usuário
    */
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
+  async login(credentials: LoginRequest): Promise<any> { // Changed return type to any as LoginResponse is removed
     try {
       logger.info({ email: credentials.email }, 'Attempting user login');
 
@@ -167,7 +165,7 @@ export class AuthService {
   /**
    * Renovar token de acesso
    */
-  async refreshToken(refreshData: RefreshTokenRequest): Promise<RefreshTokenResponse> {
+  async refreshToken(refreshData: RefreshTokenRequest): Promise<any> { // Changed return type to any as RefreshTokenResponse is removed
     try {
       logger.info('Attempting to refresh token');
 

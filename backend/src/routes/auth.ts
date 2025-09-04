@@ -1,13 +1,12 @@
 import { Router, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '@/middlewares/errorHandler';
-import { requireAuth, requireAdmin } from '@/middlewares/auth';
+import { requireAuth } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
 import { AuthService } from '@/services/authService';
 import { logger } from '@/utils/logger';
 import { 
   UserCreateInput, 
-  UserUpdateInput, 
   LoginRequest, 
   RefreshTokenRequest,
   ChangePasswordRequest,
@@ -90,10 +89,10 @@ const updateUserValidation = [
     .isLength({ min: 3, max: 50 })
     .matches(/^[a-zA-Z0-9_-]+$/)
     .withMessage('Login deve ter entre 3 e 50 caracteres e conter apenas letras, números, hífen e underscore'),
-  body('role')
+  body('roleId')
     .optional()
-    .isIn(['admin', 'user'])
-    .withMessage('Role deve ser admin ou user'),
+    .isString()
+    .withMessage('roleId deve ser uma string'),
   body('isActive')
     .optional()
     .isBoolean()

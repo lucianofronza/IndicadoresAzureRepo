@@ -33,7 +33,7 @@ export const AccessDenied: React.FC = () => {
         <div className="mt-8 text-sm text-gray-500">
           <p>
             Se você acredita que deveria ter acesso a esta funcionalidade, 
-            verifique suas permissões na seção "Roles" do sistema.
+            verifique suas permissões na seção &quot;Roles&quot; do sistema.
           </p>
         </div>
       </div>
