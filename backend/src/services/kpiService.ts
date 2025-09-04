@@ -709,9 +709,6 @@ export class KpiService {
       prisma.commit.count({ where: this.buildWhereClause(filters, 'commit') }),
       prisma.review.count({ where: { pullRequest: where } }),
       prisma.comment.count({ where: { pullRequest: where } }),
-      prisma.commit.count({ where: this.buildWhereClause(filters, 'commit') }),
-      prisma.review.count({ where: { pullRequest: where } }),
-      prisma.comment.count({ where: { pullRequest: where } }),
       prisma.pullRequest.aggregate({
         where: { ...where, cycleTimeDays: { not: null } },
         _avg: { cycleTimeDays: true },
@@ -808,7 +805,7 @@ export class KpiService {
     ]);
 
     // Processar dados de Pull Requests por Status
-    const processedPullRequestsByStatus = pullRequestsByStatus
+    const processedPullRequestsByStatus = (pullRequestsByStatus || [])
       .filter((item: any) => item._count.id > 0) // Only include statuses with PRs
       .map((item: any) => ({
         status: item.status,
@@ -817,7 +814,7 @@ export class KpiService {
 
     // Processar dados de Pull Requests por Time
     const processedPullRequestsByTeam = await Promise.all(
-      pullRequestsByTeam
+      (pullRequestsByTeam || [])
         .filter((item: any) => item._count.id > 0) // Only include teams with PRs
         .map(async (item: any) => {
           const developer = await prisma.developer.findUnique({
@@ -833,7 +830,7 @@ export class KpiService {
 
     // Processar dados de Cargos por Time para gráfico de colunas empilhadas
     const processedRolesByTeam = await Promise.all(
-      rolesByTeam
+      (rolesByTeam || [])
         .map(async (item: any) => {
           const team = await prisma.team.findUnique({
             where: { id: item.teamId },
@@ -859,7 +856,7 @@ export class KpiService {
     });
 
     // Processar Top Developers
-    const processedTopDevelopers = topDevelopers
+    const processedTopDevelopers = (topDevelopers || [])
       .filter((developer: any) => developer._count.pullRequests > 0) // Only include developers with PRs
       .map((developer: any) => ({
         developer: {
@@ -884,7 +881,7 @@ export class KpiService {
       totalRoles: totalRoles,
       totalDevelopers: totalDevelopers,
       totalStacks: totalStacks,
-      averageCycleTime: Math.round((avgCycleTime._avg.cycleTimeDays || 0) * 24 * 60 * 60 * 1000), // Converter para milissegundos
+      averageCycleTime: Math.round(((avgCycleTime?._avg?.cycleTimeDays || 0) * 24 * 60 * 60 * 1000)), // Converter para milissegundos
       averageReviewTime: 0, // TODO: Calcular review time médio
       topDevelopers: processedTopDevelopers,
       pullRequestsByStatus: processedPullRequestsByStatus,
