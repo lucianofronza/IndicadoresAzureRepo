@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../types/auth';
 import { AuthService } from '@/services/authService';
 import { logger } from '@/utils/logger';
-import { AuthenticatedRequest } from '@/types/auth';
 
 const authService = new AuthService();
 

@@ -1,12 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '@/services/authService';
-import { logger } from '@/utils/logger';
-import { AuthenticatedRequest } from '@/types/auth';
-import { CustomError } from '@/middlewares/errorHandler';
+import { Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { AuthenticatedRequest } from '../types/auth';
+import { CustomError } from '../middlewares/errorHandler';
+import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
-const authService = new AuthService();
 
 export interface PermissionMiddlewareOptions {
   permission: string;
