@@ -1,16 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './useAuth';
 import api from '../services/api';
-
-interface UserRole {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  isSystem: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export const usePermissions = () => {
   const { user } = useAuth();
