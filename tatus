@@ -1,0 +1,6 @@
+  feature/improve-dev-environment-setup[m
+  feature/minimal-login-implementation[m
+* [32mfeature/user-authentication[m
+  fix/dashboard-error[m
+  fix/seed-script-files-changed[m
+  main[m
