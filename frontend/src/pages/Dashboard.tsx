@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PaginatedSelect } from '@/components/PaginatedSelect'
 import { DateRangePicker } from '@/components/DateRangePicker'
@@ -20,11 +20,22 @@ import { DashboardFilters, KPI } from '@/types'
 import { formatNumber } from '@/lib/utils'
 import api from '@/services/api'
 
+// Função para calcular datas padrão de forma mais robusta
+const getDefaultDateRange = () => {
+  const today = new Date()
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(today.getDate() - 30)
+  
+  return {
+    startDate: thirtyDaysAgo.toISOString().split('T')[0],
+    endDate: today.toISOString().split('T')[0],
+  }
+}
+
 export const Dashboard: React.FC = () => {
-  const [filters, setFilters] = useState<DashboardFilters>({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-  })
+  const [filters, setFilters] = useState<DashboardFilters>(getDefaultDateRange())
+
+
 
   const { data: kpis, isLoading, error } = useQuery({
     queryKey: ['kpis', filters],
@@ -173,6 +184,8 @@ export const Dashboard: React.FC = () => {
     cycleTimeByTeamData?.error || 
     topCycleTimePRs?.error
 
+
+
   // Verificar se todos os dados necessários estão carregados
   const isDataReady = kpis && 
     (prReviewComments !== undefined) && 
@@ -182,6 +195,39 @@ export const Dashboard: React.FC = () => {
     (filesChangedData !== undefined) && 
     (cycleTimeByTeamData !== undefined) && 
     (topCycleTimePRs !== undefined)
+
+  // Fallback para dados vazios com verificações de segurança
+  const safeKpis = kpis ? {
+    totalPullRequests: kpis.totalPullRequests || 0,
+    totalReviews: kpis.totalReviews || 0,
+    totalComments: kpis.totalComments || 0,
+    totalCommits: kpis.totalCommits || 0,
+    totalTeams: kpis.totalTeams || 0,
+    totalRoles: kpis.totalRoles || 0,
+    totalDevelopers: kpis.totalDevelopers || 0,
+    totalStacks: kpis.totalStacks || 0,
+    averageCycleTime: kpis.averageCycleTime || 0,
+    averageReviewTime: kpis.averageReviewTime || 0,
+    topDevelopers: Array.isArray(kpis.topDevelopers) ? kpis.topDevelopers : [],
+    pullRequestsByStatus: Array.isArray(kpis.pullRequestsByStatus) ? kpis.pullRequestsByStatus : [],
+    pullRequestsByTeam: Array.isArray(kpis.pullRequestsByTeam) ? kpis.pullRequestsByTeam : [],
+    rolesByTeam: Array.isArray(kpis.rolesByTeam) ? kpis.rolesByTeam : []
+  } : {
+    totalPullRequests: 0,
+    totalReviews: 0,
+    totalComments: 0,
+    totalCommits: 0,
+    totalTeams: 0,
+    totalRoles: 0,
+    totalDevelopers: 0,
+    totalStacks: 0,
+    averageCycleTime: 0,
+    averageReviewTime: 0,
+    topDevelopers: [],
+    pullRequestsByStatus: [],
+    pullRequestsByTeam: [],
+    rolesByTeam: []
+  }
 
   if (isLoading || !isDataReady) {
     return (
@@ -197,7 +243,17 @@ export const Dashboard: React.FC = () => {
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar dados</h3>
-          <p className="text-gray-500">Não foi possível carregar os dados do dashboard. Tente novamente.</p>
+          <p className="text-gray-500 mb-4">Não foi possível carregar os dados do dashboard.</p>
+          <div className="text-sm text-gray-400">
+            <p>Verifique se o backend está rodando na porta 8080</p>
+            <p>Filtros aplicados: {filters.startDate} até {filters.endDate}</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Tentar novamente
+          </button>
         </div>
       </div>
     )
@@ -309,7 +365,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Pull Requests</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalPullRequests || 0)}
+                {formatNumber(safeKpis.totalPullRequests)}
               </p>
             </div>
           </div>
@@ -323,7 +379,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Reviews</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalReviews || 0)}
+                {formatNumber(safeKpis.totalReviews)}
               </p>
             </div>
           </div>
@@ -337,7 +393,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Commits</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalCommits || 0)}
+                {formatNumber(safeKpis.totalCommits)}
               </p>
             </div>
           </div>
@@ -351,7 +407,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Comments</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalComments || 0)}
+                {formatNumber(safeKpis.totalComments)}
               </p>
             </div>
           </div>
@@ -365,7 +421,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Times</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalTeams || 0)}
+                {formatNumber(safeKpis.totalTeams)}
               </p>
             </div>
           </div>
@@ -379,7 +435,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Cargos</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalRoles || 0)}
+                {formatNumber(safeKpis.totalRoles)}
               </p>
             </div>
           </div>
@@ -393,7 +449,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Devs</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalDevelopers || 0)}
+                {formatNumber(safeKpis.totalDevelopers)}
               </p>
             </div>
           </div>
@@ -407,7 +463,7 @@ export const Dashboard: React.FC = () => {
             <div className="ml-3">
               <p className="text-xs font-medium text-gray-500">Stacks</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(kpis?.totalStacks || 0)}
+                {formatNumber(safeKpis.totalStacks)}
               </p>
             </div>
           </div>
@@ -417,7 +473,7 @@ export const Dashboard: React.FC = () => {
       {/* Pull Request x Review x Comments */}
       <div className="card p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Pull Request x Review x Comments</h3>
-        {prReviewComments && Array.isArray(prReviewComments) && prReviewComments.length > 0 ? (
+        {Array.isArray(prReviewComments) && prReviewComments.length > 0 ? (
           <div style={{ height: '400px' }}>
             <ReactApexChart
               options={{
@@ -502,7 +558,7 @@ export const Dashboard: React.FC = () => {
         {/* Pull Request x Commit por Time */}
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Pull Request x Commit por Time</h3>
-          {prCommitData && Array.isArray(prCommitData) && prCommitData.length > 0 ? (
+          {Array.isArray(prCommitData) && prCommitData.length > 0 ? (
             <div style={{ height: '300px' }}>
               <ReactApexChart
                 options={{
@@ -586,7 +642,7 @@ export const Dashboard: React.FC = () => {
         {/* Pull Request x Review por Time */}
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Pull Request x Review por Time</h3>
-          {prReviewTeamData && Array.isArray(prReviewTeamData) && prReviewTeamData.length > 0 ? (
+          {Array.isArray(prReviewTeamData) && prReviewTeamData.length > 0 ? (
             <div style={{ height: '300px' }}>
               <ReactApexChart
                 options={{
@@ -673,7 +729,7 @@ export const Dashboard: React.FC = () => {
         {/* Média Cycle time Pull Request (dias) */}
         <div className="card p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Média Cycle time Pull Request (dias)</h3>
-            {cycleTimeByTeamData && Array.isArray(cycleTimeByTeamData) && cycleTimeByTeamData.length > 0 ? (
+            {Array.isArray(cycleTimeByTeamData) && cycleTimeByTeamData.length > 0 ? (
               <div style={{ height: '300px' }}>
                 <ReactApexChart
                   options={{
@@ -814,7 +870,7 @@ export const Dashboard: React.FC = () => {
         {/* Arquivos alterados por Pull Request */}
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Arquivos alterados por Pull Request</h3>
-          {filesChangedData && Array.isArray(filesChangedData) && filesChangedData.length > 0 ? (
+          {Array.isArray(filesChangedData) && filesChangedData.length > 0 ? (
             <div style={{ height: '300px' }}>
               <ReactApexChart
                 options={{
@@ -957,7 +1013,7 @@ export const Dashboard: React.FC = () => {
         {/* Reviews realizados */}
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Reviews realizados</h3>
-          {reviewsPerformedData && Array.isArray(reviewsPerformedData) && reviewsPerformedData.length > 0 ? (
+          {Array.isArray(reviewsPerformedData) && reviewsPerformedData.length > 0 ? (
             <div style={{ height: '300px' }}>
               <ReactApexChart
                 options={{
@@ -996,16 +1052,16 @@ export const Dashboard: React.FC = () => {
         {/* Cargos por Time */}
         <div className="card p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Cargos por Time</h3>
-          {kpis && kpis.rolesByTeam && Array.isArray(kpis.rolesByTeam) && kpis.rolesByTeam.length > 0 ? (
+          {Array.isArray(safeKpis.rolesByTeam) && safeKpis.rolesByTeam.length > 0 ? (
             (() => {
               // Transformar dados para formato de colunas empilhadas
-              const teams = [...new Set(kpis.rolesByTeam?.map((item: any) => item.team) || [])];
-              const roles = [...new Set(kpis.rolesByTeam?.map((item: any) => item.role) || [])];
+              const teams = [...new Set(safeKpis.rolesByTeam?.map((item: any) => item.team) || [])];
+              const roles = [...new Set(safeKpis.rolesByTeam?.map((item: any) => item.role) || [])];
               
                              const series = roles.map(role => ({
                  name: role,
                  data: teams.map(team => {
-                   const item = kpis.rolesByTeam?.find((r: any) => r.team === team && r.role === role);
+                   const item = safeKpis.rolesByTeam?.find((r: any) => r.team === team && r.role === role);
                    return item ? item.count : 0;
                  })
                }));
