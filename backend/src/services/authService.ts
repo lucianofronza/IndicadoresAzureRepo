@@ -25,21 +25,21 @@ export class AuthService {
   /**
    * Converter usuário do banco para tipo da API
    */
-  private convertDbUserToUser(dbUser: DbUser): Omit<User, 'password'> {
+  private convertDbUserToUser(dbUser: any): Omit<User, 'password'> {
     const { password, ...userWithoutPassword } = dbUser;
     return {
       ...userWithoutPassword,
-      role: userWithoutPassword.role as 'admin' | 'user'
+      role: userWithoutPassword.role || null // Retornar o objeto role completo
     } as Omit<User, 'password'>;
   }
 
   /**
    * Converter usuário do banco para tipo da API (com password)
    */
-  private convertDbUserToUserWithPassword(dbUser: DbUser): User {
+  private convertDbUserToUserWithPassword(dbUser: any): User {
     return {
       ...dbUser,
-      role: dbUser.role as 'admin' | 'user'
+      role: dbUser.role?.name || 'user' // Usar o nome do role relacionado
     } as User;
   }
 
@@ -73,13 +73,16 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
 
       // Criar o usuário
-      const user = await prisma.user.create({
+      const user = await (prisma as any).user.create({
         data: {
           name: userData.name,
           email: userData.email,
           login: userData.login,
           password: hashedPassword,
-          role: userData.role || 'user'
+          roleId: userData.roleId // Obrigatório
+        },
+        include: {
+          role: true // Incluir o role relacionado
         }
       });
 
@@ -101,8 +104,11 @@ export class AuthService {
       logger.info({ email: credentials.email }, 'Attempting user login');
 
       // Buscar usuário pelo email
-      const user = await prisma.user.findUnique({
-        where: { email: credentials.email }
+      const user = await (prisma as any).user.findUnique({
+        where: { email: credentials.email },
+        include: {
+          role: true // Incluir o role relacionado
+        }
       });
 
       if (!user) {
@@ -316,7 +322,7 @@ export class AuthService {
       }
 
       // Verificar assinatura do JWT
-      const decoded = jwt.verify(accessToken, this.JWT_SECRET) as any;
+      const decoded = jwt.verify(accessToken, String(this.JWT_SECRET)) as any;
       if (decoded.userId !== tokenRecord.user.id) {
         throw new CustomError('Token inválido', 401, 'INVALID_TOKEN');
       }
@@ -383,11 +389,78 @@ export class AuthService {
   }
 
   /**
+   * Criar novo usuário (apenas admin)
+   */
+  async createUser(userData: UserCreateInput): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ email: userData.email }, 'Attempting to create user by admin');
+
+      // Verificar se o email já existe
+      const existingUser = await (prisma as any).user.findUnique({
+        where: { email: userData.email }
+      });
+
+      if (existingUser) {
+        throw new CustomError('Email já está em uso', 400, 'EMAIL_ALREADY_EXISTS');
+      }
+
+      // Verificar se o login já existe
+      const existingLogin = await (prisma as any).user.findUnique({
+        where: { login: userData.login }
+      });
+
+      if (existingLogin) {
+        throw new CustomError('Login já está em uso', 400, 'LOGIN_ALREADY_EXISTS');
+      }
+
+      // Verificar se a role existe
+      if (userData.roleId) {
+        const role = await (prisma as any).userRole.findUnique({
+          where: { id: userData.roleId }
+        });
+
+        if (!role) {
+          throw new CustomError('Role não encontrada', 404, 'ROLE_NOT_FOUND');
+        }
+      }
+
+      // Criptografar a senha
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
+
+      // Criar o usuário
+      const user = await (prisma as any).user.create({
+        data: {
+          name: userData.name,
+          email: userData.email,
+          login: userData.login,
+          password: hashedPassword,
+          roleId: userData.roleId || null
+        },
+        include: {
+          role: true
+        }
+      });
+
+      logger.info({ userId: user.id, email: user.email }, 'User created by admin successfully');
+
+      // Retornar usuário sem a senha
+      return this.convertDbUserToUser(user);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error creating user by admin');
+      throw error;
+    }
+  }
+
+  /**
    * Listar todos os usuários (apenas admin)
    */
   async getAllUsers(): Promise<Omit<User, 'password'>[]> {
     try {
-      const users = await prisma.user.findMany({
+      const users = await (prisma as any).user.findMany({
+        include: {
+          role: true
+        },
         orderBy: { createdAt: 'desc' }
       });
 
@@ -437,28 +510,19 @@ export class AuthService {
    */
   async getAllRoles(): Promise<any[]> {
     try {
-      // Por enquanto, retornar roles fixos do sistema
-      // Em uma implementação mais avançada, isso viria do banco de dados
-      return [
-        {
-          id: 'admin',
-          name: 'admin',
-          description: 'Administrador do sistema com acesso total',
-          permissions: ['users:read', 'users:write', 'users:delete', 'roles:read', 'roles:write', 'roles:delete'],
-          isSystem: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 'user',
-          name: 'user',
-          description: 'Usuário padrão com acesso limitado',
-          permissions: ['users:read'],
-          isSystem: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
+      const roles = await (prisma as any).userRole.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return roles.map(role => ({
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        permissions: role.permissions,
+        isSystem: role.isSystem,
+        createdAt: role.createdAt.toISOString(),
+        updatedAt: role.updatedAt.toISOString()
+      }));
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting all roles');
       throw error;
@@ -472,19 +536,26 @@ export class AuthService {
     try {
       logger.info({ roleData }, 'Attempting to create role');
 
-      // Em uma implementação mais avançada, isso seria salvo no banco de dados
-      const newRole = {
-        id: `role_${Date.now()}`,
-        name: roleData.name,
-        description: roleData.description,
-        permissions: roleData.permissions || [],
-        isSystem: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const role = await (prisma as any).userRole.create({
+        data: {
+          name: roleData.name,
+          description: roleData.description,
+          permissions: roleData.permissions || [],
+          isSystem: false
+        }
+      });
 
-      logger.info({ roleId: newRole.id }, 'Role created successfully');
-      return newRole;
+      logger.info({ roleId: role.id }, 'Role created successfully');
+      
+      return {
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        permissions: role.permissions,
+        isSystem: role.isSystem,
+        createdAt: role.createdAt.toISOString(),
+        updatedAt: role.updatedAt.toISOString()
+      };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error creating role');
       throw error;
@@ -498,19 +569,26 @@ export class AuthService {
     try {
       logger.info({ roleId, roleData }, 'Attempting to update role');
 
-      // Em uma implementação mais avançada, isso seria atualizado no banco de dados
-      const updatedRole = {
-        id: roleId,
-        name: roleData.name,
-        description: roleData.description,
-        permissions: roleData.permissions || [],
-        isSystem: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const role = await (prisma as any).userRole.update({
+        where: { id: roleId },
+        data: {
+          name: roleData.name,
+          description: roleData.description,
+          permissions: roleData.permissions || []
+        }
+      });
 
       logger.info({ roleId }, 'Role updated successfully');
-      return updatedRole;
+      
+      return {
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        permissions: role.permissions,
+        isSystem: role.isSystem,
+        createdAt: role.createdAt.toISOString(),
+        updatedAt: role.updatedAt.toISOString()
+      };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating role');
       throw error;
@@ -524,8 +602,18 @@ export class AuthService {
     try {
       logger.info({ roleId }, 'Attempting to delete role');
 
-      // Em uma implementação mais avançada, isso seria excluído do banco de dados
-      // Verificar se há usuários usando este role antes de excluir
+      // Verificar se há usuários usando este role
+      const usersWithRole = await (prisma as any).user.count({
+        where: { roleId }
+      });
+
+      if (usersWithRole > 0) {
+        throw new CustomError('Não é possível excluir um role que está sendo usado por usuários', 400, 'ROLE_IN_USE');
+      }
+
+      await (prisma as any).userRole.delete({
+        where: { id: roleId }
+      });
 
       logger.info({ roleId }, 'Role deleted successfully');
     } catch (error) {
@@ -541,10 +629,10 @@ export class AuthService {
     const payload = {
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role?.name || 'user'
     };
 
-    return jwt.sign(payload, this.JWT_SECRET as string, {
+    return (jwt as any).sign(payload, this.JWT_SECRET, {
       expiresIn: this.JWT_EXPIRES_IN
     });
   }
@@ -558,7 +646,7 @@ export class AuthService {
       type: 'refresh'
     };
 
-    return jwt.sign(payload, this.JWT_SECRET as string, {
+    return (jwt as any).sign(payload, this.JWT_SECRET, {
       expiresIn: this.REFRESH_TOKEN_EXPIRES_IN
     });
   }

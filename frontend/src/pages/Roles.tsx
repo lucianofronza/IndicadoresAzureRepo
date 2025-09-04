@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Search } from 'lucide-react'
 import { Role, CreateRoleData, UpdateRoleData } from '@/types'
 import api from '@/services/api'
+import toast from 'react-hot-toast'
 
 export const Roles: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -43,7 +44,11 @@ export const Roles: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
       setIsCreateModalOpen(false)
+      toast.success('Cargo criado com sucesso!')
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao criar cargo')
+    }
   })
 
   const updateMutation = useMutation({
@@ -55,7 +60,11 @@ export const Roles: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
       setIsEditModalOpen(false)
       setSelectedRole(null)
+      toast.success('Cargo atualizado com sucesso!')
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao atualizar cargo')
+    }
   })
 
   const deleteMutation = useMutation({
@@ -64,7 +73,11 @@ export const Roles: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
+      toast.success('Cargo excluído com sucesso!')
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao excluir cargo')
+    }
   })
 
   const handleCreate = (data: CreateRoleData | UpdateRoleData) => {
@@ -77,9 +90,9 @@ export const Roles: React.FC = () => {
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este cargo?')) {
-      deleteMutation.mutate(id)
+  const handleDelete = (role: Role) => {
+    if (confirm(`Tem certeza que deseja excluir o cargo "${role.name}"?`)) {
+      deleteMutation.mutate(role.id)
     }
   }
 
@@ -103,7 +116,7 @@ export const Roles: React.FC = () => {
           onClick={() => setIsCreateModalOpen(true)}
         >
           <Plus className="h-4 w-4" />
-          Novo Cargo
+          Novo
         </button>
       </div>
 
@@ -195,7 +208,7 @@ export const Roles: React.FC = () => {
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(role.id)}
+                          onClick={() => handleDelete(role)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -312,10 +325,16 @@ const RoleModal: React.FC<RoleModalProps> = ({
   const [formData, setFormData] = useState({
     name: role?.name || '',
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
+    setIsSubmitting(true)
+    try {
+      await onSubmit(formData)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -343,15 +362,17 @@ const RoleModal: React.FC<RoleModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
+                disabled={isSubmitting}
                 className="btn btn-secondary btn-sm"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn btn-primary btn-sm"
               >
-                {mode === 'create' ? 'Criar' : 'Salvar'}
+                {isSubmitting ? 'Salvando...' : (mode === 'create' ? 'Criar' : 'Salvar')}
               </button>
             </div>
           </form>

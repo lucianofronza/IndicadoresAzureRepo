@@ -6,12 +6,54 @@ const api = axios.create({
   timeout: 10000,
 })
 
+// Request interceptor para adicionar token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Se o erro for 401 (não autorizado) e não for uma tentativa de refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          const response = await axios.post('/api/auth/refresh', { refreshToken });
+          const { accessToken } = response.data.data;
+          
+          localStorage.setItem('accessToken', accessToken);
+          api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+          
+          // Retry a requisição original
+          originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // Se o refresh falhar, limpar tokens e redirecionar para login
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
     console.error('API Error Interceptor:', {
       url: error.config?.url,
       method: error.config?.method,

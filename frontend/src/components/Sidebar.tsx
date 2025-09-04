@@ -13,20 +13,24 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserCog,
+  Shield
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '../hooks/usePermissions'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: BarChart3 },
-  { name: 'Desenvolvedores', href: '/developers', icon: Users },
-  { name: 'Times', href: '/teams', icon: Building2 },
-  { name: 'Cargos', href: '/roles', icon: UserCheck },
-  { name: 'Stacks', href: '/stacks', icon: Code2 },
-  { name: 'Repositórios', href: '/repositories', icon: GitBranch },
-  { name: 'Sincronização', href: '/sync', icon: RefreshCw },
-  { name: 'Azure DevOps', href: '/azure-devops', icon: GitPullRequest },
-
+  { name: 'Dashboard', href: '/dashboard', icon: BarChart3, permission: 'dashboard:read' },
+  { name: 'Desenvolvedores', href: '/developers', icon: Users, permission: 'developers:read' },
+  { name: 'Times', href: '/teams', icon: Building2, permission: 'teams:read' },
+  { name: 'Cargos', href: '/roles', icon: UserCheck, permission: 'job-roles:read' },
+  { name: 'Stacks', href: '/stacks', icon: Code2, permission: 'stacks:read' },
+  { name: 'Repositórios', href: '/repositories', icon: GitBranch, permission: 'repositories:read' },
+  { name: 'Usuários', href: '/users', icon: UserCog, permission: 'users:read' },
+  { name: 'Roles', href: '/user-roles', icon: Shield, permission: 'roles:read' },
+  { name: 'Sincronização', href: '/sync', icon: RefreshCw, permission: 'sync:read' },
+  { name: 'Azure DevOps', href: '/azure-devops', icon: GitPullRequest, permission: 'azure-devops:read' },
 ]
 
 interface TooltipProps {
@@ -167,12 +171,17 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(true)
+  const { hasPermission } = usePermissions()
 
   const toggleCollapse = () => {
     const newCollapsed = !isCollapsed
     setIsCollapsed(newCollapsed)
     onCollapseChange?.(newCollapsed)
   }
+
+  const filteredNavigation = navigation.filter(item => 
+    hasPermission(item.permission)
+  )
 
   return (
     <>
@@ -199,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
               <li>
                 <ul role="list" className="-mx-2 space-y-1">
-                  {navigation.map((item) => (
+                  {filteredNavigation.map((item) => (
                     <li key={item.name}>
                       <NavLink
                         to={item.href}
@@ -208,7 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
                             isActive
                               ? 'bg-primary-50 text-primary-600'
                               : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50',
-                            'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
+                            'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold h-10 items-center'
                           )
                         }
                         onClick={() => setSidebarOpen(false)}
@@ -265,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
               <li>
                 <ul role="list" className="-mx-2 space-y-1">
-                  {navigation.map((item) => (
+                  {filteredNavigation.map((item) => (
                     <li key={item.name}>
                       <Tooltip 
                         content={item.name} 
@@ -279,7 +288,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
                               isActive
                                 ? 'bg-primary-50 text-primary-600'
                                 : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50',
-                              'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-all duration-200 relative',
+                              'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-all duration-200 relative h-10 items-center',
                               isCollapsed && 'justify-center gap-x-0'
                             )
                           }
