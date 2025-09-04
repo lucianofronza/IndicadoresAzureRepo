@@ -355,12 +355,17 @@ export interface AzureAuthCallback {
 }
 
 // Request types
+import { Request } from 'express';
+
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     login: string;
     name: string;
+    email: string;
+    role: 'admin' | 'user';
   };
+  token?: string;
   requestId?: string;
   log?: any;
 }
@@ -373,3 +378,69 @@ export type DeepPartial<T> = {
 export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
 export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+// User Authentication types
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  login: string;
+  role: 'admin' | 'user';
+  isActive: boolean;
+  lastLogin?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserCreateInput {
+  name: string;
+  email: string;
+  login: string;
+  password: string;
+  role?: 'admin' | 'user';
+}
+
+export interface UserUpdateInput {
+  name?: string;
+  email?: string;
+  login?: string;
+  password?: string;
+  role?: 'admin' | 'user';
+  isActive?: boolean;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  user: Omit<User, 'password'>;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
