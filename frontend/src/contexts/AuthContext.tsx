@@ -1,37 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
   login: string;
-  role?: {
-    id: string;
-    name: string;
-    description: string;
-    permissions: string[];
-    isSystem: boolean;
-    createdAt: string;
-    updatedAt: string;
-  } | string;
+  role?: { id: string; name: string; description: string; permissions: string[]; isSystem: boolean; createdAt: string; updatedAt: string; } | string;
   isActive: boolean;
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
-  refreshToken: () => Promise<void>;
-}
-
-interface RegisterData {
+export interface RegisterData {
   name: string;
   email: string;
   login: string;
@@ -39,7 +21,16 @@ interface RegisterData {
   roleId?: string;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  register: (userData: RegisterData) => Promise<void>;
+}
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -131,29 +122,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const refreshToken = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        throw new Error('Refresh token não encontrado');
-      }
-
-      const response = await api.post('/auth/refresh', { refreshToken });
-      const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-      // Atualizar tokens no localStorage
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', newRefreshToken);
-
-      // Configurar novo token no axios
-      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-    } catch (error: any) {
-      // Se o refresh falhar, fazer logout
-      await logout();
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
-  };
-
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -161,7 +129,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     register,
-    refreshToken,
   };
 
   return (
