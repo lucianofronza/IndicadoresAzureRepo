@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Search, Filter, Eye } from 'lucide-react'
 import { Developer, CreateDeveloperData, UpdateDeveloperData, Stack } from '@/types'
 import { Tags } from '@/components/Tags'
 import { StackSelector } from '@/components/StackSelector'
+import { usePermissions } from '@/hooks/usePermissions'
 import api from '@/services/api'
 
 export const Developers: React.FC = () => {
@@ -25,6 +26,7 @@ export const Developers: React.FC = () => {
   })
 
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   // Fetch developers
   const { data: developersData, isLoading } = useQuery({
@@ -138,13 +140,15 @@ export const Developers: React.FC = () => {
             Gerencie os desenvolvedores da organização
           </p>
         </div>
-        <button 
-          className="btn btn-primary btn-md"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo Desenvolvedor
-        </button>
+        {canWrite('developers') && (
+          <button 
+            className="btn btn-primary btn-md"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -312,21 +316,28 @@ export const Developers: React.FC = () => {
                         <button
                           onClick={() => handleView(developer)}
                           className="text-blue-600 hover:text-blue-900"
+                          title="Visualizar"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleEditClick(developer)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(developer.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canWrite('developers') && (
+                          <button
+                            onClick={() => handleEditClick(developer)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete('developers') && (
+                          <button
+                            onClick={() => handleDelete(developer.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

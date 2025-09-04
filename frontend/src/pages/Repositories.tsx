@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Search, GitBranch, BarChart3, Eye, EyeOff } from 'lucide-react'
 import { Repository, CreateRepositoryData, UpdateRepositoryData } from '@/types'
+import { usePermissions } from '@/hooks/usePermissions'
 import api from '@/services/api'
 
 export const Repositories: React.FC = () => {
@@ -22,6 +23,7 @@ export const Repositories: React.FC = () => {
   })
 
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   // Fetch repositories
   const { data: repositoriesData, isLoading } = useQuery({
@@ -115,13 +117,15 @@ export const Repositories: React.FC = () => {
             Gerencie os repositórios do Azure DevOps
           </p>
         </div>
-        <button 
-          className="btn btn-primary btn-md"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo Repositório
-        </button>
+        {canWrite('repositories') && (
+          <button 
+            className="btn btn-primary btn-md"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -274,20 +278,24 @@ export const Repositories: React.FC = () => {
                         >
                           <BarChart3 className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleEditClick(repository)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Editar repositório"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(repository.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Excluir repositório"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canWrite('repositories') && (
+                          <button
+                            onClick={() => handleEditClick(repository)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Editar repositório"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete('repositories') && (
+                          <button
+                            onClick={() => handleDelete(repository.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Excluir repositório"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

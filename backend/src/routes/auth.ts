@@ -1,18 +1,24 @@
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { requireAuth, requireAdmin } from '@/middlewares/auth';
+import { requirePermission } from '@/middlewares/permissions';
 import { AuthService } from '@/services/authService';
 import { logger } from '@/utils/logger';
 import { 
   UserCreateInput, 
+  UserUpdateInput, 
   LoginRequest, 
-  RefreshTokenRequest, 
-  ChangePasswordRequest 
+  RefreshTokenRequest,
+  ChangePasswordRequest,
+  AuthenticatedRequest
 } from '@/types/auth';
+import { PrismaClient } from '@prisma/client';
+import { CustomError } from '@/middlewares/errorHandler';
 
-const router = Router();
+const prisma = new PrismaClient();
 const authService = new AuthService();
+const router = Router();
 
 // Validação para registro
 const registerValidation = [
@@ -204,23 +210,42 @@ router.post('/logout', requireAuth, asyncHandler(async (req, res) => {
  * @desc Obter dados do usuário logado
  * @access Private
  */
-router.get('/me', requireAuth, asyncHandler(async (req, res) => {
-  const user = await authService.getUserById(req.user!.id);
-
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      error: 'USER_NOT_FOUND',
-      message: 'Usuário não encontrado'
+router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = await (prisma as any).user.findUnique({
+      where: { id: req.user!.id },
+      include: {
+        role: true
+      }
     });
-  }
 
-  res.json({
-    success: true,
-    data: user,
-    message: 'Dados do usuário obtidos com sucesso'
-  });
-}));
+    if (!user) {
+      throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+    }
+
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      login: user.login,
+      role: user.role?.name,
+      roleId: user.roleId,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      permissions: user.role?.permissions || []
+    };
+
+    res.json({
+      success: true,
+      data: userData,
+      message: 'Dados do usuário obtidos com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * @route PUT /auth/me
@@ -278,11 +303,39 @@ router.put('/change-password', changePasswordValidation, requireAuth, asyncHandl
 }));
 
 /**
+ * @route POST /auth/users
+ * @desc Criar novo usuário (apenas admin)
+ * @access Private (Admin)
+ */
+router.post('/users', updateUserValidation, requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'Dados de entrada inválidos',
+      details: errors.array()
+    });
+  }
+
+  const userData = req.body;
+  const user = await authService.createUser(userData);
+
+  logger.info({ userId: user.id, createdBy: req.user!.id }, 'User created by admin successfully');
+
+  res.status(201).json({
+    success: true,
+    data: user,
+    message: 'Usuário criado com sucesso'
+  });
+}));
+
+/**
  * @route GET /auth/users
  * @desc Listar todos os usuários (apenas admin)
  * @access Private (Admin)
  */
-router.get('/users', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.get('/users', requireAuth, requirePermission('users:read'), asyncHandler(async (req, res) => {
   const users = await authService.getAllUsers();
 
   res.json({
@@ -297,7 +350,7 @@ router.get('/users', requireAuth, requireAdmin, asyncHandler(async (req, res) =>
  * @desc Obter usuário por ID (apenas admin)
  * @access Private (Admin)
  */
-router.get('/users/:id', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.get('/users/:id', requireAuth, requirePermission('users:read'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const user = await authService.getUserById(id);
 
@@ -321,7 +374,7 @@ router.get('/users/:id', requireAuth, requireAdmin, asyncHandler(async (req, res
  * @desc Atualizar usuário por ID (apenas admin)
  * @access Private (Admin)
  */
-router.put('/users/:id', updateUserValidation, requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.put('/users/:id', updateUserValidation, requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -350,7 +403,7 @@ router.put('/users/:id', updateUserValidation, requireAuth, requireAdmin, asyncH
  * @desc Excluir usuário por ID (apenas admin)
  * @access Private (Admin)
  */
-router.delete('/users/:id', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.delete('/users/:id', requireAuth, requirePermission('users:delete'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   
   // Verificar se não está tentando excluir o próprio usuário
@@ -377,7 +430,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, asyncHandler(async (req, 
  * @desc Listar todos os roles de usuário (apenas admin)
  * @access Private (Admin)
  */
-router.get('/roles', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.get('/roles', requireAuth, requirePermission('roles:read'), asyncHandler(async (req, res) => {
   const roles = await authService.getAllRoles();
 
   res.json({
@@ -392,7 +445,7 @@ router.get('/roles', requireAuth, requireAdmin, asyncHandler(async (req, res) =>
  * @desc Criar novo role de usuário (apenas admin)
  * @access Private (Admin)
  */
-router.post('/roles', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.post('/roles', requireAuth, requirePermission('roles:write'), asyncHandler(async (req, res) => {
   const roleData = req.body;
   const role = await authService.createRole(roleData);
 
@@ -410,7 +463,7 @@ router.post('/roles', requireAuth, requireAdmin, asyncHandler(async (req, res) =
  * @desc Atualizar role de usuário (apenas admin)
  * @access Private (Admin)
  */
-router.put('/roles/:id', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.put('/roles/:id', requireAuth, requirePermission('roles:write'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const roleData = req.body;
   const role = await authService.updateRole(id, roleData);
@@ -429,7 +482,7 @@ router.put('/roles/:id', requireAuth, requireAdmin, asyncHandler(async (req, res
  * @desc Excluir role de usuário (apenas admin)
  * @access Private (Admin)
  */
-router.delete('/roles/:id', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+router.delete('/roles/:id', requireAuth, requirePermission('roles:delete'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   await authService.deleteRole(id);
 

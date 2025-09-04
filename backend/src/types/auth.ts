@@ -33,7 +33,7 @@ export interface UserCreateInput {
   email: string;
   login: string;
   password: string;
-  role?: 'admin' | 'user';
+  roleId: string; // Obrigatório
 }
 
 // Tipos de entrada para atualização de usuário
@@ -42,7 +42,7 @@ export interface UserUpdateInput {
   email?: string;
   login?: string;
   password?: string;
-  role?: 'admin' | 'user';
+  roleId?: string;
   isActive?: boolean;
 }
 
@@ -98,6 +98,7 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: 'admin' | 'user';
   };
+  userPermissions?: string[];
   token?: string;
   requestId?: string;
   log?: any;

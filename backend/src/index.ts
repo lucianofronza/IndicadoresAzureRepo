@@ -12,6 +12,7 @@ import { connectRedis, disconnectRedis, healthCheck as redisHealthCheck } from '
 import { securityMiddlewares } from '@/middlewares/security';
 import { errorHandler, notFoundHandler } from '@/middlewares/errorHandler';
 import { apiRateLimiter } from '@/middlewares/security';
+import { addUserPermissions } from '@/middlewares/permissions';
 
 // Import routes
 import healthRoutes from '@/routes/health';
@@ -55,6 +56,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Security middlewares
 app.use(securityMiddlewares);
+
+// Middleware para adicionar permissões do usuário
+app.use(addUserPermissions);
 
 // Metrics middleware
 app.use(metricsMiddleware);
