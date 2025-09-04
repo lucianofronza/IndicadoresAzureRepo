@@ -12,6 +12,7 @@ import { connectRedis, disconnectRedis, healthCheck as redisHealthCheck } from '
 import { securityMiddlewares } from '@/middlewares/security';
 import { errorHandler, notFoundHandler } from '@/middlewares/errorHandler';
 import { apiRateLimiter } from '@/middlewares/security';
+import { addUserPermissions } from '@/middlewares/permissions';
 
 // Import routes
 import healthRoutes from '@/routes/health';
@@ -24,6 +25,7 @@ import repositoryRoutes from '@/routes/repositories';
 import syncRoutes from '@/routes/sync';
 import kpiRoutes from '@/routes/kpis';
 import azureDevOpsRoutes from '@/routes/azureDevOps';
+import authRoutes from '@/routes/auth';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -54,6 +56,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Security middlewares
 app.use(securityMiddlewares);
+
+// Middleware para adicionar permissões do usuário
+app.use(addUserPermissions);
 
 // Metrics middleware
 app.use(metricsMiddleware);
@@ -152,6 +157,7 @@ app.use('/api/repositories', repositoryRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/azure-devops', azureDevOpsRoutes);
+app.use('/api/auth', authRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {
@@ -161,7 +167,7 @@ app.get('/api', (req, res) => {
     description: 'API para análise de indicadores de desenvolvedores do Azure Repos',
     endpoints: {
       health: '/api/health',
-  
+      auth: '/api/auth',
       teams: '/api/teams',
       roles: '/api/roles',
       stacks: '/api/stacks',

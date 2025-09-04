@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PaginatedSelect } from '@/components/PaginatedSelect'
 import { DateRangePicker } from '@/components/DateRangePicker'
@@ -174,27 +174,12 @@ export const Dashboard: React.FC = () => {
     retryDelay: 1000
   })
 
-  // Verificar se há algum erro em qualquer uma das queries
-  const hasError = error || 
-    prReviewComments?.error || 
-    prCommitData?.error || 
-    prReviewTeamData?.error || 
-    reviewsPerformedData?.error || 
-    filesChangedData?.error || 
-    cycleTimeByTeamData?.error || 
-    topCycleTimePRs?.error
-
-
-
   // Verificar se todos os dados necessários estão carregados
-  const isDataReady = kpis && 
-    (prReviewComments !== undefined) && 
-    (prCommitData !== undefined) && 
-    (prReviewTeamData !== undefined) && 
-    (reviewsPerformedData !== undefined) && 
-    (filesChangedData !== undefined) && 
-    (cycleTimeByTeamData !== undefined) && 
-    (topCycleTimePRs !== undefined)
+  const isDataReady = kpis !== undefined // Só precisa dos KPIs principais
+
+  // Verificar se há algum erro em qualquer uma das queries
+  const hasError = error // Só verificar erro na query principal
+
 
   // Fallback para dados vazios com verificações de segurança
   const safeKpis = kpis ? {
