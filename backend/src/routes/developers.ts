@@ -21,6 +21,20 @@ router.get('/', validate(developerListSchema), asyncHandler(async (req, res) => 
   res.json({ success: true, data: result.data, pagination: result.pagination });
 }));
 
+/**
+ * @route GET /developers/search
+ * @desc Buscar desenvolvedores para seleção (apenas campos essenciais)
+ * @access Public
+ */
+router.get('/search', asyncHandler(async (req, res) => {
+  const { search = '', limit = 50 } = req.query;
+  const developers = await developerService.searchForSelection({
+    search: search as string,
+    limit: limit as number
+  });
+  res.json({ success: true, data: developers });
+}));
+
 router.get('/:id', validate(updateDeveloperSchema), asyncHandler(async (req, res) => {
   const developer = await developerService.getById(req.params.id);
   res.json({ success: true, data: developer });
