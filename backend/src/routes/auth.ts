@@ -121,8 +121,13 @@ const updateUserValidation = [
     .withMessage('roleId deve ser uma string não vazia ou número válido'),
   body('isActive')
     .optional()
-    .isBoolean()
-    .withMessage('isActive deve ser true ou false')
+    .custom((value) => {
+      if (value === null || value === undefined) return true;
+      if (typeof value === 'boolean') return true;
+      if (typeof value === 'string' && (value === 'true' || value === 'false')) return true;
+      throw new Error('isActive deve ser true, false, "true" ou "false"');
+    })
+    .withMessage('isActive deve ser true, false, "true" ou "false"')
 ];
 
 /**
