@@ -230,9 +230,15 @@ export const Users: React.FC = () => {
       const updateData: UpdateUserData = {
         name: formData.name,
         email: formData.email,
-        login: formData.login,
-        roleId: formData.roleId
+        login: formData.login
       };
+      
+      // Só incluir roleId se não estiver vazio
+      if (formData.roleId && formData.roleId.trim() !== '') {
+        updateData.roleId = formData.roleId;
+      }
+      
+      console.log('Updating user with data:', updateData);
       updateUserMutation.mutate({ id: editingUser.id, data: updateData });
     } else {
       createUserMutation.mutate(formData);
