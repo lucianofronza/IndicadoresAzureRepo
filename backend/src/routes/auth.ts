@@ -112,8 +112,13 @@ const updateUserValidation = [
     .withMessage('Login deve ter entre 3 e 50 caracteres e conter apenas letras, números, hífen e underscore'),
   body('roleId')
     .optional()
-    .isString()
-    .withMessage('roleId deve ser uma string'),
+    .custom((value) => {
+      if (value === null || value === undefined || value === '') return true;
+      if (typeof value === 'string' && value.trim() !== '') return true;
+      if (typeof value === 'number' && !isNaN(value)) return true;
+      throw new Error('roleId deve ser uma string não vazia ou número válido');
+    })
+    .withMessage('roleId deve ser uma string não vazia ou número válido'),
   body('isActive')
     .optional()
     .isBoolean()
