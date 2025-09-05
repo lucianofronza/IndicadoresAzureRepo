@@ -62,18 +62,12 @@ export const Login: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Simulação temporária - será substituída pela integração real com MSAL
-      const mockAzureAdData = {
-        azureAdId: 'mock-azure-id',
-        email: 'usuario@empresa.com',
-        name: 'Usuário Teste',
-        azureAdEmail: 'usuario@empresa.com'
-      };
-      
-      await loginWithAzureAd(mockAzureAdData);
+      // Chamar loginWithAzureAd sem parâmetros para usar Azure AD real
+      await loginWithAzureAd();
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Erro no login Azure AD:', error);
+      toast.error(error.message || 'Erro ao fazer login com Microsoft Entra');
     } finally {
       setIsLoading(false);
     }
