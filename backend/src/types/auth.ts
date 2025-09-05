@@ -61,6 +61,36 @@ export interface UserUpdateInput {
   developerId?: string;
 }
 
+// Tipos de role de usuário
+export interface UserRole {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+  isSystem: boolean;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Tipos de entrada para criação de role
+export interface UserRoleCreateInput {
+  name: string;
+  description?: string;
+  permissions: string[];
+  isSystem?: boolean;
+  isDefault?: boolean;
+}
+
+// Tipos de entrada para atualização de role
+export interface UserRoleUpdateInput {
+  name?: string;
+  description?: string;
+  permissions?: string[];
+  isSystem?: boolean;
+  isDefault?: boolean;
+}
+
 // Tipos de requisição de login
 export interface LoginRequest {
   email: string;
