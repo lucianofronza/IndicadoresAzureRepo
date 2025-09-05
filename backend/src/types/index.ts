@@ -387,6 +387,10 @@ export interface User {
   login: string;
   role: 'admin' | 'user';
   isActive: boolean;
+  status: 'active' | 'pending' | 'inactive';
+  azureAdId?: string;
+  azureAdEmail?: string;
+  developerId?: string;
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -396,8 +400,11 @@ export interface UserCreateInput {
   name: string;
   email: string;
   login: string;
-  password: string;
+  password?: string;
   role?: 'admin' | 'user';
+  azureAdId?: string;
+  azureAdEmail?: string;
+  developerId?: string;
 }
 
 export interface UserUpdateInput {
@@ -407,6 +414,10 @@ export interface UserUpdateInput {
   password?: string;
   role?: 'admin' | 'user';
   isActive?: boolean;
+  status?: 'active' | 'pending' | 'inactive';
+  azureAdId?: string;
+  azureAdEmail?: string;
+  developerId?: string;
 }
 
 export interface LoginRequest {

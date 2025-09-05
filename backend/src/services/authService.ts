@@ -188,16 +188,19 @@ export class AuthService {
         logger.info({ email: azureAdData.email }, 'User not found, creating pending user');
         
         // Buscar role padrão (user)
-        const defaultRole = await prisma.role.findFirst({
+        const defaultRole = await prisma.userRole.findFirst({
           where: { name: 'user' }
         });
 
         if (!defaultRole) {
-          throw new CustomError('Role padrão não encontrado', 500, 'DEFAULT_ROLE_NOT_FOUND');
+          // Log para debug - vamos ver o que existe no banco
+          const allRoles = await prisma.userRole.findMany();
+          logger.error({ allRoles }, 'Role "user" não encontrado. Roles disponíveis:');
+          throw new CustomError('Role padrão "user" não encontrado', 500, 'DEFAULT_ROLE_NOT_FOUND');
         }
 
         // Criar usuário com status pendente
-        user = await prisma.user.create({
+        user = await (prisma as any).user.create({
           data: {
             name: azureAdData.name,
             email: azureAdData.email,
@@ -223,7 +226,7 @@ export class AuthService {
 
       // Atualizar dados do Azure AD se necessário
       if (user.azureAdId !== azureAdData.azureAdId || user.azureAdEmail !== azureAdData.azureAdEmail) {
-        await prisma.user.update({
+        await (prisma as any).user.update({
           where: { id: user.id },
           data: {
             azureAdId: azureAdData.azureAdId,
@@ -726,6 +729,46 @@ export class AuthService {
       logger.info({ roleId }, 'Role deleted successfully');
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error deleting role');
+      throw error;
+    }
+  }
+
+  /**
+   * Ativar usuário pendente
+   */
+  async activateUser(userId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId }, 'Attempting to activate user');
+
+      // Buscar usuário
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      if (user.status === 'active') {
+        throw new CustomError('Usuário já está ativo', 400, 'USER_ALREADY_ACTIVE');
+      }
+
+      // Ativar usuário
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: {
+          status: 'active',
+          isActive: true
+        },
+        include: { role: true }
+      });
+
+      logger.info({ userId: updatedUser.id }, 'User activated successfully');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user activation');
       throw error;
     }
   }
