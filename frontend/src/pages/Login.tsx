@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Eye, EyeOff, User, Lock, AlertCircle, Microsoft } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
+
+// Ícone Microsoft personalizado
+const MicrosoftIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+  </svg>
+);
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -203,7 +210,7 @@ export const Login: React.FC = () => {
               className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center">
-                <Microsoft className="h-4 w-4 mr-2 text-blue-600" />
+                <MicrosoftIcon className="h-4 w-4 mr-2 text-blue-600" />
                 Entrar com Microsoft Entra
               </div>
             </button>
