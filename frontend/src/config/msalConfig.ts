@@ -8,14 +8,17 @@ export const msalConfig: Configuration = {
     redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || 'http://localhost:5173/auth/callback',
   },
   cache: {
-    cacheLocation: 'sessionStorage', // This configures where your cache will be stored
-    storeAuthStateInCookie: false, // Set this to "true" if you are having issues on IE11 or Edge
+    cacheLocation: 'sessionStorage',
+    storeAuthStateInCookie: false,
+  },
+  system: {
+    allowNativeBroker: false, // Disable native broker for better compatibility
   },
 };
 
 // Add scopes here for ID token to be used at Microsoft identity platform endpoints.
 export const loginRequest: PopupRequest = {
-  scopes: ['User.Read'],
+  scopes: ['openid', 'profile', 'email'], // Basic scopes that work with most configurations
   prompt: 'select_account',
 };
 
