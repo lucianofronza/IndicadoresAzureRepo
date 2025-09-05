@@ -144,7 +144,11 @@ export const Users: React.FC = () => {
   });
 
   const activateUserMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/auth/users/${id}/activate`),
+    mutationFn: (id: string) => api.post(`/auth/users/${id}/activate`, {}, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário ativado com sucesso!');
