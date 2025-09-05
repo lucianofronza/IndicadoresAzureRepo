@@ -11,6 +11,7 @@ interface UserRole {
   description: string;
   permissions: string[];
   isSystem: boolean;
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,12 +20,14 @@ interface CreateUserRoleData {
   name: string;
   description: string;
   permissions: string[];
+  isDefault?: boolean;
 }
 
 interface UpdateUserRoleData {
   name?: string;
   description?: string;
   permissions?: string[];
+  isDefault?: boolean;
 }
 
 export const UserRoles: React.FC = () => {
@@ -34,7 +37,8 @@ export const UserRoles: React.FC = () => {
   const [formData, setFormData] = useState<CreateUserRoleData>({
     name: '',
     description: '',
-    permissions: []
+    permissions: [],
+    isDefault: false
   });
 
   const { canWrite, canDelete } = usePermissions();
@@ -98,14 +102,16 @@ export const UserRoles: React.FC = () => {
       setFormData({
         name: role.name,
         description: role.description,
-        permissions: role.permissions
+        permissions: role.permissions,
+        isDefault: role.isDefault
       });
     } else {
       setEditingRole(null);
       setFormData({
         name: '',
         description: '',
-        permissions: []
+        permissions: [],
+        isDefault: false
       });
     }
     setIsModalOpen(true);
@@ -221,6 +227,9 @@ export const UserRoles: React.FC = () => {
                     Tipo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Padrão
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Criado em
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -262,6 +271,15 @@ export const UserRoles: React.FC = () => {
                       }`}>
                         {role.isSystem ? 'Sistema' : 'Customizado'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {role.isDefault ? (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          ✓ Padrão
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(role.createdAt)}
@@ -848,6 +866,23 @@ export const UserRoles: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isDefault || false}
+                      onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Role padrão para novos usuários
+                    </span>
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Apenas um role pode ser marcado como padrão
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
