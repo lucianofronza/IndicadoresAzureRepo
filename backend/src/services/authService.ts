@@ -327,7 +327,7 @@ export class AuthService {
       }
 
       const tokenData = await tokenResponse.json();
-      const { access_token, id_token } = tokenData;
+      const { id_token } = tokenData;
 
       // Decodificar ID token para obter informações do usuário
       const idTokenPayload = JSON.parse(atob(id_token.split('.')[1]));
