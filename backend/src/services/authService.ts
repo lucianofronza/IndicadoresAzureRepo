@@ -8,7 +8,8 @@ import {
   UserUpdateInput, 
   LoginRequest, 
   RefreshTokenRequest,
-  ChangePasswordRequest
+  ChangePasswordRequest,
+  AzureAdLoginRequest
 } from '@/types/auth';
 import { CustomError } from '@/middlewares/errorHandler';
 
@@ -158,6 +159,115 @@ export class AuthService {
       };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during login');
+      throw error;
+    }
+  }
+
+  /**
+   * Login com Azure AD
+   */
+  async loginWithAzureAd(azureAdData: AzureAdLoginRequest): Promise<any> {
+    try {
+      logger.info({ email: azureAdData.email, azureAdId: azureAdData.azureAdId }, 'Attempting Azure AD login');
+
+      // Buscar usuário pelo email ou azureAdId
+      let user = await (prisma as any).user.findFirst({
+        where: {
+          OR: [
+            { email: azureAdData.email },
+            { azureAdId: azureAdData.azureAdId }
+          ]
+        },
+        include: {
+          role: true
+        }
+      });
+
+      // Se usuário não existe, criar com status pendente
+      if (!user) {
+        logger.info({ email: azureAdData.email }, 'User not found, creating pending user');
+        
+        // Buscar role padrão (user)
+        const defaultRole = await prisma.role.findFirst({
+          where: { name: 'user' }
+        });
+
+        if (!defaultRole) {
+          throw new CustomError('Role padrão não encontrado', 500, 'DEFAULT_ROLE_NOT_FOUND');
+        }
+
+        // Criar usuário com status pendente
+        user = await prisma.user.create({
+          data: {
+            name: azureAdData.name,
+            email: azureAdData.email,
+            login: azureAdData.email.split('@')[0], // Usar parte do email como login
+            azureAdId: azureAdData.azureAdId,
+            azureAdEmail: azureAdData.azureAdEmail || azureAdData.email,
+            roleId: defaultRole.id,
+            isActive: false, // Usuário criado como inativo
+            status: 'pending' // Status pendente para aprovação
+          },
+          include: {
+            role: true
+          }
+        });
+
+        logger.info({ userId: user.id, email: user.email }, 'Pending user created successfully');
+      }
+
+      // Verificar se usuário está ativo
+      if (!user.isActive || user.status !== 'active') {
+        throw new CustomError('Usuário pendente de aprovação. Entre em contato com o administrador.', 403, 'USER_PENDING_APPROVAL');
+      }
+
+      // Atualizar dados do Azure AD se necessário
+      if (user.azureAdId !== azureAdData.azureAdId || user.azureAdEmail !== azureAdData.azureAdEmail) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            azureAdId: azureAdData.azureAdId,
+            azureAdEmail: azureAdData.azureAdEmail || azureAdData.email,
+            name: azureAdData.name // Atualizar nome caso tenha mudado
+          }
+        });
+      }
+
+      // Gerar tokens
+      const accessToken = this.generateAccessToken(user);
+      const refreshToken = this.generateRefreshToken(user);
+
+      // Calcular data de expiração
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
+
+      // Salvar refresh token no banco
+      await prisma.userToken.create({
+        data: {
+          userId: user.id,
+          accessToken,
+          refreshToken,
+          expiresAt
+        }
+      });
+
+      // Atualizar último login
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() }
+      });
+
+      logger.info({ userId: user.id, email: user.email }, 'Azure AD login successful');
+
+      // Retornar resposta de login
+      return {
+        user: this.convertDbUserToUser(user),
+        accessToken,
+        refreshToken,
+        expiresAt
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during Azure AD login');
       throw error;
     }
   }
