@@ -6,11 +6,22 @@ export const useAzureAd = () => {
 
   const loginWithAzureAd = async () => {
     try {
+      // Temporarily use mock data until Azure AD configuration is fixed
+      // This allows testing the full flow while Azure AD is being configured
+      console.log('Using mock Azure AD data for testing...');
+      
+      return {
+        azureAdId: 'mock-azure-id-' + Date.now(),
+        email: 'usuario@empresa.com',
+        name: 'Usuário Teste Azure AD',
+        azureAdEmail: 'usuario@empresa.com',
+      };
+      
+      // Uncomment below when Azure AD is properly configured as SPA
+      /*
       const response = await instance.loginPopup(loginRequest);
       
       if (response.account) {
-        // Use the account info directly from the login response
-        // This avoids the need for acquireTokenSilent which requires SPA configuration
         return {
           azureAdId: response.account.localAccountId || response.account.homeAccountId,
           email: response.account.username,
@@ -18,6 +29,7 @@ export const useAzureAd = () => {
           azureAdEmail: response.account.username,
         };
       }
+      */
     } catch (error) {
       console.error('Azure AD login error:', error);
       throw error;
