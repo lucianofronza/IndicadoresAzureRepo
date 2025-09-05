@@ -10,7 +10,8 @@ import {
   LoginRequest, 
   RefreshTokenRequest,
   ChangePasswordRequest,
-  AuthenticatedRequest
+  AuthenticatedRequest,
+  AzureAdLoginRequest
 } from '@/types/auth';
 import { PrismaClient } from '@prisma/client';
 import { CustomError } from '@/middlewares/errorHandler';
@@ -52,6 +53,26 @@ const loginValidation = [
   body('password')
     .notEmpty()
     .withMessage('Senha é obrigatória')
+];
+
+// Validação para login Azure AD
+const azureAdLoginValidation = [
+  body('azureAdId')
+    .notEmpty()
+    .withMessage('Azure AD ID é obrigatório'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Email inválido'),
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Nome deve ter entre 2 e 100 caracteres'),
+  body('azureAdEmail')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Azure AD Email inválido')
 ];
 
 // Validação para refresh token
@@ -152,6 +173,34 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
     success: true,
     data: loginResponse,
     message: 'Login realizado com sucesso'
+  });
+}));
+
+/**
+ * @route POST /auth/azure-ad-login
+ * @desc Fazer login com Azure AD
+ * @access Public
+ */
+router.post('/azure-ad-login', azureAdLoginValidation, asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'Dados de entrada inválidos',
+      details: errors.array()
+    });
+  }
+
+  const azureAdData: AzureAdLoginRequest = req.body;
+  const loginResponse = await authService.loginWithAzureAd(azureAdData);
+
+  logger.info({ userId: loginResponse.user.id, email: loginResponse.user.email, azureAdId: azureAdData.azureAdId }, 'User logged in with Azure AD successfully');
+
+  res.json({
+    success: true,
+    data: loginResponse,
+    message: 'Login com Azure AD realizado com sucesso'
   });
 }));
 
