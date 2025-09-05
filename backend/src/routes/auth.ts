@@ -106,18 +106,36 @@ const updateUserValidation = [
     .withMessage('Email inválido'),
   body('login')
     .optional()
-    .trim()
-    .isLength({ min: 3, max: 50 })
-    .matches(/^[a-zA-Z0-9_-]+$/)
-    .withMessage('Login deve ter entre 3 e 50 caracteres e conter apenas letras, números, hífen e underscore'),
+    .custom((value) => {
+      if (!value || value === '') return true; // Permitir vazio se opcional
+      // Se o login está sendo enviado, validar
+      const trimmedValue = value.trim();
+      if (trimmedValue.length < 3 || trimmedValue.length > 50) {
+        throw new Error('Login deve ter entre 3 e 50 caracteres');
+      }
+      // Permitir caracteres mais flexíveis para usuários do Azure AD
+      if (/^[a-zA-Z0-9._-]+$/.test(trimmedValue)) return true;
+      throw new Error('Login deve conter apenas letras, números, ponto, hífen e underscore');
+    })
+    .withMessage('Login deve ter entre 3 e 50 caracteres e conter apenas letras, números, ponto, hífen e underscore'),
   body('roleId')
     .optional()
-    .isString()
-    .withMessage('roleId deve ser uma string'),
+    .custom((value) => {
+      if (value === null || value === undefined || value === '') return true;
+      if (typeof value === 'string' && value.trim() !== '') return true;
+      if (typeof value === 'number' && !isNaN(value)) return true;
+      throw new Error('roleId deve ser uma string não vazia ou número válido');
+    })
+    .withMessage('roleId deve ser uma string não vazia ou número válido'),
   body('isActive')
     .optional()
-    .isBoolean()
-    .withMessage('isActive deve ser true ou false')
+    .custom((value) => {
+      if (value === null || value === undefined) return true;
+      if (typeof value === 'boolean') return true;
+      if (typeof value === 'string' && (value === 'true' || value === 'false')) return true;
+      throw new Error('isActive deve ser true, false, "true" ou "false"');
+    })
+    .withMessage('isActive deve ser true, false, "true" ou "false"')
 ];
 
 /**
