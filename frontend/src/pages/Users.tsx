@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink } from 'lucide-react';
+import { PaginatedSelect } from '../components/PaginatedSelect';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -18,6 +19,10 @@ interface User {
     description: string;
   };
   isActive: boolean;
+  status: 'active' | 'pending' | 'inactive';
+  azureAdId?: string;
+  azureAdEmail?: string;
+  developerId?: string;
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +56,9 @@ interface UpdateUserData {
 
 export const Users: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkingUser, setLinkingUser] = useState<User | null>(null);
+  const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'gerente'>('all');
@@ -85,6 +93,7 @@ export const Users: React.FC = () => {
     }
   });
 
+
   // Definir role padrão quando roles são carregados
   useEffect(() => {
     if (userRoles.length > 0 && !formData.roleId) {
@@ -92,6 +101,7 @@ export const Users: React.FC = () => {
       setFormData(prev => ({ ...prev, roleId: defaultRole.id }));
     }
   }, [userRoles, formData.roleId]);
+
 
   // Filtrar usuários
   const filteredUsers = users.filter((user: User) => {
@@ -136,6 +146,44 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Erro ao excluir usuário');
+    }
+  });
+
+  const activateUserMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/auth/users/${id}/activate`, {}, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário ativado com sucesso!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao ativar usuário');
+    }
+  });
+
+  const linkDeveloperMutation = useMutation({
+    mutationFn: ({ userId, developerId }: { userId: string; developerId: string }) => 
+      api.post(`/auth/users/${userId}/link-developer`, { developerId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário vinculado com desenvolvedor!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao vincular desenvolvedor');
+    }
+  });
+
+  const unlinkDeveloperMutation = useMutation({
+    mutationFn: (userId: string) => api.delete(`/auth/users/${userId}/unlink-developer`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário desvinculado do desenvolvedor!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao desvincular desenvolvedor');
     }
   });
 
@@ -200,6 +248,34 @@ export const Users: React.FC = () => {
     if (confirm(`Tem certeza que deseja excluir o usuário "${user.name}"?`)) {
       deleteUserMutation.mutate(user.id);
     }
+  };
+
+  const handleActivate = (user: User) => {
+    if (confirm(`Tem certeza que deseja ativar o usuário "${user.name}"?`)) {
+      activateUserMutation.mutate(user.id);
+    }
+  };
+
+  const handleUnlinkDeveloper = (user: User) => {
+    if (confirm(`Tem certeza que deseja desvincular o usuário "${user.name}" do desenvolvedor?`)) {
+      unlinkDeveloperMutation.mutate(user.id);
+    }
+  };
+
+  const openLinkModal = (user: User) => {
+    setLinkingUser(user);
+    setSelectedDeveloperId('');
+    setIsLinkModalOpen(true);
+  };
+
+  const handleLinkDeveloper = () => {
+    if (!linkingUser || !selectedDeveloperId) return;
+    
+    linkDeveloperMutation.mutate({
+      userId: linkingUser.id,
+      developerId: selectedDeveloperId
+    });
+    setIsLinkModalOpen(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -288,6 +364,9 @@ export const Users: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Criado em
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Desenvolvedor
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ações
                   </th>
@@ -312,11 +391,14 @@ export const Users: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.isActive 
-                          ? 'bg-green-100 text-green-800' 
+                        user.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : user.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {user.isActive ? 'Ativo' : 'Inativo'}
+                        {user.status === 'active' ? 'Ativo' : 
+                         user.status === 'pending' ? 'Pendente' : 'Inativo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -325,8 +407,48 @@ export const Users: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(user.createdAt)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.developerId ? (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Vinculado
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Não vinculado
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
+                        {user.status === 'pending' && canWrite('users') && (
+                          <button
+                            onClick={() => handleActivate(user)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Ativar usuário"
+                            disabled={activateUserMutation.isPending}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                        {!user.developerId && canWrite('users') && (
+                          <button
+                            onClick={() => openLinkModal(user)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Vincular desenvolvedor"
+                          >
+                            <Link className="h-4 w-4" />
+                          </button>
+                        )}
+                        {user.developerId && canWrite('users') && (
+                          <button
+                            onClick={() => handleUnlinkDeveloper(user)}
+                            className="text-orange-600 hover:text-orange-900"
+                            title="Desvincular desenvolvedor"
+                            disabled={unlinkDeveloperMutation.isPending}
+                          >
+                            <Unlink className="h-4 w-4" />
+                          </button>
+                        )}
                         {canWrite('users') && (
                           <button
                             onClick={() => openModal(user)}
@@ -463,6 +585,57 @@ export const Users: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Vínculo com Desenvolvedor */}
+      {isLinkModalOpen && linkingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Vincular Desenvolvedor
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Vincular usuário <strong>{linkingUser.name}</strong> com um desenvolvedor:
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Selecionar Desenvolvedor
+                  </label>
+                  <PaginatedSelect
+                    value={selectedDeveloperId}
+                    onChange={setSelectedDeveloperId}
+                    placeholder="Selecione um desenvolvedor"
+                    endpoint="/developers"
+                    labelKey="name"
+                    valueKey="id"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsLinkModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLinkDeveloper}
+                  disabled={!selectedDeveloperId || linkDeveloperMutation.isPending}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkDeveloperMutation.isPending ? 'Vinculando...' : 'Vincular'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

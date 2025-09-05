@@ -8,7 +8,8 @@ import {
   UserUpdateInput, 
   LoginRequest, 
   RefreshTokenRequest,
-  ChangePasswordRequest
+  ChangePasswordRequest,
+  AzureAdLoginRequest
 } from '@/types/auth';
 import { CustomError } from '@/middlewares/errorHandler';
 
@@ -158,6 +159,192 @@ export class AuthService {
       };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during login');
+      throw error;
+    }
+  }
+
+  /**
+   * Login com Azure AD
+   */
+  async loginWithAzureAd(azureAdData: AzureAdLoginRequest): Promise<any> {
+    try {
+      logger.info({ email: azureAdData.email, azureAdId: azureAdData.azureAdId }, 'Attempting Azure AD login');
+
+      // Buscar usuário pelo email ou azureAdId
+      let user = await (prisma as any).user.findFirst({
+        where: {
+          OR: [
+            { email: azureAdData.email },
+            { azureAdId: azureAdData.azureAdId }
+          ]
+        },
+        include: {
+          role: true
+        }
+      });
+
+      // Se usuário não existe, criar com status pendente
+      if (!user) {
+        logger.info({ email: azureAdData.email }, 'User not found, creating pending user');
+        
+        // Buscar role padrão (user)
+        const defaultRole = await prisma.userRole.findFirst({
+          where: { name: 'user' }
+        });
+
+        if (!defaultRole) {
+          // Log para debug - vamos ver o que existe no banco
+          const allRoles = await prisma.userRole.findMany();
+          logger.error({ allRoles }, 'Role "user" não encontrado. Roles disponíveis:');
+          throw new CustomError('Role padrão "user" não encontrado', 500, 'DEFAULT_ROLE_NOT_FOUND');
+        }
+
+        // Criar usuário com status pendente
+        user = await (prisma as any).user.create({
+          data: {
+            name: azureAdData.name,
+            email: azureAdData.email,
+            login: azureAdData.email.split('@')[0], // Usar parte do email como login
+            azureAdId: azureAdData.azureAdId,
+            azureAdEmail: azureAdData.azureAdEmail || azureAdData.email,
+            roleId: defaultRole.id,
+            isActive: false, // Usuário criado como inativo
+            status: 'pending' // Status pendente para aprovação
+          },
+          include: {
+            role: true
+          }
+        });
+
+        logger.info({ userId: user.id, email: user.email }, 'Pending user created successfully');
+
+        // Tentar vincular automaticamente com desenvolvedor
+        await this.linkWithDeveloper(user.id, azureAdData.email, azureAdData.azureAdId);
+      }
+
+      // Verificar se usuário está ativo
+      if (!user.isActive || user.status !== 'active') {
+        // Retornar dados do usuário pendente para o frontend mostrar página de aprovação
+        return {
+          user: this.convertDbUserToUser(user),
+          accessToken: null,
+          refreshToken: null,
+          requiresApproval: true,
+          message: 'Usuário pendente de aprovação. Entre em contato com o administrador.'
+        };
+      }
+
+      // Atualizar dados do Azure AD se necessário
+      if (user.azureAdId !== azureAdData.azureAdId || user.azureAdEmail !== azureAdData.azureAdEmail) {
+        await (prisma as any).user.update({
+          where: { id: user.id },
+          data: {
+            azureAdId: azureAdData.azureAdId,
+            azureAdEmail: azureAdData.azureAdEmail || azureAdData.email,
+            name: azureAdData.name // Atualizar nome caso tenha mudado
+          }
+        });
+      }
+
+      // Tentar vincular com desenvolvedor se ainda não estiver vinculado
+      if (!user.developerId) {
+        await this.linkWithDeveloper(user.id, azureAdData.email, azureAdData.azureAdId);
+      }
+
+      // Gerar tokens
+      const accessToken = this.generateAccessToken(user);
+      const refreshToken = this.generateRefreshToken(user);
+
+      // Calcular data de expiração
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
+
+      // Salvar refresh token no banco
+      await prisma.userToken.create({
+        data: {
+          userId: user.id,
+          accessToken,
+          refreshToken,
+          expiresAt
+        }
+      });
+
+      // Atualizar último login
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() }
+      });
+
+      logger.info({ userId: user.id, email: user.email }, 'Azure AD login successful');
+
+      // Retornar resposta de login
+      return {
+        user: this.convertDbUserToUser(user),
+        accessToken,
+        refreshToken,
+        expiresAt
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during Azure AD login');
+      throw error;
+    }
+  }
+
+  /**
+   * Processar callback do Azure AD (Authorization Code Flow with PKCE)
+   */
+  async handleAzureAdCallback(code: string, redirectUri: string, codeVerifier: string): Promise<any> {
+    try {
+      logger.info('Processing Azure AD callback with PKCE');
+
+      // Configurações do Azure AD
+      const clientId = process.env.AZURE_CLIENT_ID;
+      const tenantId = process.env.AZURE_TENANT_ID;
+
+      if (!clientId || !tenantId) {
+        throw new CustomError('Configurações do Azure AD não encontradas', 500, 'AZURE_CONFIG_MISSING');
+      }
+
+      // Trocar código de autorização por token usando PKCE
+      const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+          code_verifier: codeVerifier,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        logger.error({ status: tokenResponse.status, error: errorData }, 'Failed to exchange authorization code');
+        throw new CustomError('Falha ao trocar código de autorização por token', 400, 'TOKEN_EXCHANGE_FAILED');
+      }
+
+      const tokenData = await tokenResponse.json();
+      const { id_token } = tokenData;
+
+      // Decodificar ID token para obter informações do usuário
+      const idTokenPayload = JSON.parse(atob(id_token.split('.')[1]));
+      const userInfo = {
+        azureAdId: idTokenPayload.sub,
+        email: idTokenPayload.email || idTokenPayload.preferred_username,
+        name: idTokenPayload.name || idTokenPayload.given_name + ' ' + idTokenPayload.family_name,
+        azureAdEmail: idTokenPayload.email || idTokenPayload.preferred_username,
+      };
+
+      logger.info({ email: userInfo.email, azureAdId: userInfo.azureAdId }, 'Azure AD user info extracted');
+
+      // Usar o método existente de login com Azure AD
+      return await this.loginWithAzureAd(userInfo);
+
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during Azure AD callback processing');
       throw error;
     }
   }
@@ -616,6 +803,163 @@ export class AuthService {
       logger.info({ roleId }, 'Role deleted successfully');
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error deleting role');
+      throw error;
+    }
+  }
+
+  /**
+   * Ativar usuário pendente
+   */
+  async activateUser(userId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId }, 'Attempting to activate user');
+
+      // Buscar usuário
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      if (user.status === 'active') {
+        throw new CustomError('Usuário já está ativo', 400, 'USER_ALREADY_ACTIVE');
+      }
+
+      // Ativar usuário
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: {
+          status: 'active',
+          isActive: true
+        },
+        include: { role: true }
+      });
+
+      logger.info({ userId: updatedUser.id }, 'User activated successfully');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user activation');
+      throw error;
+    }
+  }
+
+  /**
+   * Vincular usuário com desenvolvedor automaticamente
+   */
+  private async linkWithDeveloper(userId: string, email: string, azureAdId?: string): Promise<void> {
+    try {
+      logger.info({ userId, email, azureAdId }, 'Attempting to link user with developer');
+
+      // Buscar desenvolvedor por email ou azureId
+      let developer = null;
+      
+      if (azureAdId) {
+        developer = await (prisma as any).developer.findFirst({
+          where: {
+            OR: [
+              { email: email },
+              { azureId: azureAdId }
+            ]
+          }
+        });
+      } else {
+        developer = await (prisma as any).developer.findUnique({
+          where: { email: email }
+        });
+      }
+
+      if (developer) {
+        // Vincular usuário com desenvolvedor
+        await (prisma as any).user.update({
+          where: { id: userId },
+          data: { developerId: developer.id }
+        });
+
+        logger.info({ userId, developerId: developer.id }, 'User successfully linked with developer');
+      } else {
+        logger.info({ userId, email }, 'No matching developer found for automatic linking');
+      }
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during developer linking');
+      // Não falhar o login se o vínculo falhar
+    }
+  }
+
+  /**
+   * Vincular usuário com desenvolvedor manualmente
+   */
+  async linkUserWithDeveloper(userId: string, developerId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId, developerId }, 'Attempting to link user with developer');
+
+      // Verificar se o desenvolvedor existe
+      const developer = await (prisma as any).developer.findUnique({
+        where: { id: developerId }
+      });
+
+      if (!developer) {
+        throw new CustomError('Desenvolvedor não encontrado', 404, 'DEVELOPER_NOT_FOUND');
+      }
+
+      // Verificar se o usuário existe
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      // Vincular usuário com desenvolvedor
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: { developerId: developerId },
+        include: { role: true }
+      });
+
+      logger.info({ userId, developerId }, 'User successfully linked with developer');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user-developer linking');
+      throw error;
+    }
+  }
+
+  /**
+   * Desvincular usuário do desenvolvedor
+   */
+  async unlinkUserFromDeveloper(userId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId }, 'Attempting to unlink user from developer');
+
+      // Verificar se o usuário existe
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      // Desvincular usuário do desenvolvedor
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: { developerId: null },
+        include: { role: true }
+      });
+
+      logger.info({ userId }, 'User successfully unlinked from developer');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user-developer unlinking');
       throw error;
     }
   }

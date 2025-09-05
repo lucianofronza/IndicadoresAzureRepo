@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+// Ícone Microsoft personalizado
+const MicrosoftIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+  </svg>
+);
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +18,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const { login } = useAuth();
+  const { login, loginWithAzureAd } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -46,6 +54,21 @@ export const Login: React.FC = () => {
       navigate('/dashboard');
     } catch (error: any) {
       // Removed toast.error(error.message || 'Erro ao fazer login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAzureAdLogin = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Chamar loginWithAzureAd sem parâmetros para usar Azure AD real
+      await loginWithAzureAd();
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Erro no login Azure AD:', error);
+      toast.error(error.message || 'Erro ao fazer login com Microsoft Entra');
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +183,31 @@ export const Login: React.FC = () => {
                   Entrar
                 </div>
               )}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">ou</span>
+            </div>
+          </div>
+
+          {/* Microsoft Entra Button */}
+          <div>
+            <button
+              type="button"
+              onClick={handleAzureAdLogin}
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center">
+                <MicrosoftIcon className="h-4 w-4 mr-2 text-blue-600" />
+                Entrar com Microsoft Entra
+              </div>
             </button>
           </div>
 
