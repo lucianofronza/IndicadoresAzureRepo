@@ -861,7 +861,7 @@ export const UserRoles: React.FC = () => {
                   <button
                     type="submit"
                     disabled={createRoleMutation.isPending || updateRoleMutation.isPending}
-                    className="btn btn-primary"
+                    className="btn btn-primary min-w-[80px] px-4"
                   >
                     {createRoleMutation.isPending || updateRoleMutation.isPending ? 'Salvando...' : 'Salvar'}
                   </button>
