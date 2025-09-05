@@ -35,18 +35,21 @@
 
 ## 5. Configurar Variáveis de Ambiente
 
-### Backend (.env)
+### Arquivo Centralizado (.env.docker)
+```bash
+# Copiar arquivo de exemplo
+cp env.docker.example .env.docker
+```
+
+Edite o arquivo `.env.docker` com suas credenciais:
 ```env
 # Azure AD Configuration
 AZURE_CLIENT_ID="seu-client-id-aqui"
 AZURE_CLIENT_SECRET="seu-client-secret-aqui"
 AZURE_TENANT_ID="seu-tenant-id-aqui"
 AZURE_REDIRECT_URI="http://localhost:5173/auth/callback"
-```
 
-### Frontend (.env)
-```env
-# Azure AD Configuration
+# Frontend Azure AD Configuration
 VITE_AZURE_CLIENT_ID="seu-client-id-aqui"
 VITE_AZURE_TENANT_ID="seu-tenant-id-aqui"
 VITE_AZURE_REDIRECT_URI="http://localhost:5173/auth/callback"
