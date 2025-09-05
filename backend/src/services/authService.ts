@@ -217,6 +217,9 @@ export class AuthService {
         });
 
         logger.info({ userId: user.id, email: user.email }, 'Pending user created successfully');
+
+        // Tentar vincular automaticamente com desenvolvedor
+        await this.linkWithDeveloper(user.id, azureAdData.email, azureAdData.azureAdId);
       }
 
       // Verificar se usuário está ativo
@@ -234,6 +237,11 @@ export class AuthService {
             name: azureAdData.name // Atualizar nome caso tenha mudado
           }
         });
+      }
+
+      // Tentar vincular com desenvolvedor se ainda não estiver vinculado
+      if (!user.developerId) {
+        await this.linkWithDeveloper(user.id, azureAdData.email, azureAdData.azureAdId);
       }
 
       // Gerar tokens
@@ -770,6 +778,48 @@ export class AuthService {
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user activation');
       throw error;
+    }
+  }
+
+  /**
+   * Vincular usuário com desenvolvedor automaticamente
+   */
+  private async linkWithDeveloper(userId: string, email: string, azureAdId?: string): Promise<void> {
+    try {
+      logger.info({ userId, email, azureAdId }, 'Attempting to link user with developer');
+
+      // Buscar desenvolvedor por email ou azureId
+      let developer = null;
+      
+      if (azureAdId) {
+        developer = await (prisma as any).developer.findFirst({
+          where: {
+            OR: [
+              { email: email },
+              { azureId: azureAdId }
+            ]
+          }
+        });
+      } else {
+        developer = await (prisma as any).developer.findUnique({
+          where: { email: email }
+        });
+      }
+
+      if (developer) {
+        // Vincular usuário com desenvolvedor
+        await (prisma as any).user.update({
+          where: { id: userId },
+          data: { developerId: developer.id }
+        });
+
+        logger.info({ userId, developerId: developer.id }, 'User successfully linked with developer');
+      } else {
+        logger.info({ userId, email }, 'No matching developer found for automatic linking');
+      }
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during developer linking');
+      // Não falhar o login se o vínculo falhar
     }
   }
 
