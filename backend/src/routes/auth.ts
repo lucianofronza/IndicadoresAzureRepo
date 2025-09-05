@@ -465,6 +465,52 @@ router.post('/users/:id/activate', requireAuth, requirePermission('users:write')
 }));
 
 /**
+ * @route POST /auth/users/:id/link-developer
+ * @desc Vincular usuário com desenvolvedor (apenas admin)
+ * @access Private (Admin)
+ */
+router.post('/users/:id/link-developer', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { developerId } = req.body;
+
+  if (!developerId) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'ID do desenvolvedor é obrigatório'
+    });
+  }
+
+  const user = await authService.linkUserWithDeveloper(id, developerId);
+
+  logger.info({ userId: user.id, developerId, linkedBy: req.user!.id }, 'User linked with developer by admin');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário vinculado com desenvolvedor com sucesso'
+  });
+}));
+
+/**
+ * @route DELETE /auth/users/:id/unlink-developer
+ * @desc Desvincular usuário do desenvolvedor (apenas admin)
+ * @access Private (Admin)
+ */
+router.delete('/users/:id/unlink-developer', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await authService.unlinkUserFromDeveloper(id);
+
+  logger.info({ userId: user.id, unlinkedBy: req.user!.id }, 'User unlinked from developer by admin');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário desvinculado do desenvolvedor com sucesso'
+  });
+}));
+
+/**
  * @route DELETE /auth/users/:id
  * @desc Excluir usuário por ID (apenas admin)
  * @access Private (Admin)

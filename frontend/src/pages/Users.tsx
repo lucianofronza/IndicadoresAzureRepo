@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -55,6 +55,9 @@ interface UpdateUserData {
 
 export const Users: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkingUser, setLinkingUser] = useState<User | null>(null);
+  const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'gerente'>('all');
@@ -85,6 +88,15 @@ export const Users: React.FC = () => {
     queryKey: ['user-roles'],
     queryFn: async () => {
       const response = await api.get('/auth/roles');
+      return response.data.data;
+    }
+  });
+
+  // Buscar desenvolvedores
+  const { data: developers = [] } = useQuery({
+    queryKey: ['developers'],
+    queryFn: async () => {
+      const response = await api.get('/developers');
       return response.data.data;
     }
   });
@@ -158,6 +170,29 @@ export const Users: React.FC = () => {
     }
   });
 
+  const linkDeveloperMutation = useMutation({
+    mutationFn: ({ userId, developerId }: { userId: string; developerId: string }) => 
+      api.post(`/auth/users/${userId}/link-developer`, { developerId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário vinculado com desenvolvedor!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao vincular desenvolvedor');
+    }
+  });
+
+  const unlinkDeveloperMutation = useMutation({
+    mutationFn: (userId: string) => api.delete(`/auth/users/${userId}/unlink-developer`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário desvinculado do desenvolvedor!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao desvincular desenvolvedor');
+    }
+  });
+
   const openModal = (user?: User) => {
     if (user) {
       setEditingUser(user);
@@ -225,6 +260,28 @@ export const Users: React.FC = () => {
     if (confirm(`Tem certeza que deseja ativar o usuário "${user.name}"?`)) {
       activateUserMutation.mutate(user.id);
     }
+  };
+
+  const handleUnlinkDeveloper = (user: User) => {
+    if (confirm(`Tem certeza que deseja desvincular o usuário "${user.name}" do desenvolvedor?`)) {
+      unlinkDeveloperMutation.mutate(user.id);
+    }
+  };
+
+  const openLinkModal = (user: User) => {
+    setLinkingUser(user);
+    setSelectedDeveloperId('');
+    setIsLinkModalOpen(true);
+  };
+
+  const handleLinkDeveloper = () => {
+    if (!linkingUser || !selectedDeveloperId) return;
+    
+    linkDeveloperMutation.mutate({
+      userId: linkingUser.id,
+      developerId: selectedDeveloperId
+    });
+    setIsLinkModalOpen(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -379,6 +436,25 @@ export const Users: React.FC = () => {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
+                        {!user.developerId && canWrite('users') && (
+                          <button
+                            onClick={() => openLinkModal(user)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Vincular desenvolvedor"
+                          >
+                            <Link className="h-4 w-4" />
+                          </button>
+                        )}
+                        {user.developerId && canWrite('users') && (
+                          <button
+                            onClick={() => handleUnlinkDeveloper(user)}
+                            className="text-orange-600 hover:text-orange-900"
+                            title="Desvincular desenvolvedor"
+                            disabled={unlinkDeveloperMutation.isPending}
+                          >
+                            <Unlink className="h-4 w-4" />
+                          </button>
+                        )}
                         {canWrite('users') && (
                           <button
                             onClick={() => openModal(user)}
@@ -515,6 +591,60 @@ export const Users: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Vínculo com Desenvolvedor */}
+      {isLinkModalOpen && linkingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Vincular Desenvolvedor
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Vincular usuário <strong>{linkingUser.name}</strong> com um desenvolvedor:
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Selecionar Desenvolvedor
+                  </label>
+                  <select
+                    value={selectedDeveloperId}
+                    onChange={(e) => setSelectedDeveloperId(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Selecione um desenvolvedor</option>
+                    {developers.map((dev: any) => (
+                      <option key={dev.id} value={dev.id}>
+                        {dev.name} ({dev.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsLinkModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLinkDeveloper}
+                  disabled={!selectedDeveloperId || linkDeveloperMutation.isPending}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkDeveloperMutation.isPending ? 'Vinculando...' : 'Vincular'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
