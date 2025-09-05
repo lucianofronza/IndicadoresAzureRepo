@@ -1,6 +1,5 @@
 import { useMsal } from '@azure/msal-react';
 import { loginRequest, graphConfig } from '../config/msalConfig';
-import { PublicClientApplication } from '@azure/msal-browser';
 
 export const useAzureAd = () => {
   const { instance, accounts } = useMsal();
@@ -10,25 +9,13 @@ export const useAzureAd = () => {
       const response = await instance.loginPopup(loginRequest);
       
       if (response.account) {
-        // Get user info from Microsoft Graph
-        const graphResponse = await instance.acquireTokenSilent({
-          ...loginRequest,
-          account: response.account,
-        });
-
-        const userInfoResponse = await fetch(graphConfig.graphMeEndpoint, {
-          headers: {
-            Authorization: `Bearer ${graphResponse.accessToken}`,
-          },
-        });
-
-        const userInfo = await userInfoResponse.json();
-
+        // Use the account info directly from the login response
+        // This avoids the need for acquireTokenSilent which requires SPA configuration
         return {
-          azureAdId: userInfo.id,
-          email: userInfo.mail || userInfo.userPrincipalName,
-          name: userInfo.displayName,
-          azureAdEmail: userInfo.userPrincipalName,
+          azureAdId: response.account.localAccountId || response.account.homeAccountId,
+          email: response.account.username,
+          name: response.account.name || response.account.username,
+          azureAdEmail: response.account.username,
         };
       }
     } catch (error) {
