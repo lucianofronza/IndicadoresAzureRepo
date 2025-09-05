@@ -10,7 +10,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthContextType['user']>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { loginWithAzureAd: azureAdLogin, logout: azureAdLogout } = useAzureAd();
+  const { loginWithAzureAd: azureAdLogin, handleRedirectResult, logout: azureAdLogout } = useAzureAd();
 
   // Verificar se há token salvo no localStorage
   useEffect(() => {
