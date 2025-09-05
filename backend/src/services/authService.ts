@@ -557,7 +557,7 @@ export class AuthService {
    */
   async updateUser(userId: string, userData: UserUpdateInput): Promise<Omit<User, 'password'>> {
     try {
-      logger.info({ userId }, 'Attempting to update user');
+      logger.info({ userId, userData }, 'Attempting to update user');
 
       const updateData: any = { ...userData };
 
