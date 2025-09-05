@@ -224,7 +224,14 @@ export class AuthService {
 
       // Verificar se usuário está ativo
       if (!user.isActive || user.status !== 'active') {
-        throw new CustomError('Usuário pendente de aprovação. Entre em contato com o administrador.', 403, 'USER_PENDING_APPROVAL');
+        // Retornar dados do usuário pendente para o frontend mostrar página de aprovação
+        return {
+          user: this.convertDbUserToUser(user),
+          accessToken: null,
+          refreshToken: null,
+          requiresApproval: true,
+          message: 'Usuário pendente de aprovação. Entre em contato com o administrador.'
+        };
       }
 
       // Atualizar dados do Azure AD se necessário
@@ -279,6 +286,65 @@ export class AuthService {
       };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during Azure AD login');
+      throw error;
+    }
+  }
+
+  /**
+   * Processar callback do Azure AD (Authorization Code Flow with PKCE)
+   */
+  async handleAzureAdCallback(code: string, redirectUri: string, codeVerifier: string): Promise<any> {
+    try {
+      logger.info('Processing Azure AD callback with PKCE');
+
+      // Configurações do Azure AD
+      const clientId = process.env.AZURE_CLIENT_ID;
+      const tenantId = process.env.AZURE_TENANT_ID;
+
+      if (!clientId || !tenantId) {
+        throw new CustomError('Configurações do Azure AD não encontradas', 500, 'AZURE_CONFIG_MISSING');
+      }
+
+      // Trocar código de autorização por token usando PKCE
+      const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+          code_verifier: codeVerifier,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        logger.error({ status: tokenResponse.status, error: errorData }, 'Failed to exchange authorization code');
+        throw new CustomError('Falha ao trocar código de autorização por token', 400, 'TOKEN_EXCHANGE_FAILED');
+      }
+
+      const tokenData = await tokenResponse.json();
+      const { access_token, id_token } = tokenData;
+
+      // Decodificar ID token para obter informações do usuário
+      const idTokenPayload = JSON.parse(atob(id_token.split('.')[1]));
+      const userInfo = {
+        azureAdId: idTokenPayload.sub,
+        email: idTokenPayload.email || idTokenPayload.preferred_username,
+        name: idTokenPayload.name || idTokenPayload.given_name + ' ' + idTokenPayload.family_name,
+        azureAdEmail: idTokenPayload.email || idTokenPayload.preferred_username,
+      };
+
+      logger.info({ email: userInfo.email, azureAdId: userInfo.azureAdId }, 'Azure AD user info extracted');
+
+      // Usar o método existente de login com Azure AD
+      return await this.loginWithAzureAd(userInfo);
+
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during Azure AD callback processing');
       throw error;
     }
   }

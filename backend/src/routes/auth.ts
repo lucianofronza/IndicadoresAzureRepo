@@ -204,6 +204,47 @@ router.post('/azure-ad-login', azureAdLoginValidation, asyncHandler(async (req, 
   });
 }));
 
+// Validação para callback do Azure AD
+const azureAdCallbackValidation = [
+  body('code')
+    .notEmpty()
+    .withMessage('Código de autorização é obrigatório'),
+  body('redirectUri')
+    .notEmpty()
+    .withMessage('URI de redirecionamento é obrigatória'),
+  body('codeVerifier')
+    .notEmpty()
+    .withMessage('Code verifier é obrigatório para PKCE')
+];
+
+/**
+ * @route POST /auth/azure-ad-callback
+ * @desc Processar callback do Azure AD (Authorization Code Flow)
+ * @access Public
+ */
+router.post('/azure-ad-callback', azureAdCallbackValidation, asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'Dados de entrada inválidos',
+      details: errors.array()
+    });
+  }
+
+  const { code, redirectUri, codeVerifier } = req.body;
+  const loginResponse = await authService.handleAzureAdCallback(code, redirectUri, codeVerifier);
+
+  logger.info('Azure AD callback processed successfully');
+
+  res.json({
+    success: true,
+    data: loginResponse,
+    message: 'Callback do Azure AD processado com sucesso'
+  });
+}));
+
 /**
  * @route POST /auth/refresh
  * @desc Renovar token de acesso
