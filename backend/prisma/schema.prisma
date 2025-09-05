@@ -208,16 +208,20 @@ model SyncJob {
 
 // Autenticação e Usuários
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  login     String   @unique
-  password  String   // Senha criptografada
-  roleId    String   // Referência obrigatória para UserRole
-  isActive  Boolean  @default(true)
-  lastLogin DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  login         String   @unique
+  password      String?  // Senha opcional para usuários Azure AD
+  roleId        String   // Referência obrigatória para UserRole
+  isActive      Boolean  @default(true)
+  status        String   @default("active") // 'active' | 'pending' | 'inactive'
+  azureAdId     String?  @unique // ID do usuário no Azure AD
+  azureAdEmail  String?  // Email do Azure AD (pode ser diferente do email principal)
+  developerId   String?  // Vínculo com cadastro de desenvolvedor
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relacionamentos
   role      UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
