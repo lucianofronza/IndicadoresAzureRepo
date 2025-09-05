@@ -257,35 +257,4 @@ export class DeveloperService {
     };
   }
 
-  /**
-   * Buscar desenvolvedores para seleção (apenas campos essenciais)
-   */
-  async searchForSelection(params: { search?: string; limit?: number }): Promise<Array<{ id: string; name: string; email: string }>> {
-    const { search = '', limit = 50 } = params;
-
-    const where: any = {};
-    
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { login: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const developers = await prisma.developer.findMany({
-      where,
-      take: limit,
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      }
-    });
-
-    logger.info({ search, limit, count: developers.length }, 'Developers searched for selection');
-
-    return developers;
-  }
 }
