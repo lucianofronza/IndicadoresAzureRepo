@@ -561,6 +561,18 @@ export class AuthService {
 
       const updateData: any = { ...userData };
 
+      // Para usuários do Azure AD, não permitir alteração do login
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { azureAdId: true }
+      });
+
+      if (existingUser?.azureAdId && userData.login) {
+        // Remover login dos dados de atualização para usuários do Azure AD
+        delete updateData.login;
+        logger.info({ userId }, 'Login não pode ser alterado para usuários do Azure AD');
+      }
+
       // Converter string boolean para boolean se necessário
       if (userData.isActive !== undefined) {
         if (typeof userData.isActive === 'string') {
