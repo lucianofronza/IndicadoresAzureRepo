@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from '@/utils/logger';
 import './userRolesSeed';
 
+const prisma = new PrismaClient();
+
 async function main() {
   logger.info('Starting database seed...');
 
