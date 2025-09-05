@@ -447,6 +447,24 @@ router.put('/users/:id', updateUserValidation, requireAuth, requirePermission('u
 }));
 
 /**
+ * @route POST /auth/users/:id/activate
+ * @desc Ativar usuário pendente (apenas admin)
+ * @access Private (Admin)
+ */
+router.post('/users/:id/activate', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await authService.activateUser(id);
+
+  logger.info({ userId: user.id, activatedBy: req.user!.id }, 'User activated by admin successfully');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário ativado com sucesso'
+  });
+}));
+
+/**
  * @route DELETE /auth/users/:id
  * @desc Excluir usuário por ID (apenas admin)
  * @access Private (Admin)

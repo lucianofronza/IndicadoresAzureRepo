@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -18,6 +18,10 @@ interface User {
     description: string;
   };
   isActive: boolean;
+  status: 'active' | 'pending' | 'inactive';
+  azureAdId?: string;
+  azureAdEmail?: string;
+  developerId?: string;
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -139,6 +143,17 @@ export const Users: React.FC = () => {
     }
   });
 
+  const activateUserMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/auth/users/${id}/activate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuário ativado com sucesso!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao ativar usuário');
+    }
+  });
+
   const openModal = (user?: User) => {
     if (user) {
       setEditingUser(user);
@@ -199,6 +214,12 @@ export const Users: React.FC = () => {
     
     if (confirm(`Tem certeza que deseja excluir o usuário "${user.name}"?`)) {
       deleteUserMutation.mutate(user.id);
+    }
+  };
+
+  const handleActivate = (user: User) => {
+    if (confirm(`Tem certeza que deseja ativar o usuário "${user.name}"?`)) {
+      activateUserMutation.mutate(user.id);
     }
   };
 
@@ -312,11 +333,14 @@ export const Users: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.isActive 
-                          ? 'bg-green-100 text-green-800' 
+                        user.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : user.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {user.isActive ? 'Ativo' : 'Inativo'}
+                        {user.status === 'active' ? 'Ativo' : 
+                         user.status === 'pending' ? 'Pendente' : 'Inativo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -327,6 +351,16 @@ export const Users: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
+                        {user.status === 'pending' && canWrite('users') && (
+                          <button
+                            onClick={() => handleActivate(user)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Ativar usuário"
+                            disabled={activateUserMutation.isPending}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        )}
                         {canWrite('users') && (
                           <button
                             onClick={() => openModal(user)}
