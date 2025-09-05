@@ -64,6 +64,11 @@ api.interceptors.response.use(
     
     if (error.response?.status >= 500) {
       toast.error('Erro interno do servidor. Tente novamente mais tarde.')
+    } else if (error.response?.data?.error === 'VALIDATION_ERROR' && error.response?.data?.details) {
+      // Mostrar detalhes específicos de validação
+      const validationErrors = error.response.data.details.map((detail: any) => detail.msg).join(', ');
+      console.error('Validation errors:', error.response.data.details);
+      toast.error(`Erro de validação: ${validationErrors}`)
     } else if (error.response?.data?.message) {
       toast.error(error.response.data.message)
     } else {

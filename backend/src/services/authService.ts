@@ -561,6 +561,13 @@ export class AuthService {
 
       const updateData: any = { ...userData };
 
+      // Converter string boolean para boolean se necessário
+      if (userData.isActive !== undefined) {
+        if (typeof userData.isActive === 'string') {
+          updateData.isActive = userData.isActive === 'true';
+        }
+      }
+
       // Se a senha está sendo atualizada, criptografar
       if (userData.password) {
         const saltRounds = 12;
