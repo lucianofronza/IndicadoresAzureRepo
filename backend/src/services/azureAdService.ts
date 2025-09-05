@@ -21,7 +21,7 @@ export class AzureAdService {
     try {
       // Aqui você implementaria a validação do token
       // Por enquanto, vamos simular uma validação básica
-      logger.info('Validating Azure AD access token');
+      logger.info('Validating Azure AD access token', { tokenLength: accessToken.length });
       
       // Em uma implementação real, você faria uma chamada para o Microsoft Graph
       // ou validaria o token JWT diretamente
