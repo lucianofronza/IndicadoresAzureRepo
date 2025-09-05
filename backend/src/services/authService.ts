@@ -110,17 +110,22 @@ export class AuthService {
         }
       });
 
-      if (!user) {
+      // Sempre executar verificação de senha para evitar timing attacks
+      // Se usuário não existe, usar um hash dummy para manter tempo constante
+      const passwordToCheck = user?.password || '$2b$10$dummy.hash.to.prevent.timing.attacks.and.user.enumeration';
+      const isPasswordValid = await bcrypt.compare(credentials.password, passwordToCheck);
+
+      // Adicionar delay artificial para evitar timing attacks
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 100));
+
+      // Verificar se usuário existe e senha é válida
+      if (!user || !isPasswordValid) {
+        // Sempre usar a mesma mensagem genérica para evitar enumeração de usuários
         throw new CustomError('Credenciais inválidas', 401, 'INVALID_CREDENTIALS');
       }
 
       if (!user.isActive) {
-        throw new CustomError('Usuário inativo', 401, 'USER_INACTIVE');
-      }
-
-      // Verificar senha
-      const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
-      if (!isPasswordValid) {
+        // Usar mensagem genérica mesmo para usuário inativo
         throw new CustomError('Credenciais inválidas', 401, 'INVALID_CREDENTIALS');
       }
 
@@ -362,20 +367,23 @@ export class AuthService {
         include: { user: true }
       });
 
+      // Adicionar delay artificial para evitar timing attacks
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 100));
+
       if (!tokenRecord) {
         throw new CustomError('Token de refresh inválido', 401, 'INVALID_REFRESH_TOKEN');
       }
 
       if (tokenRecord.isRevoked) {
-        throw new CustomError('Token de refresh revogado', 401, 'REVOKED_REFRESH_TOKEN');
+        throw new CustomError('Token de refresh inválido', 401, 'INVALID_REFRESH_TOKEN');
       }
 
       if (tokenRecord.expiresAt < new Date()) {
-        throw new CustomError('Token de refresh expirado', 401, 'EXPIRED_REFRESH_TOKEN');
+        throw new CustomError('Token de refresh inválido', 401, 'INVALID_REFRESH_TOKEN');
       }
 
       if (!tokenRecord.user.isActive) {
-        throw new CustomError('Usuário inativo', 401, 'USER_INACTIVE');
+        throw new CustomError('Token de refresh inválido', 401, 'INVALID_REFRESH_TOKEN');
       }
 
       // Gerar novos tokens
