@@ -236,6 +236,7 @@ model UserRole {
   description String?
   permissions String[] // Array de permissões
   isSystem    Boolean  @default(false)
+  isDefault   Boolean  @default(false) // Flag para indicar role padrão para novos usuários
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

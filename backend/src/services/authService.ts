@@ -192,16 +192,16 @@ export class AuthService {
       if (!user) {
         logger.info({ email: azureAdData.email }, 'User not found, creating pending user');
         
-        // Buscar role padrão (user)
+        // Buscar role padrão
         const defaultRole = await prisma.userRole.findFirst({
-          where: { name: 'user' }
+          where: { isDefault: true }
         });
 
         if (!defaultRole) {
           // Log para debug - vamos ver o que existe no banco
           const allRoles = await prisma.userRole.findMany();
-          logger.error({ allRoles }, 'Role "user" não encontrado. Roles disponíveis:');
-          throw new CustomError('Role padrão "user" não encontrado', 500, 'DEFAULT_ROLE_NOT_FOUND');
+          logger.error({ allRoles }, 'Nenhum role padrão encontrado. Roles disponíveis:');
+          throw new CustomError('Nenhum role padrão encontrado. Configure um role como padrão.', 500, 'DEFAULT_ROLE_NOT_FOUND');
         }
 
         // Criar usuário com status pendente
@@ -732,6 +732,7 @@ export class AuthService {
         description: role.description,
         permissions: role.permissions,
         isSystem: role.isSystem,
+        isDefault: role.isDefault,
         createdAt: role.createdAt.toISOString(),
         updatedAt: role.updatedAt.toISOString()
       }));
@@ -748,12 +749,24 @@ export class AuthService {
     try {
       logger.info({ roleData }, 'Attempting to create role');
 
+      // Se está marcando como padrão, verificar se já existe outro role padrão
+      if (roleData.isDefault) {
+        const existingDefaultRole = await (prisma as any).userRole.findFirst({
+          where: { isDefault: true }
+        });
+
+        if (existingDefaultRole) {
+          throw new CustomError('Já existe um role padrão. Apenas um role pode ser marcado como padrão.', 400, 'DEFAULT_ROLE_EXISTS');
+        }
+      }
+
       const role = await (prisma as any).userRole.create({
         data: {
           name: roleData.name,
           description: roleData.description,
           permissions: roleData.permissions || [],
-          isSystem: false
+          isSystem: false,
+          isDefault: roleData.isDefault || false
         }
       });
 
@@ -765,6 +778,7 @@ export class AuthService {
         description: role.description,
         permissions: role.permissions,
         isSystem: role.isSystem,
+        isDefault: role.isDefault,
         createdAt: role.createdAt.toISOString(),
         updatedAt: role.updatedAt.toISOString()
       };
@@ -781,12 +795,27 @@ export class AuthService {
     try {
       logger.info({ roleId, roleData }, 'Attempting to update role');
 
+      // Se está marcando como padrão, verificar se já existe outro role padrão
+      if (roleData.isDefault) {
+        const existingDefaultRole = await (prisma as any).userRole.findFirst({
+          where: { 
+            isDefault: true,
+            id: { not: roleId } // Excluir o role atual da verificação
+          }
+        });
+
+        if (existingDefaultRole) {
+          throw new CustomError('Já existe um role padrão. Apenas um role pode ser marcado como padrão.', 400, 'DEFAULT_ROLE_EXISTS');
+        }
+      }
+
       const role = await (prisma as any).userRole.update({
         where: { id: roleId },
         data: {
           name: roleData.name,
           description: roleData.description,
-          permissions: roleData.permissions || []
+          permissions: roleData.permissions || [],
+          isDefault: roleData.isDefault !== undefined ? roleData.isDefault : undefined
         }
       });
 
@@ -798,6 +827,7 @@ export class AuthService {
         description: role.description,
         permissions: role.permissions,
         isSystem: role.isSystem,
+        isDefault: role.isDefault,
         createdAt: role.createdAt.toISOString(),
         updatedAt: role.updatedAt.toISOString()
       };
