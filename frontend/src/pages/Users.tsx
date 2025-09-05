@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink } from 'lucide-react';
+import { PaginatedSelect } from '../components/PaginatedSelect';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -58,8 +59,6 @@ export const Users: React.FC = () => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkingUser, setLinkingUser] = useState<User | null>(null);
   const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
-  const [developerSearch, setDeveloperSearch] = useState('');
-  const [developerSearchInput, setDeveloperSearchInput] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'gerente'>('all');
@@ -94,20 +93,6 @@ export const Users: React.FC = () => {
     }
   });
 
-  // Buscar desenvolvedores com busca otimizada
-  const { data: developers = [], isLoading: developersLoading } = useQuery({
-    queryKey: ['developers-search', developerSearch],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (developerSearch) params.append('search', developerSearch);
-      params.append('limit', '50');
-      
-      const response = await api.get(`/developers/search?${params.toString()}`);
-      return response.data.data;
-    },
-    enabled: isLinkModalOpen, // Só busca quando o modal está aberto
-    staleTime: 30000, // Cache por 30 segundos
-  });
 
   // Definir role padrão quando roles são carregados
   useEffect(() => {
@@ -117,14 +102,6 @@ export const Users: React.FC = () => {
     }
   }, [userRoles, formData.roleId]);
 
-  // Debounce para busca de desenvolvedores
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDeveloperSearch(developerSearchInput);
-    }, 300); // 300ms de delay
-
-    return () => clearTimeout(timer);
-  }, [developerSearchInput]);
 
   // Filtrar usuários
   const filteredUsers = users.filter((user: User) => {
@@ -288,8 +265,6 @@ export const Users: React.FC = () => {
   const openLinkModal = (user: User) => {
     setLinkingUser(user);
     setSelectedDeveloperId('');
-    setDeveloperSearch('');
-    setDeveloperSearchInput('');
     setIsLinkModalOpen(true);
   };
 
@@ -630,51 +605,17 @@ export const Users: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Buscar Desenvolvedor
-                  </label>
-                  <input
-                    type="text"
-                    value={developerSearchInput}
-                    onChange={(e) => setDeveloperSearchInput(e.target.value)}
-                    placeholder="Digite nome ou email do desenvolvedor..."
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Selecionar Desenvolvedor
                   </label>
-                  {developersLoading ? (
-                    <div className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
-                      <span className="text-gray-500">Carregando desenvolvedores...</span>
-                    </div>
-                  ) : (
-                    <select
-                      value={selectedDeveloperId}
-                      onChange={(e) => setSelectedDeveloperId(e.target.value)}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">Selecione um desenvolvedor</option>
-                      {developers.map((dev: any) => (
-                        <option key={dev.id} value={dev.id}>
-                          {dev.name} ({dev.email})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  
-                  {!developersLoading && developers.length === 0 && developerSearch && (
-                    <p className="mt-1 text-sm text-gray-500">
-                      Nenhum desenvolvedor encontrado para "{developerSearch}"
-                    </p>
-                  )}
-                  
-                  {!developersLoading && developers.length > 0 && (
-                    <p className="mt-1 text-sm text-gray-500">
-                      {developers.length} desenvolvedor(es) encontrado(s)
-                    </p>
-                  )}
+                  <PaginatedSelect
+                    value={selectedDeveloperId}
+                    onChange={setSelectedDeveloperId}
+                    placeholder="Selecione um desenvolvedor"
+                    endpoint="/developers"
+                    labelKey="name"
+                    valueKey="id"
+                    className="w-full"
+                  />
                 </div>
               </div>
 
