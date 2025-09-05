@@ -585,7 +585,7 @@ export const Users: React.FC = () => {
                   <button
                     type="submit"
                     disabled={createUserMutation.isPending || updateUserMutation.isPending}
-                    className="btn btn-primary"
+                    className="btn btn-primary min-w-[80px] px-4"
                   >
                     {createUserMutation.isPending || updateUserMutation.isPending ? 'Salvando...' : 'Salvar'}
                   </button>
