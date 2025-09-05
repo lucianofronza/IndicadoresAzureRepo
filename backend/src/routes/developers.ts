@@ -21,6 +21,7 @@ router.get('/', validate(developerListSchema), asyncHandler(async (req, res) => 
   res.json({ success: true, data: result.data, pagination: result.pagination });
 }));
 
+
 router.get('/:id', validate(updateDeveloperSchema), asyncHandler(async (req, res) => {
   const developer = await developerService.getById(req.params.id);
   res.json({ success: true, data: developer });

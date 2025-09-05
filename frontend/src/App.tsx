@@ -9,6 +9,7 @@ import { Repositories } from '@/pages/Repositories'
 import { Sync } from '@/pages/Sync'
 import { RepositoryConfiguration } from '@/pages/RepositoryConfiguration'
 import { Login } from '@/pages/Login'
+import { AuthCallback } from '@/pages/AuthCallback'
 import { Users } from '@/pages/Users'
 import { UserRoles } from '@/pages/UserRoles'
 import { AccessDenied } from '@/pages/AccessDenied'
@@ -20,6 +21,9 @@ function App() {
     <Routes>
       {/* Rota pública de login */}
       <Route path="/login" element={<Login />} />
+      
+      {/* Rota de callback do Azure AD */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Rota de acesso negado */}
       <Route path="/access-denied" element={<AccessDenied />} />

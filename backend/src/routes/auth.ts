@@ -10,7 +10,8 @@ import {
   LoginRequest, 
   RefreshTokenRequest,
   ChangePasswordRequest,
-  AuthenticatedRequest
+  AuthenticatedRequest,
+  AzureAdLoginRequest
 } from '@/types/auth';
 import { PrismaClient } from '@prisma/client';
 import { CustomError } from '@/middlewares/errorHandler';
@@ -52,6 +53,26 @@ const loginValidation = [
   body('password')
     .notEmpty()
     .withMessage('Senha é obrigatória')
+];
+
+// Validação para login Azure AD
+const azureAdLoginValidation = [
+  body('azureAdId')
+    .notEmpty()
+    .withMessage('Azure AD ID é obrigatório'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Email inválido'),
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Nome deve ter entre 2 e 100 caracteres'),
+  body('azureAdEmail')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Azure AD Email inválido')
 ];
 
 // Validação para refresh token
@@ -152,6 +173,75 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
     success: true,
     data: loginResponse,
     message: 'Login realizado com sucesso'
+  });
+}));
+
+/**
+ * @route POST /auth/azure-ad-login
+ * @desc Fazer login com Azure AD
+ * @access Public
+ */
+router.post('/azure-ad-login', azureAdLoginValidation, asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'Dados de entrada inválidos',
+      details: errors.array()
+    });
+  }
+
+  const azureAdData: AzureAdLoginRequest = req.body;
+  const loginResponse = await authService.loginWithAzureAd(azureAdData);
+
+  logger.info({ userId: loginResponse.user.id, email: loginResponse.user.email, azureAdId: azureAdData.azureAdId }, 'User logged in with Azure AD successfully');
+
+  res.json({
+    success: true,
+    data: loginResponse,
+    message: 'Login com Azure AD realizado com sucesso'
+  });
+}));
+
+// Validação para callback do Azure AD
+const azureAdCallbackValidation = [
+  body('code')
+    .notEmpty()
+    .withMessage('Código de autorização é obrigatório'),
+  body('redirectUri')
+    .notEmpty()
+    .withMessage('URI de redirecionamento é obrigatória'),
+  body('codeVerifier')
+    .notEmpty()
+    .withMessage('Code verifier é obrigatório para PKCE')
+];
+
+/**
+ * @route POST /auth/azure-ad-callback
+ * @desc Processar callback do Azure AD (Authorization Code Flow)
+ * @access Public
+ */
+router.post('/azure-ad-callback', azureAdCallbackValidation, asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'Dados de entrada inválidos',
+      details: errors.array()
+    });
+  }
+
+  const { code, redirectUri, codeVerifier } = req.body;
+  const loginResponse = await authService.handleAzureAdCallback(code, redirectUri, codeVerifier);
+
+  logger.info('Azure AD callback processed successfully');
+
+  res.json({
+    success: true,
+    data: loginResponse,
+    message: 'Callback do Azure AD processado com sucesso'
   });
 }));
 
@@ -394,6 +484,70 @@ router.put('/users/:id', updateUserValidation, requireAuth, requirePermission('u
     success: true,
     data: user,
     message: 'Usuário atualizado com sucesso'
+  });
+}));
+
+/**
+ * @route POST /auth/users/:id/activate
+ * @desc Ativar usuário pendente (apenas admin)
+ * @access Private (Admin)
+ */
+router.post('/users/:id/activate', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await authService.activateUser(id);
+
+  logger.info({ userId: user.id, activatedBy: req.user!.id }, 'User activated by admin successfully');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário ativado com sucesso'
+  });
+}));
+
+/**
+ * @route POST /auth/users/:id/link-developer
+ * @desc Vincular usuário com desenvolvedor (apenas admin)
+ * @access Private (Admin)
+ */
+router.post('/users/:id/link-developer', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { developerId } = req.body;
+
+  if (!developerId) {
+    return res.status(400).json({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: 'ID do desenvolvedor é obrigatório'
+    });
+  }
+
+  const user = await authService.linkUserWithDeveloper(id, developerId);
+
+  logger.info({ userId: user.id, developerId, linkedBy: req.user!.id }, 'User linked with developer by admin');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário vinculado com desenvolvedor com sucesso'
+  });
+}));
+
+/**
+ * @route DELETE /auth/users/:id/unlink-developer
+ * @desc Desvincular usuário do desenvolvedor (apenas admin)
+ * @access Private (Admin)
+ */
+router.delete('/users/:id/unlink-developer', requireAuth, requirePermission('users:write'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await authService.unlinkUserFromDeveloper(id);
+
+  logger.info({ userId: user.id, unlinkedBy: req.user!.id }, 'User unlinked from developer by admin');
+
+  res.json({
+    success: true,
+    data: user,
+    message: 'Usuário desvinculado do desenvolvedor com sucesso'
   });
 }));
 

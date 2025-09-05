@@ -1,5 +1,6 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { AuthContext, type AuthContextType, type RegisterData } from './AuthContext';
+import { AuthContext, type AuthContextType, type RegisterData, type AzureAdLoginData } from './AuthContext';
+import { useAzureAd } from '../hooks/useAzureAd';
 import api from '../services/api';
 
 interface AuthProviderProps {
@@ -9,6 +10,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthContextType['user']>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { loginWithAzureAd: azureAdLogin, logout: azureAdLogout } = useAzureAd();
 
   // Verificar se há token salvo no localStorage
   useEffect(() => {
@@ -54,6 +56,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithAzureAd = async (azureAdData?: AzureAdLoginData) => {
+    try {
+      let userData = azureAdData;
+      
+      // Se não foi passado dados, fazer login com Azure AD real
+      if (!userData) {
+        userData = await azureAdLogin();
+      }
+      
+      // Se userData já contém os dados processados do callback, usar diretamente
+      if (userData && userData.success && userData.data) {
+        const { user, accessToken, refreshToken, requiresApproval, message } = userData.data;
+
+        // Se usuário requer aprovação, mostrar mensagem de erro
+        if (requiresApproval) {
+          throw new Error(message || 'Usuário pendente de aprovação. Entre em contato com o administrador.');
+        }
+
+        // Salvar tokens no localStorage
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Configurar token no axios
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+        setUser(user);
+      } else {
+        // Se não tem dados processados, fazer chamada para o backend
+        const response = await api.post('/auth/azure-ad-login', userData);
+        const { user, accessToken, refreshToken, requiresApproval, message } = response.data.data;
+
+        // Se usuário requer aprovação, mostrar mensagem de erro
+        if (requiresApproval) {
+          throw new Error(message || 'Usuário pendente de aprovação. Entre em contato com o administrador.');
+        }
+
+        // Salvar tokens no localStorage
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Configurar token no axios
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+        setUser(user);
+      }
+    } catch (error: any) {
+      console.error('Azure AD login error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Erro ao fazer login com Azure AD');
+    }
+  };
+
   const logout = async () => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -61,6 +114,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await api.post('/auth/logout', {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
+      }
+      
+      // Logout do Azure AD apenas se o usuário fez login com Azure AD
+      if (user?.azureAdId) {
+        await azureAdLogout();
       }
     } catch (error) {
       // Ignorar erros no logout
@@ -120,6 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginWithAzureAd,
     logout,
     register,
     refreshToken,
