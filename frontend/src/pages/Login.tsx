@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // Ícone Microsoft personalizado
 const MicrosoftIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4" }) => (

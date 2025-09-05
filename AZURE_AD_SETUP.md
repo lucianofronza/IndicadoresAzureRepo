@@ -10,6 +10,8 @@
    - **Supported account types**: `Accounts in this organizational directory only`
    - **Redirect URI**: `Single-page application (SPA)` - `http://localhost:5173/auth/callback`
 
+⚠️ **IMPORTANTE**: Certifique-se de selecionar **Single-page application (SPA)** como tipo de aplicação!
+
 ## 2. Configurar Permissões
 
 1. Na sua App Registration, vá para **API permissions**
@@ -83,6 +85,18 @@ npm install @azure/msal-node
 
 ## Troubleshooting
 
+### Erro AADSTS9002326: Cross-origin token redemption
+**Problema**: `Cross-origin token redemption is permitted only for the 'Single-Page Application' client-type`
+
+**Solução**:
+1. Vá para sua App Registration no Azure Portal
+2. Clique em **Authentication**
+3. Em **Platform configurations**, certifique-se que está configurado como **Single-page application**
+4. Se não estiver, clique em **Add a platform** > **Single-page application**
+5. Adicione a redirect URI: `http://localhost:5173/auth/callback`
+6. Salve as alterações
+
+### Outros erros comuns:
 - **Erro de redirect URI**: Verifique se a URI está configurada corretamente no Azure
 - **Permissões insuficientes**: Adicione as permissões necessárias no Azure Portal
 - **CORS**: Configure as URLs permitidas no backend
