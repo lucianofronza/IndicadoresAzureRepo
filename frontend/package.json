@@ -13,6 +13,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.22.0",
+    "@azure/msal-react": "^3.0.19",
     "@hookform/resolvers": "^3.3.2",
     "@tanstack/react-query": "^5.8.4",
     "apexcharts": "^5.3.3",

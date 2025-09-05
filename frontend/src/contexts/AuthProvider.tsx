@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { AuthContext, type AuthContextType, type RegisterData } from './AuthContext';
+import { AuthContext, type AuthContextType, type RegisterData, type AzureAdLoginData } from './AuthContext';
 import api from '../services/api';
 
 interface AuthProviderProps {
@@ -51,6 +51,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(user);
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erro ao fazer login');
+    }
+  };
+
+  const loginWithAzureAd = async (azureAdData: AzureAdLoginData) => {
+    try {
+      const response = await api.post('/auth/azure-ad-login', azureAdData);
+      const { user, accessToken, refreshToken } = response.data.data;
+
+      // Salvar tokens no localStorage
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+
+      // Configurar token no axios
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+      setUser(user);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erro ao fazer login com Azure AD');
     }
   };
 
@@ -120,6 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginWithAzureAd,
     logout,
     register,
     refreshToken,

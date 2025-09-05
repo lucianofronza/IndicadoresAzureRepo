@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, AlertCircle, Microsoft } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const { login } = useAuth();
+  const { login, loginWithAzureAd } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -46,6 +46,27 @@ export const Login: React.FC = () => {
       navigate('/dashboard');
     } catch (error: any) {
       // Removed toast.error(error.message || 'Erro ao fazer login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAzureAdLogin = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulação temporária - será substituída pela integração real com MSAL
+      const mockAzureAdData = {
+        azureAdId: 'mock-azure-id',
+        email: 'usuario@empresa.com',
+        name: 'Usuário Teste',
+        azureAdEmail: 'usuario@empresa.com'
+      };
+      
+      await loginWithAzureAd(mockAzureAdData);
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Erro no login Azure AD:', error);
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +181,31 @@ export const Login: React.FC = () => {
                   Entrar
                 </div>
               )}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">ou</span>
+            </div>
+          </div>
+
+          {/* Microsoft Entra Button */}
+          <div>
+            <button
+              type="button"
+              onClick={handleAzureAdLogin}
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center">
+                <Microsoft className="h-4 w-4 mr-2 text-blue-600" />
+                Entrar com Microsoft Entra
+              </div>
             </button>
           </div>
 
