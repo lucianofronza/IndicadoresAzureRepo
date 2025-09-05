@@ -824,6 +824,81 @@ export class AuthService {
   }
 
   /**
+   * Vincular usuário com desenvolvedor manualmente
+   */
+  async linkUserWithDeveloper(userId: string, developerId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId, developerId }, 'Attempting to link user with developer');
+
+      // Verificar se o desenvolvedor existe
+      const developer = await (prisma as any).developer.findUnique({
+        where: { id: developerId }
+      });
+
+      if (!developer) {
+        throw new CustomError('Desenvolvedor não encontrado', 404, 'DEVELOPER_NOT_FOUND');
+      }
+
+      // Verificar se o usuário existe
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      // Vincular usuário com desenvolvedor
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: { developerId: developerId },
+        include: { role: true }
+      });
+
+      logger.info({ userId, developerId }, 'User successfully linked with developer');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user-developer linking');
+      throw error;
+    }
+  }
+
+  /**
+   * Desvincular usuário do desenvolvedor
+   */
+  async unlinkUserFromDeveloper(userId: string): Promise<Omit<User, 'password'>> {
+    try {
+      logger.info({ userId }, 'Attempting to unlink user from developer');
+
+      // Verificar se o usuário existe
+      const user = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+      });
+
+      if (!user) {
+        throw new CustomError('Usuário não encontrado', 404, 'USER_NOT_FOUND');
+      }
+
+      // Desvincular usuário do desenvolvedor
+      const updatedUser = await (prisma as any).user.update({
+        where: { id: userId },
+        data: { developerId: null },
+        include: { role: true }
+      });
+
+      logger.info({ userId }, 'User successfully unlinked from developer');
+
+      return this.convertDbUserToUser(updatedUser);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error during user-developer unlinking');
+      throw error;
+    }
+  }
+
+  /**
    * Gerar token de acesso
    */
   private generateAccessToken(user: any): string {
