@@ -26,6 +26,7 @@ import syncRoutes from '@/routes/sync';
 import kpiRoutes from '@/routes/kpis';
 import azureDevOpsRoutes from '@/routes/azureDevOps';
 import authRoutes from '@/routes/auth';
+import userTeamRoutes from '@/routes/userTeams';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -158,6 +159,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/azure-devops', azureDevOpsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/user-teams', userTeamRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {

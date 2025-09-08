@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink, Users } from 'lucide-react';
 import { PaginatedSelect } from '../components/PaginatedSelect';
+import { UserTeamManager } from '../components/UserTeamManager';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -60,6 +61,7 @@ interface UpdateUserData {
 export const Users: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [linkingUser, setLinkingUser] = useState<User | null>(null);
   const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -281,6 +283,11 @@ export const Users: React.FC = () => {
     setIsLinkModalOpen(true);
   };
 
+  const openTeamModal = (user: User) => {
+    setEditingUser(user);
+    setIsTeamModalOpen(true);
+  };
+
   const handleLinkDeveloper = () => {
     if (!linkingUser || !selectedDeveloperId) return;
     
@@ -469,6 +476,15 @@ export const Users: React.FC = () => {
                             title="Editar"
                           >
                             <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canWrite('users') && (
+                          <button
+                            onClick={() => openTeamModal(user)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Gerenciar Equipes"
+                          >
+                            <Users className="h-4 w-4" />
                           </button>
                         )}
                         {canDelete('users') && user.id !== currentUser?.id && (
@@ -668,6 +684,35 @@ export const Users: React.FC = () => {
                   {linkDeveloperMutation.isPending ? 'Vinculando...' : 'Vincular'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gerenciamento de Equipes */}
+      {isTeamModalOpen && editingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Gerenciar Equipes - {editingUser.name}
+                </h3>
+                <button
+                  onClick={() => setIsTeamModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Fechar</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <UserTeamManager 
+                userId={editingUser.id} 
+                userName={editingUser.name}
+              />
             </div>
           </div>
         </div>
