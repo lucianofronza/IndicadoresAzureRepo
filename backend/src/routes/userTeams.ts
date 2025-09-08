@@ -4,7 +4,7 @@ import { validationResult } from 'express-validator';
 import { UserTeamService } from '@/services/userTeamService';
 import { asyncHandler } from '@/middlewares/asyncHandler';
 import { authenticateToken } from '@/middlewares/auth';
-import { checkPermissions } from '@/middlewares/permissions';
+import { requirePermission } from '@/middlewares/permissions';
 import { logger } from '@/utils/logger';
 
 const router = Router();
@@ -30,7 +30,7 @@ const updateUserTeamValidation = [
  * Obter todas as equipes de um usuário
  */
 router.get('/:userId', 
-  checkPermissions('users:read'),
+  requirePermission('users:read'),
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -60,7 +60,7 @@ router.get('/:userId',
  * Adicionar usuário a uma equipe
  */
 router.post('/', 
-  checkPermissions('users:write'),
+  requirePermission('users:write'),
   createUserTeamValidation,
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
@@ -91,7 +91,7 @@ router.post('/',
  * Atualizar role do usuário na equipe
  */
 router.put('/:userTeamId', 
-  checkPermissions('users:write'),
+  requirePermission('users:write'),
   updateUserTeamValidation,
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
@@ -123,7 +123,7 @@ router.put('/:userTeamId',
  * Remover usuário de uma equipe
  */
 router.delete('/:userTeamId', 
-  checkPermissions('users:write'),
+  requirePermission('users:write'),
   asyncHandler(async (req, res) => {
     const { userTeamId } = req.params;
     await userTeamService.removeUserFromTeam(userTeamId);
@@ -142,7 +142,7 @@ router.delete('/:userTeamId',
  * Obter todas as equipes disponíveis
  */
 router.get('/available/teams', 
-  checkPermissions('users:read'),
+  requirePermission('users:read'),
   asyncHandler(async (req, res) => {
     const teams = await userTeamService.getAvailableTeams();
 
