@@ -180,6 +180,7 @@ export interface AuthenticatedRequest extends Request {
     name: string;
     email: string;
     role: 'admin' | 'user';
+    viewScope: 'own' | 'teams' | 'all';
   };
   userPermissions?: string[];
   token?: string;

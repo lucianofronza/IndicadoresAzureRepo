@@ -8,12 +8,16 @@ export class TeamService {
   /**
    * Get all teams with pagination
    */
-  async getAll(params: PaginationParams): Promise<PaginatedResponse<Team>> {
-    const { page = 1, pageSize = 10, sortBy = 'name', sortOrder = 'asc' } = params;
+  async getAll(params: PaginationParams & { ids?: string[] }): Promise<PaginatedResponse<Team>> {
+    const { page = 1, pageSize = 10, sortBy = 'name', sortOrder = 'asc', ids } = params;
     const skip = (page - 1) * pageSize;
+
+    // Build where clause
+    const whereClause = ids && ids.length > 0 ? { id: { in: ids } } : {};
 
     const [teams, total] = await Promise.all([
       prisma.team.findMany({
+        where: whereClause,
         skip,
         take: pageSize,
         orderBy: { [sortBy]: sortOrder },
@@ -26,7 +30,7 @@ export class TeamService {
           },
         },
       }),
-      prisma.team.count(),
+      prisma.team.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / pageSize);

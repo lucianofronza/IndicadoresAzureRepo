@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { requireAuth } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
+import { validate, paginationSchema } from '@/middlewares/validation';
 import { AuthService } from '@/services/authService';
 import { logger } from '@/utils/logger';
 import { 
@@ -603,15 +604,29 @@ router.delete('/users/:id', requireAuth, requirePermission('users:delete'), asyn
  * @desc Listar todos os roles de usuário (apenas admin)
  * @access Private (Admin)
  */
-router.get('/roles', requireAuth, requirePermission('roles:read'), asyncHandler(async (req, res) => {
-  const roles = await authService.getAllRoles();
+router.get('/roles', 
+  requireAuth, 
+  requirePermission('roles:read'), 
+  validate(paginationSchema),
+  asyncHandler(async (req, res) => {
+    const { page = 1, pageSize = 10, sortBy = 'name', sortOrder = 'asc', search } = req.query;
+    
+    const result = await authService.getAllRolesPaginated({
+      page: page as number,
+      pageSize: pageSize as number,
+      sortBy: sortBy as string,
+      sortOrder: sortOrder as 'asc' | 'desc',
+      search: search as string,
+    });
 
-  res.json({
-    success: true,
-    data: roles,
-    message: 'Roles listados com sucesso'
-  });
-}));
+    res.json({
+      success: true,
+      data: result.data,
+      pagination: result.pagination,
+      message: 'Roles listados com sucesso'
+    });
+  })
+);
 
 /**
  * @route POST /auth/roles

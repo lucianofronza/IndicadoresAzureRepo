@@ -752,6 +752,58 @@ export class AuthService {
     }
   }
 
+  async getAllRolesPaginated(params: { page: number; pageSize: number; sortBy: string; sortOrder: 'asc' | 'desc'; search?: string }): Promise<any> {
+    try {
+      const { page = 1, pageSize = 10, sortBy = 'name', sortOrder = 'asc', search } = params;
+      const skip = (page - 1) * pageSize;
+
+      // Build where clause
+      const where: any = {};
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [roles, total] = await Promise.all([
+        (prisma as any).userRole.findMany({
+          where,
+          skip,
+          take: pageSize,
+          orderBy: { [sortBy]: sortOrder },
+        }),
+        (prisma as any).userRole.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / pageSize);
+
+      return {
+        data: roles.map(role => ({
+          id: role.id,
+          name: role.name,
+          description: role.description,
+          permissions: role.permissions,
+          isSystem: role.isSystem,
+          isDefault: role.isDefault,
+          createdAt: role.createdAt.toISOString(),
+          updatedAt: role.updatedAt.toISOString()
+        })),
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting paginated roles');
+      throw error;
+    }
+  }
+
   /**
    * Criar novo role de usuário
    */
