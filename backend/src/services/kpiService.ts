@@ -919,12 +919,21 @@ export class KpiService {
     }
 
     if (filters.teamId) {
-      if (entityType === 'commit') {
-        where.author = { teamId: filters.teamId };
-      } else if (entityType === 'review') {
-        where.reviewer = { teamId: filters.teamId };
+      // Handle multiple team IDs separated by comma
+      let teamFilter: any;
+      if (filters.teamId.includes(',')) {
+        const teamIds = filters.teamId.split(',').filter(id => id.trim() !== '');
+        teamFilter = { in: teamIds };
       } else {
-        where.createdBy = { teamId: filters.teamId };
+        teamFilter = filters.teamId;
+      }
+      
+      if (entityType === 'commit') {
+        where.author = { teamId: teamFilter };
+      } else if (entityType === 'review') {
+        where.reviewer = { teamId: teamFilter };
+      } else {
+        where.createdBy = { teamId: teamFilter };
       }
     }
 
@@ -971,7 +980,13 @@ export class KpiService {
     }
 
     if (filters.teamId) {
-      where.teamId = filters.teamId;
+      // Handle multiple team IDs separated by comma
+      if (filters.teamId.includes(',')) {
+        const teamIds = filters.teamId.split(',').filter(id => id.trim() !== '');
+        where.teamId = { in: teamIds };
+      } else {
+        where.teamId = filters.teamId;
+      }
     }
 
     if (filters.roleId) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Building2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Building2, Search } from 'lucide-react'
 import { Team, CreateTeamData } from '@/types'
 import { formatDate } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -10,6 +10,9 @@ import toast from 'react-hot-toast'
 export const Teams: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [filters, setFilters] = useState({
+    search: '',
+  })
   const queryClient = useQueryClient()
   const { canWrite, canDelete } = usePermissions()
 
@@ -20,6 +23,15 @@ export const Teams: React.FC = () => {
       return response.data.data
     },
   })
+
+  // Filtrar times
+  const filteredTeams = teams?.filter((team: Team) => {
+    if (filters.search) {
+      return team.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+             team.description?.toLowerCase().includes(filters.search.toLowerCase())
+    }
+    return true
+  }) || []
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateTeamData) => {
@@ -113,6 +125,37 @@ export const Teams: React.FC = () => {
         )}
       </div>
 
+      {/* Filtros */}
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="h-5 w-5 text-gray-500" />
+          <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              placeholder="Nome ou descrição..."
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => setFilters({ search: '' })}
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
+            >
+              Limpar Filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Teams List */}
       <div className="card">
         <div className="overflow-x-auto">
@@ -134,7 +177,7 @@ export const Teams: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {teams?.map((team: Team) => (
+              {filteredTeams.map((team: Team) => (
                 <tr key={team.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -232,7 +275,7 @@ const TeamModal: React.FC<TeamModalProps> = ({ team, onSubmit, onClose, isLoadin
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="input"
+                    className="input focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                     required
                   />
                 </div>
@@ -244,7 +287,7 @@ const TeamModal: React.FC<TeamModalProps> = ({ team, onSubmit, onClose, isLoadin
                     type="text"
                     value={formData.management}
                     onChange={(e) => setFormData(prev => ({ ...prev, management: e.target.value }))}
-                    className="input"
+                    className="input focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
               </div>

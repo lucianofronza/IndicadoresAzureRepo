@@ -127,13 +127,14 @@ export const Stacks: React.FC = () => {
               placeholder="Nome da stack..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="input w-full"
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '' })}
-              className="btn btn-secondary btn-md w-full"
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
               Limpar Filtros
             </button>
@@ -352,7 +353,7 @@ const StackModal: React.FC<StackModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Ex: React/Node.js"
               />
             </div>

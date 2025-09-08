@@ -19,7 +19,13 @@ export class DeveloperService {
     }
     
     if (teamId) {
-      where.teamId = teamId;
+      // Handle multiple team IDs separated by comma
+      if (teamId.includes(',')) {
+        const teamIds = teamId.split(',').filter(id => id.trim() !== '');
+        where.teamId = { in: teamIds };
+      } else {
+        where.teamId = teamId;
+      }
     }
     
     if (roleId) {

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Search, GitBranch, BarChart3, Eye, EyeOff } from 'lucide-react'
 import { Repository, CreateRepositoryData, UpdateRepositoryData } from '@/types'
 import { usePermissions } from '@/hooks/usePermissions'
+import { PaginatedSelect } from '@/components/PaginatedSelect'
 import api from '@/services/api'
 
 export const Repositories: React.FC = () => {
@@ -144,25 +145,23 @@ export const Repositories: React.FC = () => {
               placeholder="Nome do repositório..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="input w-full"
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Time
             </label>
-            <select
+            <PaginatedSelect
               value={filters.teamId}
-              onChange={(e) => setFilters(prev => ({ ...prev, teamId: e.target.value }))}
-              className="select w-full"
-            >
-              <option value="">Todos os times</option>
-              {teams?.map((team: any) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
+              placeholder="Todos os times"
+              endpoint="/teams"
+              labelKey="name"
+              valueKey="id"
+              className="w-full"
+              clearValue=""
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -173,13 +172,14 @@ export const Repositories: React.FC = () => {
               placeholder="Nome da organização..."
               value={filters.organization}
               onChange={(e) => setFilters(prev => ({ ...prev, organization: e.target.value }))}
-              className="input w-full"
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '', teamId: '', organization: '' })}
-              className="btn btn-secondary btn-md w-full"
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
               Limpar Filtros
             </button>
@@ -595,7 +595,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Nome do repositório"
               />
             </div>
@@ -608,7 +608,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
                 required
                 value={formData.organization}
                 onChange={(e) => setFormData(prev => ({ ...prev, organization: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Nome da organização Azure DevOps"
               />
             </div>
@@ -621,7 +621,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
                 required
                 value={formData.project}
                 onChange={(e) => setFormData(prev => ({ ...prev, project: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Nome do projeto"
               />
             </div>
@@ -634,7 +634,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
                 required
                 value={formData.url}
                 onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="https://dev.azure.com/org/project/_git/repo"
               />
             </div>
@@ -647,7 +647,7 @@ const RepositoryModal: React.FC<RepositoryModalProps> = ({
                 type="text"
                 value={formData.azureId}
                 onChange={(e) => setFormData(prev => ({ ...prev, azureId: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="1852537c-c6f5-4ae5-bba9-45d9244c736a"
               />
               <p className="text-xs text-gray-500 mt-1">

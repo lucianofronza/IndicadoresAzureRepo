@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react'
 import { Role, CreateRoleData, UpdateRoleData } from '@/types'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { usePermissions } from '@/hooks/usePermissions'
 
 export const Roles: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -20,6 +21,7 @@ export const Roles: React.FC = () => {
   })
 
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   // Fetch roles
   const { data: rolesData, isLoading } = useQuery({
@@ -106,18 +108,20 @@ export const Roles: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cargos</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gerencie os cargos da organização
-          </p>
+                <h1 className="text-2xl font-bold text-gray-900">Cargos</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Gerencie os cargos da organização
+                </p>
         </div>
-        <button 
-          className="btn btn-primary btn-md"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo
-        </button>
+        {canWrite('roles') && (
+          <button 
+            className="btn btn-primary btn-md"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -136,13 +140,14 @@ export const Roles: React.FC = () => {
               placeholder="Nome do cargo..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="input w-full"
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '' })}
-              className="btn btn-secondary btn-md w-full"
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
               Limpar Filtros
             </button>
@@ -201,18 +206,22 @@ export const Roles: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(role)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(role)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canWrite('roles') && (
+                          <button
+                            onClick={() => handleEditClick(role)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete('roles') && (
+                          <button
+                            onClick={() => handleDelete(role)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -354,7 +363,7 @@ const RoleModal: React.FC<RoleModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Ex: Desenvolvedor Senior"
               />
             </div>
