@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
@@ -11,6 +11,8 @@ interface PaginatedSelectProps {
   valueKey: string
   className?: string
   tabIndex?: number
+  disabled?: boolean
+  clearValue?: string
 }
 
 export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
@@ -21,7 +23,9 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
   labelKey,
   valueKey,
   className = '',
-  tabIndex
+  tabIndex,
+  disabled = false,
+  clearValue = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -32,7 +36,7 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
   const [selectedLabel, setSelectedLabel] = useState('')
   const [focusedIndex, setFocusedIndex] = useState(-1)
 
-  const loadData = async (pageNum: number = 1, searchTerm: string = '') => {
+  const loadData = useCallback(async (pageNum: number = 1, searchTerm: string = '') => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -48,6 +52,7 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
 
       const response = await api.get(`${endpoint}?${params.toString()}`)
       const newData = response.data.data
+      const pagination = response.data.pagination
       
       if (pageNum === 1) {
         setData(newData)
@@ -55,18 +60,23 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
         setData(prev => [...prev, ...newData])
       }
       
-      setHasMore(response.data.pagination.hasNext)
+      setHasMore(pagination.hasNext)
       setPage(pageNum)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [endpoint, labelKey])
 
   useEffect(() => {
+    // Reset state when endpoint changes
+    setData([])
+    setPage(1)
+    setHasMore(true)
+    setSelectedLabel('')
     loadData(1, search)
-  }, [search])
+  }, [search, loadData])
 
   useEffect(() => {
     // Set selected label when value changes
@@ -81,7 +91,7 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
   }, [value, data, labelKey, valueKey])
 
   const handleSelect = (item: any) => {
-    const value = item ? item[valueKey] : ''
+    const value = item ? item[valueKey] : clearValue
     const label = item ? item[labelKey] : ''
     onChange(value)
     setSelectedLabel(label)
@@ -91,32 +101,42 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
-      loadData(page + 1, search)
+      const nextPage = page + 1
+      loadData(nextPage, search)
     }
   }
 
   return (
     <div className={`relative ${className}`}>
       <div
-        className="select cursor-pointer flex items-center justify-between p-2 border rounded-md bg-white"
+        className={`flex items-center justify-between px-4 py-2 border border-gray-300 rounded-md ${
+          disabled 
+            ? 'cursor-not-allowed bg-gray-100 text-gray-500' 
+            : 'cursor-pointer bg-white'
+        }`}
         onClick={() => {
-          setIsOpen(!isOpen)
-          if (!isOpen) {
-            setFocusedIndex(-1)
+          if (!disabled) {
+            setIsOpen(!isOpen)
+            if (!isOpen) {
+              setFocusedIndex(-1)
+            }
           }
         }}
-        tabIndex={tabIndex}
+        tabIndex={disabled ? -1 : tabIndex}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setIsOpen(!isOpen)
-          } else if (e.key === 'Escape') {
-            setIsOpen(false)
+          if (!disabled) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setIsOpen(!isOpen)
+            } else if (e.key === 'Escape') {
+              setIsOpen(false)
+            }
           }
         }}
         role="combobox"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        aria-disabled={disabled}
       >
         <span className={selectedLabel ? 'text-gray-900' : 'text-gray-500'}>
           {selectedLabel || placeholder}
@@ -135,7 +155,7 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-8 pr-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>

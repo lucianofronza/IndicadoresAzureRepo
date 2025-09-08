@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Search, Filter, Eye } from 'lucide-react'
 import { Developer, CreateDeveloperData, UpdateDeveloperData, Stack } from '@/types'
 import { Tags } from '@/components/Tags'
 import { StackSelector } from '@/components/StackSelector'
+import { PaginatedSelect } from '@/components/PaginatedSelect'
 import { usePermissions } from '@/hooks/usePermissions'
 import api from '@/services/api'
 
@@ -169,7 +170,7 @@ export const Developers: React.FC = () => {
                 placeholder="Nome ou login..."
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="input pl-10"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
@@ -177,58 +178,53 @@ export const Developers: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Time
             </label>
-            <select
+            <PaginatedSelect
               value={filters.teamId}
-              onChange={(e) => setFilters(prev => ({ ...prev, teamId: e.target.value }))}
-              className="select"
-            >
-              <option value="">Todos os times</option>
-              {teams?.map((team: any) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
+              placeholder="Todos os times"
+              endpoint="/teams"
+              labelKey="name"
+              valueKey="id"
+              className="w-full"
+              clearValue=""
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Cargo
             </label>
-            <select
+            <PaginatedSelect
               value={filters.roleId}
-              onChange={(e) => setFilters(prev => ({ ...prev, roleId: e.target.value }))}
-              className="select"
-            >
-              <option value="">Todos os cargos</option>
-              {roles?.map((role: any) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setFilters(prev => ({ ...prev, roleId: value }))}
+              placeholder="Todos os cargos"
+              endpoint="/roles"
+              labelKey="name"
+              valueKey="id"
+              className="w-full"
+              clearValue=""
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Stack
             </label>
-            <select
+            <PaginatedSelect
               value={filters.stackId}
-              onChange={(e) => setFilters(prev => ({ ...prev, stackId: e.target.value }))}
-              className="select"
-            >
-              <option value="">Todas as stacks</option>
-              {stacks?.map((stack: any) => (
-                <option key={stack.id} value={stack.id}>
-                  {stack.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setFilters(prev => ({ ...prev, stackId: value }))}
+              placeholder="Todas as stacks"
+              endpoint="/stacks"
+              labelKey="name"
+              valueKey="id"
+              className="w-full"
+              clearValue=""
+            />
           </div>
 
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '', teamId: '', roleId: '', stackId: '' })}
-              className="btn btn-secondary btn-md w-full"
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
               Limpar Filtros
             </button>
@@ -518,7 +514,7 @@ const DeveloperModal: React.FC<DeveloperModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               />
             </div>
             <div>
@@ -529,7 +525,7 @@ const DeveloperModal: React.FC<DeveloperModalProps> = ({
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="exemplo@empresa.com"
               />
             </div>
@@ -542,7 +538,7 @@ const DeveloperModal: React.FC<DeveloperModalProps> = ({
                 required
                 value={formData.login}
                 onChange={(e) => setFormData(prev => ({ ...prev, login: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               />
             </div>
             <div>

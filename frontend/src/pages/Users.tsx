@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink, Users as UsersIcon } from 'lucide-react';
 import { PaginatedSelect } from '../components/PaginatedSelect';
+import { UserTeamManager } from '../components/UserTeamManager';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -23,20 +24,12 @@ interface User {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope: 'own' | 'teams' | 'all';
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-interface UserRole {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  isSystem: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface CreateUserData {
   name: string;
@@ -44,6 +37,7 @@ interface CreateUserData {
   login: string;
   password: string;
   roleId?: string;
+  viewScope?: 'own' | 'teams' | 'all';
 }
 
 interface UpdateUserData {
@@ -52,23 +46,26 @@ interface UpdateUserData {
   login?: string;
   roleId?: string;
   isActive?: boolean;
+  viewScope?: 'own' | 'teams' | 'all';
 }
 
 export const Users: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [linkingUser, setLinkingUser] = useState<User | null>(null);
   const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'gerente'>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<CreateUserData>({
     name: '',
     email: '',
     login: '',
     password: '',
-    roleId: '' // Será preenchido com o primeiro role disponível
+    roleId: '', // Será preenchido com o primeiro role disponível
+    viewScope: 'own' // Default para 'own'
   });
 
   const { user: currentUser } = useAuth();
@@ -84,23 +81,13 @@ export const Users: React.FC = () => {
     }
   });
 
-  // Buscar roles de usuário
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ['user-roles'],
-    queryFn: async () => {
-      const response = await api.get('/auth/roles');
-      return response.data.data;
-    }
-  });
+  // Buscar cargos
 
 
   // Definir role padrão quando roles são carregados
   useEffect(() => {
-    if (userRoles.length > 0 && !formData.roleId) {
-      const defaultRole = userRoles[0]; // Usar a primeira role disponível
-      setFormData(prev => ({ ...prev, roleId: defaultRole.id }));
-    }
-  }, [userRoles, formData.roleId]);
+    // Role padrão será definido quando o usuário selecionar no formulário
+  }, []);
 
 
   // Filtrar usuários
@@ -195,7 +182,8 @@ export const Users: React.FC = () => {
         email: user.email,
         login: user.login,
         password: '',
-        roleId: user.roleId
+        roleId: user.roleId,
+        viewScope: user.viewScope
       });
     } else {
       setEditingUser(null);
@@ -204,7 +192,8 @@ export const Users: React.FC = () => {
         email: '',
         login: '',
         password: '',
-        roleId: '' // Resetar para vazio ao abrir modal de novo usuário
+        roleId: '', // Resetar para vazio ao abrir modal de novo usuário
+        viewScope: 'own' // Default para 'own'
       });
     }
     setIsModalOpen(true);
@@ -230,7 +219,8 @@ export const Users: React.FC = () => {
       const updateData: UpdateUserData = {
         name: formData.name,
         email: formData.email,
-        login: formData.login
+        login: formData.login,
+        viewScope: formData.viewScope
       };
       
       // Só incluir roleId se não estiver vazio
@@ -274,6 +264,11 @@ export const Users: React.FC = () => {
     setIsLinkModalOpen(true);
   };
 
+  const openTeamModal = (user: User) => {
+    setEditingUser(user);
+    setIsTeamModalOpen(true);
+  };
+
   const handleLinkDeveloper = () => {
     if (!linkingUser || !selectedDeveloperId) return;
     
@@ -311,31 +306,50 @@ export const Users: React.FC = () => {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome, email ou login..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="h-5 w-5 text-gray-500" />
+          <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              placeholder="Nome, email ou login..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            />
           </div>
-          <div className="sm:w-48">
-            <select
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Grupo
+            </label>
+            <PaginatedSelect
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'user' | 'gerente')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              onChange={(value) => setRoleFilter(value)}
+              placeholder="Todos os grupos"
+              endpoint="/auth/roles"
+              labelKey="name"
+              valueKey="name"
+              className="w-full"
+              clearValue="all"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setRoleFilter('all')
+              }}
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
-              <option value="all">Todos os roles</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-              <option value="gerente">Gerente</option>
-            </select>
+              Limpar Filtros
+            </button>
           </div>
         </div>
       </div>
@@ -359,7 +373,7 @@ export const Users: React.FC = () => {
                     Login
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
+                    Grupo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -436,7 +450,7 @@ export const Users: React.FC = () => {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {!user.developerId && canWrite('users') && (
+                        {!user.developerId && canWrite('users') && user.viewScope === 'own' && (
                           <button
                             onClick={() => openLinkModal(user)}
                             className="text-blue-600 hover:text-blue-900"
@@ -445,7 +459,7 @@ export const Users: React.FC = () => {
                             <Link className="h-4 w-4" />
                           </button>
                         )}
-                        {user.developerId && canWrite('users') && (
+                        {user.developerId && canWrite('users') && user.viewScope === 'own' && (
                           <button
                             onClick={() => handleUnlinkDeveloper(user)}
                             className="text-orange-600 hover:text-orange-900"
@@ -462,6 +476,15 @@ export const Users: React.FC = () => {
                             title="Editar"
                           >
                             <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canWrite('users') && user.viewScope === 'teams' && (
+                          <button
+                            onClick={() => openTeamModal(user)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Gerenciar Equipes"
+                          >
+                            <UsersIcon className="h-4 w-4" />
                           </button>
                         )}
                         {canDelete('users') && user.id !== currentUser?.id && (
@@ -505,7 +528,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -516,7 +539,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -527,7 +550,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.login}
                     onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -540,7 +563,7 @@ export const Users: React.FC = () => {
                         required
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       />
                       <button
                         type="button"
@@ -561,24 +584,41 @@ export const Users: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     Role <span className="text-red-500">*</span>
                   </label>
+                  <PaginatedSelect
+                    value={formData.roleId || ''}
+                    onChange={(value) => setFormData({ ...formData, roleId: value })}
+                    placeholder="Selecione um grupo"
+                    endpoint="/auth/roles"
+                    labelKey="name"
+                    valueKey="id"
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Escopo de Visualização <span className="text-red-500">*</span>
+                  </label>
                   <select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.viewScope}
+                    onChange={(e) => setFormData({ ...formData, viewScope: e.target.value as 'own' | 'teams' | 'all' })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
-                    <option value="">Selecione um role</option>
-                    {userRoles.map((role: UserRole) => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
+                    <option value="own">Apenas seus dados</option>
+                    <option value="teams">Dados das suas equipes</option>
+                    <option value="all">Todos os dados</option>
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Define quais dados o usuário pode visualizar no dashboard
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                   >
                     Cancelar
                   </button>
@@ -629,7 +669,7 @@ export const Users: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsLinkModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Cancelar
                 </button>
@@ -637,11 +677,40 @@ export const Users: React.FC = () => {
                   type="button"
                   onClick={handleLinkDeveloper}
                   disabled={!selectedDeveloperId || linkDeveloperMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {linkDeveloperMutation.isPending ? 'Vinculando...' : 'Vincular'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gerenciamento de Equipes */}
+      {isTeamModalOpen && editingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Gerenciar Equipes - {editingUser.name}
+                </h3>
+                <button
+                  onClick={() => setIsTeamModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Fechar</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <UserTeamManager 
+                userId={editingUser.id} 
+                userName={editingUser.name}
+              />
             </div>
           </div>
         </div>
