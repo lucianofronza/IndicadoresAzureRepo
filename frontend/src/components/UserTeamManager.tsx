@@ -220,20 +220,10 @@ export const UserTeamManager: React.FC<UserTeamManagerProps> = ({ userId, userNa
               <div className="flex items-center space-x-3">
                 <div>
                   <p className="font-medium text-gray-900">{userTeam.team.name}</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(userTeam.role)}`}>
-                    {getRoleLabel(userTeam.role)}
-                  </span>
                 </div>
               </div>
               {canWrite('users') && (
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => openModal(userTeam)}
-                    className="text-indigo-600 hover:text-indigo-900"
-                    title="Editar role"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
                   <button
                     onClick={() => handleRemove(userTeam)}
                     className="text-red-600 hover:text-red-900"
@@ -254,11 +244,11 @@ export const UserTeamManager: React.FC<UserTeamManagerProps> = ({ userId, userNa
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingUserTeam ? 'Editar Role na Equipe' : 'Adicionar à Equipe'}
+                {editingUserTeam ? 'Editar Role na Equipe' : 'Adicionar Equipe'}
               </h3>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                {!editingUserTeam && (
+                {!editingUserTeam ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Equipe <span className="text-red-500">*</span>
@@ -266,7 +256,7 @@ export const UserTeamManager: React.FC<UserTeamManagerProps> = ({ userId, userNa
                     <select
                       value={formData.teamId}
                       onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
                       <option value="">Selecione uma equipe</option>
@@ -275,23 +265,23 @@ export const UserTeamManager: React.FC<UserTeamManagerProps> = ({ userId, userNa
                       ))}
                     </select>
                   </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Role <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'member' | 'coordinator' | 'manager' })}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="member">Membro</option>
+                      <option value="coordinator">Coordenador</option>
+                      <option value="manager">Gerente</option>
+                    </select>
+                  </div>
                 )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Role <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value as 'member' | 'coordinator' | 'manager' })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  >
-                    <option value="member">Membro</option>
-                    <option value="coordinator">Coordenador</option>
-                    <option value="manager">Gerente</option>
-                  </select>
-                </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button

@@ -1,34 +1,109 @@
 import { Router } from 'express';
 import { validate, kpiFiltersSchema } from '@/middlewares/validation';
 import { asyncHandler } from '@/middlewares/errorHandler';
+import { requireAuth } from '@/middlewares/auth';
 import { KpiService } from '@/services/kpiService';
 
 const router = Router();
 const kpiService = new KpiService();
 
-// Get all KPIs for dashboard
+// Helper function to apply user-based team filtering
+async function applyUserTeamFiltering(user: any, query: any) {
+  if (user.viewScope === 'teams') {
+    const { prisma } = await import('@/config/database');
+    const userTeams = await prisma.userTeam.findMany({
+      where: { userId: user.id },
+      select: { teamId: true }
+    });
+    
+    if (userTeams.length === 0) {
+      return null; // No teams associated
+    }
+    
+    const userTeamIds = userTeams.map(ut => ut.teamId);
+    
+    if (!query.teamId || query.teamId === '') {
+      // No specific team selected, use all user's teams
+      query.teamId = userTeamIds.join(',');
+    } else {
+      // Specific team selected, validate if user has access to it
+      const requestedTeamIds = query.teamId.split(',').filter(id => id.trim() !== '');
+      const validTeamIds = requestedTeamIds.filter(id => userTeamIds.includes(id));
+      
+      if (validTeamIds.length === 0) {
+        return null; // User doesn't have access to any of the requested teams
+      }
+      
+      query.teamId = validTeamIds.join(',');
+    }
+  } else if (user.viewScope === 'own') {
+    const { prisma } = await import('@/config/database');
+    const developer = await prisma.developer.findUnique({
+      where: { userId: user.id },
+      select: { teamId: true }
+    });
+    
+    if (!developer?.teamId) {
+      return null; // No developer association
+    }
+    
+    // For 'own' scope, always force the team to be the user's team
+    query.teamId = developer.teamId;
+  }
+  
+  return query;
+}
+
+// Get all KPIs for dashboard (with user-based filtering)
 router.get('/', 
+  requireAuth,
   validate(kpiFiltersSchema),
   asyncHandler(async (req, res) => {
-    const data = await kpiService.getDashboardSummary(req.query);
+    const user = req.user;
+    const query = { ...req.query };
+    
+    const filteredQuery = await applyUserTeamFiltering(user, query);
+    if (!filteredQuery) {
+      return res.json({ success: true, data: {} });
+    }
+    
+    const data = await kpiService.getDashboardSummary(filteredQuery);
     res.json({ success: true, data });
   })
 );
 
-// Get PR x Review x Comments chart
+// Get PR x Review x Comments chart (with user-based filtering)
 router.get('/pr-review-comments', 
+  requireAuth,
   validate(kpiFiltersSchema),
   asyncHandler(async (req, res) => {
-    const data = await kpiService.getPrReviewComments(req.query);
+    const user = req.user;
+    const query = { ...req.query };
+    
+    const filteredQuery = await applyUserTeamFiltering(user, query);
+    if (!filteredQuery) {
+      return res.json({ success: true, data: {} });
+    }
+    
+    const data = await kpiService.getPrReviewComments(filteredQuery);
     res.json({ success: true, data });
   })
 );
 
-// Get PR x Commit chart
+// Get PR x Commit chart (with user-based filtering)
 router.get('/pr-commit', 
+  requireAuth,
   validate(kpiFiltersSchema),
   asyncHandler(async (req, res) => {
-    const data = await kpiService.getPrCommit(req.query);
+    const user = req.user;
+    const query = { ...req.query };
+    
+    const filteredQuery = await applyUserTeamFiltering(user, query);
+    if (!filteredQuery) {
+      return res.json({ success: true, data: {} });
+    }
+    
+    const data = await kpiService.getPrCommit(filteredQuery);
     res.json({ success: true, data });
   })
 );

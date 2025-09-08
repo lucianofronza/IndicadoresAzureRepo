@@ -30,15 +30,6 @@ interface User {
   updatedAt: string;
 }
 
-interface UserRole {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  isSystem: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface CreateUserData {
   name: string;
@@ -91,22 +82,12 @@ export const Users: React.FC = () => {
   });
 
   // Buscar cargos
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ['user-roles'],
-    queryFn: async () => {
-      const response = await api.get('/auth/roles');
-      return response.data.data;
-    }
-  });
 
 
   // Definir role padrão quando roles são carregados
   useEffect(() => {
-    if (userRoles.length > 0 && !formData.roleId) {
-      const defaultRole = userRoles[0]; // Usar a primeira role disponível
-      setFormData(prev => ({ ...prev, roleId: defaultRole.id }));
-    }
-  }, [userRoles, formData.roleId]);
+    // Role padrão será definido quando o usuário selecionar no formulário
+  }, []);
 
 
   // Filtrar usuários
@@ -347,18 +328,16 @@ export const Users: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Grupo
             </label>
-            <select
+            <PaginatedSelect
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="all">Todos os grupos</option>
-              {userRoles?.map((role: any) => (
-                <option key={role.id} value={role.name}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setRoleFilter(value)}
+              placeholder="Todos os grupos"
+              endpoint="/auth/roles"
+              labelKey="name"
+              valueKey="name"
+              className="w-full"
+              clearValue="all"
+            />
           </div>
           <div className="flex items-end">
             <button
@@ -605,17 +584,15 @@ export const Users: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     Role <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    required
-                  >
-                    <option value="">Selecione um role</option>
-                    {userRoles.map((role: UserRole) => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
+                  <PaginatedSelect
+                    value={formData.roleId || ''}
+                    onChange={(value) => setFormData({ ...formData, roleId: value })}
+                    placeholder="Selecione um grupo"
+                    endpoint="/auth/roles"
+                    labelKey="name"
+                    valueKey="id"
+                    className="w-full"
+                  />
                 </div>
 
                 <div>

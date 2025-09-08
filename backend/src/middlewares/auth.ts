@@ -88,7 +88,8 @@ export const requireAuth = async (
         login: user.login,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        viewScope: user.viewScope
       };
       
       logger.info({ 

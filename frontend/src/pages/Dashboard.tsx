@@ -71,9 +71,8 @@ export const Dashboard: React.FC = () => {
             setValidationMessage('Você não possui equipes associadas. Entre em contato com o administrador.')
           } else {
             setValidationMessage('')
-            // Pré-popular o filtro de time com as equipes do usuário
-            const teamIds = teams.map((team: any) => team.teamId).join(',')
-            setFilters(prev => ({ ...prev, teamId: teamIds }))
+            // Não pré-popular filtros, deixar o usuário escolher
+            setFilters(prev => ({ ...prev, teamId: '' }))
           }
         } catch (error) {
           console.error('Erro ao carregar equipes do usuário:', error)
@@ -394,14 +393,16 @@ export const Dashboard: React.FC = () => {
               onChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
               placeholder={
                 user?.viewScope === 'teams' 
-                  ? (userTeams.length > 0 ? "Suas equipes" : "Sem equipes associadas")
+                  ? (userTeams.length > 0 ? "Selecione uma equipe" : "Sem equipes associadas")
+                  : user?.viewScope === 'own'
+                  ? "Apenas sua equipe"
                   : "Todos os times"
               }
-              endpoint={user?.viewScope === 'teams' ? `/teams?ids=${userTeams.map(t => t.teamId).join(',')}` : "/teams"}
+              endpoint="/teams"
               labelKey="name"
               valueKey="id"
-              className={`w-full ${user?.viewScope === 'teams' ? 'bg-gray-50' : ''}`}
-              disabled={user?.viewScope === 'teams'}
+              className={`w-full ${(user?.viewScope === 'teams' && userTeams.length === 0) || user?.viewScope === 'own' ? 'bg-gray-50' : ''}`}
+              disabled={(user?.viewScope === 'teams' && userTeams.length === 0) || user?.viewScope === 'own'}
             />
           </div>
           <div>
@@ -415,7 +416,8 @@ export const Dashboard: React.FC = () => {
               endpoint="/roles"
               labelKey="name"
               valueKey="id"
-              className="w-full"
+              className={`w-full ${user?.viewScope === 'own' ? 'bg-gray-50' : ''}`}
+              disabled={user?.viewScope === 'own'}
             />
           </div>
           <div>
@@ -429,7 +431,8 @@ export const Dashboard: React.FC = () => {
               endpoint="/stacks"
               labelKey="name"
               valueKey="id"
-              className="w-full"
+              className={`w-full ${user?.viewScope === 'own' ? 'bg-gray-50' : ''}`}
+              disabled={user?.viewScope === 'own'}
             />
           </div>
           <div>
@@ -445,7 +448,7 @@ export const Dashboard: React.FC = () => {
                   ? (user.developerId ? "Você" : "Sem desenvolvedor associado")
                   : "Todos os desenvolvedores"
               }
-              endpoint={user?.viewScope === 'teams' ? `/developers?teamIds=${userTeams.map(t => t.teamId).join(',')}` : "/developers"}
+              endpoint="/developers"
               labelKey="name"
               valueKey="id"
               className={`w-full ${user?.viewScope === 'own' ? 'bg-gray-50' : ''}`}
