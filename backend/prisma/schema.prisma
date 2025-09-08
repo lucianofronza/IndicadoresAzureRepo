@@ -25,6 +25,7 @@ model Team {
   // Relacionamentos
   developers Developer[]
   repositories Repository[]
+  userTeams  UserTeam[]
 
   @@map("teams")
 }
@@ -219,6 +220,7 @@ model User {
   azureAdId     String?  @unique // ID do usuário no Azure AD
   azureAdEmail  String?  // Email do Azure AD (pode ser diferente do email principal)
   developerId   String?  // Vínculo com cadastro de desenvolvedor
+  viewScope     String   @default("own") // 'own' | 'teams' | 'all' - Controle de visualização de dados
   lastLogin     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -226,6 +228,7 @@ model User {
   // Relacionamentos
   role      UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
   tokens    UserToken[]
+  userTeams UserTeam[] // Relacionamento com equipes
 
   @@map("users")
 }
@@ -260,4 +263,20 @@ model UserToken {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_tokens")
+}
+
+model UserTeam {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      String   @default("member") // 'member' | 'coordinator' | 'manager'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("user_teams")
 }

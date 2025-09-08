@@ -13,6 +13,7 @@ export interface DbUser {
   azureAdId?: string; // ID do usuário no Azure AD
   azureAdEmail?: string; // Email do Azure AD (pode ser diferente do email principal)
   developerId?: string; // Vínculo com cadastro de desenvolvedor
+  viewScope: 'own' | 'teams' | 'all'; // Controle de visualização de dados
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +31,7 @@ export interface User {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope: 'own' | 'teams' | 'all';
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +47,7 @@ export interface UserCreateInput {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope?: 'own' | 'teams' | 'all'; // Opcional, default 'own'
 }
 
 // Tipos de entrada para atualização de usuário
@@ -59,6 +62,7 @@ export interface UserUpdateInput {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope?: 'own' | 'teams' | 'all';
 }
 
 // Tipos de role de usuário
@@ -89,6 +93,32 @@ export interface UserRoleUpdateInput {
   permissions?: string[];
   isSystem?: boolean;
   isDefault?: boolean;
+}
+
+// Tipos de associação usuário-equipe
+export interface UserTeam {
+  id: string;
+  userId: string;
+  teamId: string;
+  role: 'member' | 'coordinator' | 'manager';
+  createdAt: Date;
+  updatedAt: Date;
+  team?: {
+    id: string;
+    name: string;
+  };
+}
+
+// Tipos de entrada para criação de associação usuário-equipe
+export interface UserTeamCreateInput {
+  userId: string;
+  teamId: string;
+  role?: 'member' | 'coordinator' | 'manager';
+}
+
+// Tipos de entrada para atualização de associação usuário-equipe
+export interface UserTeamUpdateInput {
+  role?: 'member' | 'coordinator' | 'manager';
 }
 
 // Tipos de requisição de login
