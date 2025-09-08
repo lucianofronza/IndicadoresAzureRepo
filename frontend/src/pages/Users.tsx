@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink, Users as UsersIcon } from 'lucide-react';
 import { PaginatedSelect } from '../components/PaginatedSelect';
 import { UserTeamManager } from '../components/UserTeamManager';
 import toast from 'react-hot-toast';
@@ -484,7 +484,7 @@ export const Users: React.FC = () => {
                             className="text-green-600 hover:text-green-900"
                             title="Gerenciar Equipes"
                           >
-                            <Users className="h-4 w-4" />
+                            <UsersIcon className="h-4 w-4" />
                           </button>
                         )}
                         {canDelete('users') && user.id !== currentUser?.id && (
