@@ -267,6 +267,11 @@ export class AuthService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
 
+      // Deletar tokens existentes do usuário antes de criar novos
+      await prisma.userToken.deleteMany({
+        where: { userId: user.id }
+      });
+
       // Salvar refresh token no banco
       await prisma.userToken.create({
         data: {
