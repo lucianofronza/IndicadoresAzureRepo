@@ -28,7 +28,8 @@ export class AuthService {
     delete userWithoutPassword.password;
     return {
       ...userWithoutPassword,
-      role: userWithoutPassword.role || null // Retornar o objeto role completo
+      role: userWithoutPassword.role || null, // Retornar o objeto role completo
+      viewScope: userWithoutPassword.viewScope || 'own' // Default para 'own' se não existir
     } as Omit<User, 'password'>;
   }
 
@@ -38,7 +39,8 @@ export class AuthService {
   private convertDbUserToUserWithPassword(dbUser: any): User {
     return {
       ...dbUser,
-      role: dbUser.role?.name || 'user' // Usar o nome do role relacionado
+      role: dbUser.role?.name || 'user', // Usar o nome do role relacionado
+      viewScope: dbUser.viewScope || 'own' // Default para 'own' se não existir
     } as User;
   }
 
@@ -214,7 +216,8 @@ export class AuthService {
             azureAdEmail: azureAdData.azureAdEmail || azureAdData.email,
             roleId: defaultRole.id,
             isActive: false, // Usuário criado como inativo
-            status: 'pending' // Status pendente para aprovação
+            status: 'pending', // Status pendente para aprovação
+            viewScope: 'own' // Controle de visualização padrão: apenas seus dados
           },
           include: {
             role: true
@@ -647,7 +650,8 @@ export class AuthService {
           email: userData.email,
           login: userData.login,
           password: hashedPassword,
-          roleId: userData.roleId || null
+          roleId: userData.roleId || null,
+          viewScope: userData.viewScope || 'own' // Default para 'own' se não especificado
         },
         include: {
           role: true

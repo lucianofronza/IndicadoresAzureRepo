@@ -23,6 +23,7 @@ interface User {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope: 'own' | 'teams' | 'all';
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -44,6 +45,7 @@ interface CreateUserData {
   login: string;
   password: string;
   roleId?: string;
+  viewScope?: 'own' | 'teams' | 'all';
 }
 
 interface UpdateUserData {
@@ -52,6 +54,7 @@ interface UpdateUserData {
   login?: string;
   roleId?: string;
   isActive?: boolean;
+  viewScope?: 'own' | 'teams' | 'all';
 }
 
 export const Users: React.FC = () => {
@@ -68,7 +71,8 @@ export const Users: React.FC = () => {
     email: '',
     login: '',
     password: '',
-    roleId: '' // Será preenchido com o primeiro role disponível
+    roleId: '', // Será preenchido com o primeiro role disponível
+    viewScope: 'own' // Default para 'own'
   });
 
   const { user: currentUser } = useAuth();
@@ -195,7 +199,8 @@ export const Users: React.FC = () => {
         email: user.email,
         login: user.login,
         password: '',
-        roleId: user.roleId
+        roleId: user.roleId,
+        viewScope: user.viewScope
       });
     } else {
       setEditingUser(null);
@@ -204,7 +209,8 @@ export const Users: React.FC = () => {
         email: '',
         login: '',
         password: '',
-        roleId: '' // Resetar para vazio ao abrir modal de novo usuário
+        roleId: '', // Resetar para vazio ao abrir modal de novo usuário
+        viewScope: 'own' // Default para 'own'
       });
     }
     setIsModalOpen(true);
@@ -572,6 +578,25 @@ export const Users: React.FC = () => {
                       <option key={role.id} value={role.id}>{role.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Escopo de Visualização <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.viewScope}
+                    onChange={(e) => setFormData({ ...formData, viewScope: e.target.value as 'own' | 'teams' | 'all' })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                  >
+                    <option value="own">Apenas seus dados</option>
+                    <option value="teams">Dados das suas equipes</option>
+                    <option value="all">Todos os dados</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Define quais dados o usuário pode visualizar no dashboard
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
