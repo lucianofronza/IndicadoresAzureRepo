@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validationResult } from 'express-validator';
 import { UserTeamService } from '@/services/userTeamService';
-import { asyncHandler } from '@/middlewares/asyncHandler';
+import { asyncHandler } from '@/middlewares/errorHandler';
 import { authenticateToken } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
 import { logger } from '@/utils/logger';
