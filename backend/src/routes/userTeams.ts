@@ -3,7 +3,7 @@ import { body, param } from 'express-validator';
 import { validationResult } from 'express-validator';
 import { UserTeamService } from '@/services/userTeamService';
 import { asyncHandler } from '@/middlewares/errorHandler';
-import { authenticateToken } from '@/middlewares/auth';
+import { requireAuth } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
 import { logger } from '@/utils/logger';
 
@@ -11,7 +11,7 @@ const router = Router();
 const userTeamService = new UserTeamService();
 
 // Middleware de autenticação para todas as rotas
-router.use(authenticateToken);
+router.use(requireAuth);
 
 // Validação para criação de associação usuário-equipe
 const createUserTeamValidation = [
