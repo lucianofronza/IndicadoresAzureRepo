@@ -26,8 +26,36 @@ const updateUserTeamValidation = [
 ];
 
 /**
+ * GET /api/user-teams/my-teams
+ * Obter as equipes do usuário logado (sem permissão especial)
+ */
+router.get('/my-teams', 
+  asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'UNAUTHORIZED',
+        message: 'Usuário não autenticado'
+      });
+    }
+
+    const userTeams = await userTeamService.getUserTeams(userId);
+
+    logger.info({ userId, teamCount: userTeams.length }, 'User teams retrieved successfully');
+
+    res.json({
+      success: true,
+      data: userTeams,
+      message: 'Suas equipes obtidas com sucesso'
+    });
+  })
+);
+
+/**
  * GET /api/user-teams/:userId
- * Obter todas as equipes de um usuário
+ * Obter todas as equipes de um usuário (requer permissão)
  */
 router.get('/:userId', 
   requirePermission('users:read'),

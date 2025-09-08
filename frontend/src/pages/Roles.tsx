@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react'
 import { Role, CreateRoleData, UpdateRoleData } from '@/types'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { usePermissions } from '@/hooks/usePermissions'
 
 export const Roles: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -20,6 +21,7 @@ export const Roles: React.FC = () => {
   })
 
   const queryClient = useQueryClient()
+  const { canWrite, canDelete } = usePermissions()
 
   // Fetch roles
   const { data: rolesData, isLoading } = useQuery({
@@ -111,13 +113,15 @@ export const Roles: React.FC = () => {
             Gerencie os cargos da organização
           </p>
         </div>
-        <button 
-          className="btn btn-primary btn-md"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo
-        </button>
+        {canWrite('roles') && (
+          <button 
+            className="btn btn-primary btn-md"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -201,18 +205,22 @@ export const Roles: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(role)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(role)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canWrite('roles') && (
+                          <button
+                            onClick={() => handleEditClick(role)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete('roles') && (
+                          <button
+                            onClick={() => handleDelete(role)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

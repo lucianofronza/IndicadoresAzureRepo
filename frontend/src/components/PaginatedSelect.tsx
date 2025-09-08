@@ -11,6 +11,7 @@ interface PaginatedSelectProps {
   valueKey: string
   className?: string
   tabIndex?: number
+  disabled?: boolean
 }
 
 export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
@@ -21,7 +22,8 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
   labelKey,
   valueKey,
   className = '',
-  tabIndex
+  tabIndex,
+  disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -98,25 +100,34 @@ export const PaginatedSelect: React.FC<PaginatedSelectProps> = ({
   return (
     <div className={`relative ${className}`}>
       <div
-        className="select cursor-pointer flex items-center justify-between p-2 border rounded-md bg-white"
+        className={`select flex items-center justify-between p-2 border rounded-md ${
+          disabled 
+            ? 'cursor-not-allowed bg-gray-100 text-gray-500' 
+            : 'cursor-pointer bg-white'
+        }`}
         onClick={() => {
-          setIsOpen(!isOpen)
-          if (!isOpen) {
-            setFocusedIndex(-1)
+          if (!disabled) {
+            setIsOpen(!isOpen)
+            if (!isOpen) {
+              setFocusedIndex(-1)
+            }
           }
         }}
-        tabIndex={tabIndex}
+        tabIndex={disabled ? -1 : tabIndex}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setIsOpen(!isOpen)
-          } else if (e.key === 'Escape') {
-            setIsOpen(false)
+          if (!disabled) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setIsOpen(!isOpen)
+            } else if (e.key === 'Escape') {
+              setIsOpen(false)
+            }
           }
         }}
         role="combobox"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        aria-disabled={disabled}
       >
         <span className={selectedLabel ? 'text-gray-900' : 'text-gray-500'}>
           {selectedLabel || placeholder}

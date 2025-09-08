@@ -1,4 +1,4 @@
-import React, { createContext } from 'react';
+import React, { createContext, useContext } from 'react';
 
 interface User {
   id: string;
@@ -19,6 +19,7 @@ interface User {
   azureAdId?: string;
   azureAdEmail?: string;
   developerId?: string;
+  viewScope: 'own' | 'teams' | 'all';
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -51,5 +52,13 @@ interface RegisterData {
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export type { User, AuthContextType, RegisterData, AzureAdLoginData };
