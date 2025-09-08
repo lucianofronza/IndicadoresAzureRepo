@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '@/utils/logger';
 import { 
@@ -1037,7 +1038,9 @@ export class AuthService {
     const payload = {
       userId: user.id,
       email: user.email,
-      role: user.role?.name || 'user'
+      role: user.role?.name || 'user',
+      iat: Math.floor(Date.now() / 1000), // timestamp único
+      jti: crypto.randomUUID() // ID único do token
     };
 
     return (jwt as any).sign(payload, this.JWT_SECRET, {
@@ -1051,7 +1054,9 @@ export class AuthService {
   private generateRefreshToken(user: any): string {
     const payload = {
       userId: user.id,
-      type: 'refresh'
+      type: 'refresh',
+      iat: Math.floor(Date.now() / 1000), // timestamp único
+      jti: crypto.randomUUID() // ID único do token
     };
 
     return (jwt as any).sign(payload, this.JWT_SECRET, {

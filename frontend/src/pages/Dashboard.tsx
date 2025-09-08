@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PaginatedSelect } from '@/components/PaginatedSelect'
 import { DateRangePicker } from '@/components/DateRangePicker'
@@ -14,11 +14,13 @@ import {
   MessageCircle,
   Building2,
   UserCheck,
-  Layers
+  Layers,
+  Info
 } from 'lucide-react'
 import { DashboardFilters, KPI } from '@/types'
 import { formatNumber } from '@/lib/utils'
 import api from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Função para calcular datas padrão de forma mais robusta
 const getDefaultDateRange = () => {
@@ -33,7 +35,73 @@ const getDefaultDateRange = () => {
 }
 
 export const Dashboard: React.FC = () => {
+  const { user } = useAuth()
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultDateRange())
+  const [userTeams, setUserTeams] = useState<any[]>([])
+  const [validationMessage, setValidationMessage] = useState<string>('')
+  const [filtersReady, setFiltersReady] = useState(false)
+  const [userLoading, setUserLoading] = useState(true)
+
+  // Carregar equipes do usuário se viewScope for 'teams'
+  useEffect(() => {
+    const loadUserTeams = async () => {
+      // Aguardar o usuário estar completamente carregado
+      if (!user) {
+        setUserLoading(true)
+        return
+      }
+      
+      // Aguardar o viewScope estar definido
+      if (user.viewScope === undefined) {
+        setUserLoading(true)
+        return
+      }
+      
+      setUserLoading(false)
+      
+      if (user.viewScope === 'teams') {
+        try {
+          const response = await api.get(`/user-teams/my-teams`)
+          const teams = response.data.data || []
+          setUserTeams(teams)
+          
+          if (teams.length === 0) {
+            // Definir um ID inválido para garantir que não retorne dados
+            setFilters(prev => ({ ...prev, teamId: 'none' }))
+            setValidationMessage('Você não possui equipes associadas. Entre em contato com o administrador.')
+          } else {
+            setValidationMessage('')
+            // Pré-popular o filtro de time com as equipes do usuário
+            const teamIds = teams.map((team: any) => team.teamId).join(',')
+            setFilters(prev => ({ ...prev, teamId: teamIds }))
+          }
+        } catch (error) {
+          console.error('Erro ao carregar equipes do usuário:', error)
+          setFilters(prev => ({ ...prev, teamId: 'none' }))
+          setValidationMessage('Erro ao carregar suas equipes associadas.')
+        } finally {
+          setFiltersReady(true)
+        }
+      } else if (user.viewScope === 'own') {
+        // Para viewScope 'own', fixar o desenvolvedor no usuário logado
+        if (user.developerId) {
+          setFilters(prev => ({ ...prev, developerId: user.developerId }))
+          setValidationMessage('')
+        } else {
+          // Definir um ID inválido para garantir que não retorne dados
+          setFilters(prev => ({ ...prev, developerId: 'none' }))
+          setValidationMessage('Você não possui um desenvolvedor associado. Entre em contato com o administrador.')
+        }
+        setFiltersReady(true)
+      } else {
+        // Para viewScope 'all', comportamento normal
+        setValidationMessage('')
+        setFiltersReady(true)
+      }
+    }
+
+    loadUserTeams()
+  }, [user])
 
 
 
@@ -48,6 +116,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis?${params.toString()}`)
       return response.data.data as KPI
     },
+    enabled: filtersReady && !userLoading, // Só executa quando os filtros estiverem prontos e usuário carregado
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     retry: 2,
@@ -66,6 +135,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/pr-review-comments?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -83,6 +153,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/pr-commit?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -100,6 +171,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/pr-review-team?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -117,6 +189,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/reviews-performed-team?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -134,6 +207,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/files-changed-team?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -151,6 +225,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/cycle-time-team?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -168,6 +243,7 @@ export const Dashboard: React.FC = () => {
       const response = await api.get(`/kpis/top-cycle-time-prs?${params.toString()}`)
       return response.data.data
     },
+    enabled: filtersReady,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
@@ -214,7 +290,8 @@ export const Dashboard: React.FC = () => {
     rolesByTeam: []
   }
 
-  if (isLoading || !isDataReady) {
+  
+  if (isLoading || !isDataReady || userLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
@@ -267,7 +344,33 @@ export const Dashboard: React.FC = () => {
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-5 w-5 text-gray-500" />
           <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
+          {user?.viewScope === 'teams' && (
+            <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+              Visualização: Equipes
+            </span>
+          )}
+          {user?.viewScope === 'own' && (
+            <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded-full">
+              Visualização: Próprios dados
+            </span>
+          )}
+          {user?.viewScope === 'all' && (
+            <span className="text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+              Visualização: Todos os dados
+            </span>
+          )}
         </div>
+        
+        {/* Mensagem de validação */}
+        {validationMessage && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex items-center">
+              <Info className="h-5 w-5 text-yellow-600 mr-2" />
+              <p className="text-sm text-yellow-800">{validationMessage}</p>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -284,15 +387,21 @@ export const Dashboard: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Time
+              {user?.viewScope === 'teams' && <span className="text-red-500 ml-1">*</span>}
             </label>
             <PaginatedSelect
               value={filters.teamId || ''}
               onChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
-              placeholder="Todos os times"
-              endpoint="/teams"
+              placeholder={
+                user?.viewScope === 'teams' 
+                  ? (userTeams.length > 0 ? "Suas equipes" : "Sem equipes associadas")
+                  : "Todos os times"
+              }
+              endpoint={user?.viewScope === 'teams' ? `/teams?ids=${userTeams.map(t => t.teamId).join(',')}` : "/teams"}
               labelKey="name"
               valueKey="id"
-              className="w-full"
+              className={`w-full ${user?.viewScope === 'teams' ? 'bg-gray-50' : ''}`}
+              disabled={user?.viewScope === 'teams'}
             />
           </div>
           <div>
@@ -326,15 +435,21 @@ export const Dashboard: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Desenvolvedor
+              {user?.viewScope === 'own' && <span className="text-red-500 ml-1">*</span>}
             </label>
             <PaginatedSelect
               value={filters.developerId || ''}
               onChange={(value) => setFilters(prev => ({ ...prev, developerId: value }))}
-              placeholder="Todos os desenvolvedores"
-              endpoint="/developers"
+              placeholder={
+                user?.viewScope === 'own' 
+                  ? (user.developerId ? "Você" : "Sem desenvolvedor associado")
+                  : "Todos os desenvolvedores"
+              }
+              endpoint={user?.viewScope === 'teams' ? `/developers?teamIds=${userTeams.map(t => t.teamId).join(',')}` : "/developers"}
               labelKey="name"
               valueKey="id"
-              className="w-full"
+              className={`w-full ${user?.viewScope === 'own' ? 'bg-gray-50' : ''}`}
+              disabled={user?.viewScope === 'own'}
             />
           </div>
         </div>

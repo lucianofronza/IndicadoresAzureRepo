@@ -338,6 +338,8 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response, 
       role: user.role?.name,
       roleId: user.roleId,
       isActive: user.isActive,
+      developerId: user.developerId,
+      viewScope: user.viewScope || 'own', // Default para 'own' se não estiver definido
       lastLogin: user.lastLogin,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
