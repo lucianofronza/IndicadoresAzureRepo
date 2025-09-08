@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body, param } from 'express-validator';
+import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
 import { UserTeamService } from '@/services/userTeamService';
 import { asyncHandler } from '@/middlewares/errorHandler';
