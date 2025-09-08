@@ -28,7 +28,7 @@ const navigation = [
   { name: 'Stacks', href: '/stacks', icon: Code2, permission: 'stacks:read' },
   { name: 'Repositórios', href: '/repositories', icon: GitBranch, permission: 'repositories:read' },
   { name: 'Usuários', href: '/users', icon: UserCog, permission: 'users:read' },
-  { name: 'Roles', href: '/user-roles', icon: Shield, permission: 'roles:read' },
+  { name: 'Grupos de Segurança', href: '/user-roles', icon: Shield, permission: 'roles:read' },
   { name: 'Sincronização', href: '/sync', icon: RefreshCw, permission: 'sync:read' },
   { name: 'Azure DevOps', href: '/azure-devops', icon: GitPullRequest, permission: 'azure-devops:read' },
 ]

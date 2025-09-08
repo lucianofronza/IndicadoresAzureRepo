@@ -108,10 +108,10 @@ export const Roles: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cargos</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gerencie os cargos da organização
-          </p>
+                <h1 className="text-2xl font-bold text-gray-900">Cargos</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Gerencie os cargos da organização
+                </p>
         </div>
         {canWrite('roles') && (
           <button 
@@ -140,13 +140,14 @@ export const Roles: React.FC = () => {
               placeholder="Nome do cargo..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="input w-full"
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ search: '' })}
-              className="btn btn-secondary btn-md w-full"
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
             >
               Limpar Filtros
             </button>
@@ -362,7 +363,7 @@ const RoleModal: React.FC<RoleModalProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input w-full"
+                className="input w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Ex: Desenvolvedor Senior"
               />
             </div>
