@@ -236,7 +236,8 @@ export const Users: React.FC = () => {
       const updateData: UpdateUserData = {
         name: formData.name,
         email: formData.email,
-        login: formData.login
+        login: formData.login,
+        viewScope: formData.viewScope
       };
       
       // Só incluir roleId se não estiver vazio
