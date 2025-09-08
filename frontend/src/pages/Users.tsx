@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, CheckCircle, Link, Unlink, Users as UsersIcon } from 'lucide-react';
 import { PaginatedSelect } from '../components/PaginatedSelect';
@@ -66,7 +66,7 @@ export const Users: React.FC = () => {
   const [selectedDeveloperId, setSelectedDeveloperId] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'gerente'>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<CreateUserData>({
     name: '',
@@ -90,7 +90,7 @@ export const Users: React.FC = () => {
     }
   });
 
-  // Buscar roles de usuário
+  // Buscar cargos
   const { data: userRoles = [] } = useQuery({
     queryKey: ['user-roles'],
     queryFn: async () => {
@@ -325,31 +325,52 @@ export const Users: React.FC = () => {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome, email ou login..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="h-5 w-5 text-gray-500" />
+          <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              placeholder="Nome, email ou login..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            />
           </div>
-          <div className="sm:w-48">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Grupo
+            </label>
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'user' | 'gerente')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             >
-              <option value="all">Todos os roles</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-              <option value="gerente">Gerente</option>
+              <option value="all">Todos os grupos</option>
+              {userRoles?.map((role: any) => (
+                <option key={role.id} value={role.name}>
+                  {role.name}
+                </option>
+              ))}
             </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setRoleFilter('all')
+              }}
+              className="btn btn-secondary w-full px-4"
+              style={{ height: '2.6rem' }}
+            >
+              Limpar Filtros
+            </button>
           </div>
         </div>
       </div>
@@ -373,7 +394,7 @@ export const Users: React.FC = () => {
                     Login
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
+                    Grupo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -450,7 +471,7 @@ export const Users: React.FC = () => {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {!user.developerId && canWrite('users') && (
+                        {!user.developerId && canWrite('users') && user.viewScope === 'own' && (
                           <button
                             onClick={() => openLinkModal(user)}
                             className="text-blue-600 hover:text-blue-900"
@@ -459,7 +480,7 @@ export const Users: React.FC = () => {
                             <Link className="h-4 w-4" />
                           </button>
                         )}
-                        {user.developerId && canWrite('users') && (
+                        {user.developerId && canWrite('users') && user.viewScope === 'own' && (
                           <button
                             onClick={() => handleUnlinkDeveloper(user)}
                             className="text-orange-600 hover:text-orange-900"
@@ -478,7 +499,7 @@ export const Users: React.FC = () => {
                             <Edit className="h-4 w-4" />
                           </button>
                         )}
-                        {canWrite('users') && (
+                        {canWrite('users') && user.viewScope === 'teams' && (
                           <button
                             onClick={() => openTeamModal(user)}
                             className="text-green-600 hover:text-green-900"
@@ -528,7 +549,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -539,7 +560,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -550,7 +571,7 @@ export const Users: React.FC = () => {
                     required
                     value={formData.login}
                     onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
 
@@ -563,7 +584,7 @@ export const Users: React.FC = () => {
                         required
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       />
                       <button
                         type="button"
@@ -587,7 +608,7 @@ export const Users: React.FC = () => {
                   <select
                     value={formData.roleId}
                     onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
                     <option value="">Selecione um role</option>
@@ -604,7 +625,7 @@ export const Users: React.FC = () => {
                   <select
                     value={formData.viewScope}
                     onChange={(e) => setFormData({ ...formData, viewScope: e.target.value as 'own' | 'teams' | 'all' })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
                     <option value="own">Apenas seus dados</option>
@@ -620,7 +641,7 @@ export const Users: React.FC = () => {
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                   >
                     Cancelar
                   </button>
@@ -671,7 +692,7 @@ export const Users: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsLinkModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Cancelar
                 </button>
@@ -679,7 +700,7 @@ export const Users: React.FC = () => {
                   type="button"
                   onClick={handleLinkDeveloper}
                   disabled={!selectedDeveloperId || linkDeveloperMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {linkDeveloperMutation.isPending ? 'Vinculando...' : 'Vincular'}
                 </button>
