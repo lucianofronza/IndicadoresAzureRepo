@@ -68,6 +68,7 @@ export class NotificationService {
         title: data.title,
         message: data.message,
         targetUserId: data.targetUserId,
+        recipientId: admin.id, // Especificar qual admin deve receber a notificação
         metadata: data.metadata
       }));
 
@@ -100,8 +101,7 @@ export class NotificationService {
       const skip = (page - 1) * pageSize;
 
       const where: any = {
-        // Por enquanto, todas as notificações são para admins
-        // Futuramente pode ser expandido para notificações específicas por usuário
+        recipientId: userId // Filtrar apenas notificações destinadas ao usuário logado
       };
 
       if (status) {
@@ -157,18 +157,20 @@ export class NotificationService {
   /**
    * Contar notificações não lidas
    */
-  async getUnreadCount(): Promise<number> {
+  async getUnreadCount(userId: string): Promise<number> {
     try {
       const count = await prisma.notification.count({
         where: {
-          status: 'unread'
+          status: 'unread',
+          recipientId: userId
         }
       });
 
       return count;
     } catch (error) {
       logger.error({ 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId
       }, 'Error getting unread notifications count');
       throw error;
     }
