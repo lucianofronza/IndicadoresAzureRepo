@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body, param, query } from 'express-validator';
+import { param } from 'express-validator';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { requireAuth } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
