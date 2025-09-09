@@ -27,6 +27,7 @@ import kpiRoutes from '@/routes/kpis';
 import azureDevOpsRoutes from '@/routes/azureDevOps';
 import authRoutes from '@/routes/auth';
 import userTeamRoutes from '@/routes/userTeams';
+import notificationRoutes from '@/routes/notifications';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -160,6 +161,7 @@ app.use('/api/kpis', kpiRoutes);
 app.use('/api/azure-devops', azureDevOpsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user-teams', userTeamRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {

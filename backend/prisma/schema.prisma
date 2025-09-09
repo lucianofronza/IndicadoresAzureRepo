@@ -229,6 +229,8 @@ model User {
   role      UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
   tokens    UserToken[]
   userTeams UserTeam[] // Relacionamento com equipes
+  notifications Notification[] @relation("NotificationTarget") // Notificações relacionadas a este usuário
+  receivedNotifications Notification[] @relation("NotificationRecipient") // Notificações recebidas por este usuário
 
   @@map("users")
 }
@@ -279,4 +281,27 @@ model UserTeam {
 
   @@unique([userId, teamId])
   @@map("user_teams")
+}
+
+// Sistema de Notificações
+model Notification {
+  id            String   @id @default(cuid())
+  type          String   @default("user_approval") // "user_approval"
+  title         String   // "Novo usuário aguardando aprovação"
+  message       String   // "João Silva (joao@empresa.com)"
+  status        String   @default("unread") // "unread" | "read" | "action_taken"
+  metadata      Json?    // { userId: "xxx", userName: "João", userEmail: "joao@empresa.com" }
+  createdAt     DateTime @default(now())
+  readAt        DateTime?
+  actionTakenAt DateTime?
+  actionTakenBy String?  // ID do admin que tomou ação
+  
+  // Relacionamentos
+  targetUserId  String?  // ID do usuário que precisa de aprovação
+  targetUser    User?    @relation("NotificationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  
+  recipientId   String?  // ID do admin que deve receber a notificação
+  recipient     User?    @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
 }

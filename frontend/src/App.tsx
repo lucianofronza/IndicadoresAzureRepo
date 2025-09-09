@@ -12,6 +12,7 @@ import { Login } from '@/pages/Login'
 import { AuthCallback } from '@/pages/AuthCallback'
 import { Users } from '@/pages/Users'
 import { UserRoles } from '@/pages/UserRoles'
+import { Notifications } from '@/pages/Notifications'
 import { AccessDenied } from '@/pages/AccessDenied'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { PermissionRoute } from '@/components/PermissionRoute'
@@ -85,6 +86,13 @@ function App() {
         <Route path="user-roles" element={
           <PermissionRoute permission="roles:read">
             <UserRoles />
+          </PermissionRoute>
+        } />
+        
+        {/* Notificações */}
+        <Route path="notifications" element={
+          <PermissionRoute permission="users:read">
+            <Notifications />
           </PermissionRoute>
         } />
         
