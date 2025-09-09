@@ -283,50 +283,94 @@ export class NotificationService {
    */
   async approveUserViaNotification(notificationId: string, actionTakenBy: string): Promise<any> {
     try {
-      const notification = await prisma.notification.findUnique({
-        where: { id: notificationId },
-        include: {
-          targetUser: true
+      // Usar transação para garantir atomicidade
+      const result = await prisma.$transaction(async (tx) => {
+        // Buscar notificação com lock para evitar concorrência
+        const notification = await tx.notification.findUnique({
+          where: { id: notificationId },
+          include: {
+            targetUser: true
+          }
+        });
+
+        if (!notification) {
+          throw new CustomError('Notificação não encontrada', 404, 'NOTIFICATION_NOT_FOUND');
         }
-      });
 
-      if (!notification) {
-        throw new CustomError('Notificação não encontrada', 404, 'NOTIFICATION_NOT_FOUND');
-      }
-
-      if (!notification.targetUserId) {
-        throw new CustomError('Notificação não está associada a um usuário', 400, 'NO_TARGET_USER');
-      }
-
-      if (notification.targetUser?.status === 'active') {
-        throw new CustomError('Usuário já está ativo', 400, 'USER_ALREADY_ACTIVE');
-      }
-
-      // Ativar o usuário
-      const updatedUser = await prisma.user.update({
-        where: { id: notification.targetUserId },
-        data: {
-          status: 'active',
-          isActive: true
-        },
-        include: {
-          role: true
+        if (!notification.targetUserId) {
+          throw new CustomError('Notificação não está associada a um usuário', 400, 'NO_TARGET_USER');
         }
-      });
 
-      // Marcar notificação como ação tomada
-      const updatedNotification = await this.markAsActionTaken(notificationId, actionTakenBy);
+        // Verificar se a notificação já foi processada
+        if (notification.status === 'action_taken') {
+          throw new CustomError('Usuário já foi aprovado por outro administrador', 409, 'USER_ALREADY_APPROVED');
+        }
+
+        // Verificar se o usuário já está ativo
+        if (notification.targetUser?.status === 'active') {
+          throw new CustomError('Usuário já está ativo', 400, 'USER_ALREADY_ACTIVE');
+        }
+
+        // Ativar o usuário
+        const updatedUser = await tx.user.update({
+          where: { id: notification.targetUserId },
+          data: {
+            status: 'active',
+            isActive: true
+          },
+          include: {
+            role: true
+          }
+        });
+
+        // Marcar notificação como ação tomada
+        const updatedNotification = await tx.notification.update({
+          where: { id: notificationId },
+          data: {
+            status: 'action_taken',
+            actionTakenAt: new Date(),
+            actionTakenBy: actionTakenBy
+          },
+          include: {
+            targetUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                status: true
+              }
+            }
+          }
+        });
+
+        // Marcar TODAS as outras notificações para o mesmo usuário como ação tomada
+        // para evitar que outros admins aprovem o mesmo usuário
+        await tx.notification.updateMany({
+          where: {
+            targetUserId: notification.targetUserId,
+            type: 'user_approval',
+            status: 'unread'
+          },
+          data: {
+            status: 'action_taken',
+            actionTakenAt: new Date(),
+            actionTakenBy: actionTakenBy
+          }
+        });
+
+        return {
+          notification: updatedNotification,
+          user: updatedUser
+        };
+      });
 
       logger.info({ 
         notificationId, 
-        userId: notification.targetUserId,
+        userId: result.user.id,
         actionTakenBy 
       }, 'User approved via notification');
 
-      return {
-        notification: updatedNotification,
-        user: updatedUser
-      };
+      return result;
     } catch (error) {
       logger.error({ 
         error: error instanceof Error ? error.message : 'Unknown error',
