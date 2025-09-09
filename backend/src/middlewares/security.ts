@@ -259,6 +259,6 @@ export const securityMiddlewares = [
   ipAddress,
   requestLogging,
   sanitizeInput,
-  validateContentType,
+  // validateContentType, // Temporariamente desabilitado para debug
   sizeLimit('10mb'),
 ];
