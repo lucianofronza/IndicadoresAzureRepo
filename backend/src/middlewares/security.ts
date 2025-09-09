@@ -196,6 +196,13 @@ function generateRequestId(): string {
 export const validateContentType = (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
     const contentType = req.get('Content-Type');
+    console.log('Content-Type validation:', {
+      method: req.method,
+      url: req.url,
+      contentType: contentType,
+      includesJson: contentType?.includes('application/json')
+    });
+    
     if (!contentType || !contentType.includes('application/json')) {
       return res.status(415).json({
         success: false,
