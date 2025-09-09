@@ -69,6 +69,12 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ clas
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
+    onError: (error: any) => {
+      if (error.response?.status === 409) {
+        // Usuário já foi aprovado por outro admin
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      }
+    },
   });
 
   const handleMarkAsRead = (notificationId: string) => {
