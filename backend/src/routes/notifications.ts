@@ -57,7 +57,7 @@ router.get('/unread-count',
   requireAuth, 
   requirePermission('users:read'),
   asyncHandler(async (req, res) => {
-    const count = await notificationService.getUnreadCount();
+    const count = await notificationService.getUnreadCount(req.user!.id);
 
     res.json({
       success: true,
