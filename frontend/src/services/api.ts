@@ -4,6 +4,9 @@ import toast from 'react-hot-toast'
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 })
 
 // Request interceptor para adicionar token
