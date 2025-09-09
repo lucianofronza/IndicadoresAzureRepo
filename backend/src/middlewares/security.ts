@@ -196,13 +196,13 @@ function generateRequestId(): string {
 export const validateContentType = (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
     const contentType = req.get('Content-Type');
-    console.log('Content-Type validation:', {
-      method: req.method,
-      url: req.url,
-      contentType: contentType,
-      includesJson: contentType?.includes('application/json')
-    });
     
+    // Permitir requisições sem body (como POST sem dados)
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return next();
+    }
+    
+    // Validar Content-Type apenas se há dados no body
     if (!contentType || !contentType.includes('application/json')) {
       return res.status(415).json({
         success: false,
@@ -259,6 +259,6 @@ export const securityMiddlewares = [
   ipAddress,
   requestLogging,
   sanitizeInput,
-  // validateContentType, // Temporariamente desabilitado para debug
+  validateContentType,
   sizeLimit('10mb'),
 ];
