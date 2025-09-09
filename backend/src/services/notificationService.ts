@@ -28,6 +28,22 @@ export class NotificationService {
         targetUserId: data.targetUserId 
       }, 'Creating notification for all admins');
 
+      // Validar se targetUserId existe
+      if (!data.targetUserId) {
+        logger.warn('No targetUserId provided, skipping notification creation');
+        return;
+      }
+
+      // Verificar se o usuário alvo existe
+      const targetUser = await prisma.user.findUnique({
+        where: { id: data.targetUserId }
+      });
+
+      if (!targetUser) {
+        logger.warn({ targetUserId: data.targetUserId }, 'Target user not found, skipping notification creation');
+        return;
+      }
+
       // Buscar todos os usuários com permissão de administrador
       const admins = await prisma.user.findMany({
         where: {
@@ -61,13 +77,15 @@ export class NotificationService {
 
       logger.info({ 
         adminCount: admins.length, 
-        type: data.type 
+        type: data.type,
+        targetUserId: data.targetUserId
       }, 'Notifications created for admins');
 
     } catch (error) {
       logger.error({ 
         error: error instanceof Error ? error.message : 'Unknown error',
-        type: data.type 
+        type: data.type,
+        targetUserId: data.targetUserId
       }, 'Error creating notifications for admins');
       throw error;
     }
