@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import { LogOut, User } from 'lucide-react';
+import { NotificationDropdown } from './NotificationDropdown';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -17,8 +18,11 @@ export const Header: React.FC = () => {
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex flex-1"></div>
         
-        {/* User Info and Logout */}
+        {/* User Info and Actions */}
         <div className="flex items-center gap-x-4">
+          {/* Notificações */}
+          <NotificationDropdown />
+          
           <div className="flex items-center gap-x-2 text-sm text-gray-700">
             <User className="h-4 w-4" />
             <span className="hidden sm:block">{user?.name}</span>

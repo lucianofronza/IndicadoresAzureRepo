@@ -13,6 +13,7 @@ import {
   AzureAdLoginRequest
 } from '@/types/auth';
 import { CustomError } from '@/middlewares/errorHandler';
+import { NotificationService } from './notificationService';
 
 const prisma = new PrismaClient();
 
@@ -20,6 +21,11 @@ export class AuthService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
   private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
   private readonly REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+  private notificationService: NotificationService;
+
+  constructor() {
+    this.notificationService = new NotificationService();
+  }
 
   /**
    * Converter usuário do banco para tipo da API
@@ -226,6 +232,29 @@ export class AuthService {
         });
 
         logger.info({ userId: user.id, email: user.email }, 'Pending user created successfully');
+
+        // Criar notificação para admins sobre novo usuário pendente
+        try {
+          await this.notificationService.createNotificationForAdmins({
+            type: 'user_approval',
+            title: 'Novo usuário aguardando aprovação',
+            message: `${user.name} (${user.email})`,
+            targetUserId: user.id,
+            metadata: {
+              userId: user.id,
+              userName: user.name,
+              userEmail: user.email,
+              userLogin: user.login,
+              createdAt: user.createdAt
+            }
+          });
+        } catch (notificationError) {
+          // Log do erro mas não falha a criação do usuário
+          logger.error({ 
+            error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
+            userId: user.id 
+          }, 'Failed to create notification for pending user');
+        }
 
         // Tentar vincular automaticamente com desenvolvedor
         await this.linkWithDeveloper(user.id, azureAdData.email, azureAdData.azureAdId);
