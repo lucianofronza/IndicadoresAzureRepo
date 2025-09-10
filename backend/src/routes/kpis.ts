@@ -38,13 +38,19 @@ async function applyUserTeamFiltering(user: any, query: any) {
     }
   } else if (user.viewScope === 'own') {
     const { prisma } = await import('@/config/database');
+    
+    // Buscar o desenvolvedor através do developerId do usuário
+    if (!user.developerId) {
+      return null; // No developer association
+    }
+    
     const developer = await prisma.developer.findUnique({
-      where: { userId: user.id },
+      where: { id: user.developerId },
       select: { teamId: true }
     });
     
     if (!developer?.teamId) {
-      return null; // No developer association
+      return null; // No team association
     }
     
     // For 'own' scope, always force the team to be the user's team

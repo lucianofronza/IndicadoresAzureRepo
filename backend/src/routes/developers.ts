@@ -50,13 +50,19 @@ router.get('/',
     } else if (user.viewScope === 'own') {
       // For 'own' scope, get team where user is a developer
       const { prisma } = await import('@/config/database');
+      
+      if (!user.developerId) {
+        // No developer association, return empty result
+        return res.json({ success: true, data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0, hasNext: false, hasPrev: false } });
+      }
+      
       const developer = await prisma.developer.findUnique({
-        where: { userId: user.id },
+        where: { id: user.developerId },
         select: { teamId: true }
       });
       
       if (!developer?.teamId) {
-        // No developer association, return empty result
+        // No team association, return empty result
         return res.json({ success: true, data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0, hasNext: false, hasPrev: false } });
       }
       
