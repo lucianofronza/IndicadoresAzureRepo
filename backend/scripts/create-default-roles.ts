@@ -35,6 +35,8 @@ async function createDefaultRoles() {
           'repositories:read',
           // Sincronização
           'sync:read',
+          'sync:status:read',
+          'sync:history:read',
           // Azure DevOps
           'azure-devops:read'
         ],
@@ -66,6 +68,9 @@ async function createDefaultRoles() {
           'repositories:read', 'repositories:write', 'repositories:delete',
           // Sincronização
           'sync:read', 'sync:write', 'sync:execute',
+          'sync:status:read', 'sync:history:read',
+          'sync:manual:execute', 'sync:config:read', 'sync:config:write',
+          'sync:scheduler:control', 'sync:monitor:read',
           // Azure DevOps
           'azure-devops:read', 'azure-devops:write', 'azure-devops:configure'
         ],

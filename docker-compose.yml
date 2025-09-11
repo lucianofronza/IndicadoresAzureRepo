@@ -77,6 +77,49 @@ services:
       - indicadores-network-prod
     restart: unless-stopped
 
+  # Sync Service
+  sync-service:
+    build:
+      context: ./sync-service
+      dockerfile: Dockerfile
+    container_name: indicadores-sync-service-prod
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - SERVICE_API_KEY=${SYNC_SERVICE_API_KEY}
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
+      - BACKEND_URL=http://backend:8080
+      - AZURE_DEVOPS_BASE_URL=${AZURE_DEVOPS_BASE_URL:-https://dev.azure.com}
+      - AZURE_RATE_LIMIT_PER_MINUTE=${AZURE_RATE_LIMIT_PER_MINUTE:-60}
+      - AZURE_BURST_LIMIT=${AZURE_BURST_LIMIT:-10}
+      - MAX_CONCURRENT_REPOS=${MAX_CONCURRENT_REPOS:-3}
+      - DELAY_BETWEEN_REPOS_SECONDS=${DELAY_BETWEEN_REPOS_SECONDS:-30}
+      - DEFAULT_SYNC_INTERVAL_MINUTES=${DEFAULT_SYNC_INTERVAL_MINUTES:-30}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - RETRY_DELAY_MINUTES=${RETRY_DELAY_MINUTES:-5}
+      - NOTIFICATION_ENABLED=${NOTIFICATION_ENABLED:-true}
+      - NOTIFICATION_EMAILS=${NOTIFICATION_EMAILS}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - indicadores-network-prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # Frontend Application
   frontend:
     build:

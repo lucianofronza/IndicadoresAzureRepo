@@ -23,6 +23,8 @@ import stackRoutes from '@/routes/stacks';
 import developerRoutes from '@/routes/developers';
 import repositoryRoutes from '@/routes/repositories';
 import syncRoutes from '@/routes/sync';
+import syncNewRoutes from '@/routes/syncNew';
+import schedulerRoutes from '@/routes/scheduler';
 import kpiRoutes from '@/routes/kpis';
 import azureDevOpsRoutes from '@/routes/azureDevOps';
 import authRoutes from '@/routes/auth';
@@ -157,6 +159,8 @@ app.use('/api/stacks', stackRoutes);
 app.use('/api/developers', developerRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/sync-new', syncNewRoutes);
+app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/azure-devops', azureDevOpsRoutes);
 app.use('/api/auth', authRoutes);
@@ -178,6 +182,8 @@ app.get('/api', (req, res) => {
       developers: '/api/developers',
       repositories: '/api/repositories',
       sync: '/api/sync',
+      'sync-new': '/api/sync-new',
+      scheduler: '/api/scheduler',
       kpis: '/api/kpis',
     },
     documentation: '/api/docs',
