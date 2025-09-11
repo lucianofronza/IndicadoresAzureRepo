@@ -13,6 +13,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write src/**/*.ts",
+    "db:setup-service-keys": "tsx scripts/setup-service-keys.ts",
     "docker:build": "docker build -t indicadores-sync-service .",
     "docker:run": "docker run -p 8081:8080 indicadores-sync-service"
   },
