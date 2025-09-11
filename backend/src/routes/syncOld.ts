@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { validate, syncRepositorySchema } from '@/middlewares/validation';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { syncRateLimiter } from '@/middlewares/security';
-import { requirePermission } from '@/middlewares/permissions';
-import { SyncService } from '@/services/syncServiceNew';
+import { SyncService } from '@/services/syncService';
 import { prisma } from '@/config/database';
 
 const router = Router();
@@ -12,7 +11,6 @@ const syncService = new SyncService();
 // Start sync for repository
 router.post('/:repositoryId', 
   syncRateLimiter,
-  requirePermission('sync:manual:execute'),
   asyncHandler(async (req, res) => {
     const { repositoryId } = req.params;
     const { syncType = 'incremental' } = req.body; // Default to incremental
@@ -37,7 +35,6 @@ router.post('/:repositoryId',
 
 // Test endpoint to check repository sync status
 router.get('/:repositoryId/status', 
-  requirePermission('sync:status:read'),
   asyncHandler(async (req, res) => {
     const { repositoryId } = req.params;
     
@@ -58,8 +55,8 @@ router.get('/:repositoryId/status',
       });
     }
 
-    // Get sync status from sync service
-    const syncStatus = await syncService.getSyncStatus(repositoryId);
+    // Get the latest sync job
+    const latestJob = repository.syncJobs[0];
     
     res.json({
       success: true,
@@ -70,14 +67,12 @@ router.get('/:repositoryId/status',
         hasLastSync: !!repository.lastSyncAt,
         recentSyncJobs: repository.syncJobs,
         // Add status information for the frontend
-        status: syncStatus.status || 'no_jobs',
-        jobId: syncStatus.jobId,
-        startedAt: syncStatus.startedAt,
-        completedAt: syncStatus.completedAt,
-        error: syncStatus.error,
-        syncType: syncStatus.syncType,
-        // Sync service status
-        syncService: syncStatus.syncService
+        status: latestJob?.status || 'no_jobs',
+        jobId: latestJob?.id,
+        startedAt: latestJob?.startedAt,
+        completedAt: latestJob?.completedAt,
+        error: latestJob?.error,
+        syncType: latestJob?.syncType
       }
     });
   })
@@ -85,7 +80,6 @@ router.get('/:repositoryId/status',
 
 // Test endpoint to reset repository sync status (for testing)
 router.post('/:repositoryId/reset', 
-  requirePermission('sync:manual:execute'),
   asyncHandler(async (req, res) => {
     const { repositoryId } = req.params;
     
@@ -111,7 +105,6 @@ router.post('/:repositoryId/reset',
 // Get sync history
 router.get('/:repositoryId/history', 
   validate(syncRepositorySchema),
-  requirePermission('sync:history:read'),
   asyncHandler(async (req, res) => {
     const { repositoryId } = req.params;
     const { page = 1, pageSize = 10 } = req.query;
@@ -133,7 +126,6 @@ router.get('/:repositoryId/history',
 router.delete('/:repositoryId', 
   syncRateLimiter,
   validate(syncRepositorySchema),
-  requirePermission('sync:manual:execute'),
   asyncHandler(async (req, res) => {
     const { repositoryId } = req.params;
     await syncService.cancelSync(repositoryId);
@@ -147,7 +139,6 @@ router.delete('/:repositoryId',
 
 // Get all sync jobs
 router.get('/', 
-  requirePermission('sync:history:read'),
   asyncHandler(async (req, res) => {
     const { page = 1, pageSize = 10, status } = req.query;
     
@@ -167,7 +158,6 @@ router.get('/',
 
 // Get sync job by ID
 router.get('/jobs/:jobId', 
-  requirePermission('sync:history:read'),
   asyncHandler(async (req, res) => {
     const { jobId } = req.params;
     
