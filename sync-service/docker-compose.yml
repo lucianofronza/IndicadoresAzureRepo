@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  sync-service:
+    build: .
+    container_name: indicadores-sync-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - SERVICE_API_KEY=${SERVICE_API_KEY}
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
+      - BACKEND_URL=${BACKEND_URL}
+      - AZURE_DEVOPS_BASE_URL=${AZURE_DEVOPS_BASE_URL}
+      - AZURE_RATE_LIMIT_PER_MINUTE=${AZURE_RATE_LIMIT_PER_MINUTE:-60}
+      - AZURE_BURST_LIMIT=${AZURE_BURST_LIMIT:-10}
+      - MAX_CONCURRENT_REPOS=${MAX_CONCURRENT_REPOS:-3}
+      - DELAY_BETWEEN_REPOS_SECONDS=${DELAY_BETWEEN_REPOS_SECONDS:-30}
+      - DEFAULT_SYNC_INTERVAL_MINUTES=${DEFAULT_SYNC_INTERVAL_MINUTES:-30}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - RETRY_DELAY_MINUTES=${RETRY_DELAY_MINUTES:-5}
+      - NOTIFICATION_ENABLED=${NOTIFICATION_ENABLED:-true}
+      - NOTIFICATION_EMAILS=${NOTIFICATION_EMAILS}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "8081:8080"  # Different port from main backend
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - sync-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database (if not using external)
+  postgres:
+    image: postgres:15-alpine
+    container_name: indicadores-sync-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-indicadores_azure_repos}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"  # Different port from main database
+    networks:
+      - sync-network
+
+  # Redis (if not using external)
+  redis:
+    image: redis:7-alpine
+    container_name: indicadores-sync-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6379"  # Different port from main Redis
+    networks:
+      - sync-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: indicadores-sync-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - sync-network
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: indicadores-sync-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"  # Different port from main Grafana
+    networks:
+      - sync-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  sync-network:
+    driver: bridge
+    internal: false

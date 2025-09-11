@@ -1,0 +1,99 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Configuração global do scheduler
+model SyncGlobalConfig {
+  id                        String   @id @default("global")
+  enabled                   Boolean  @default(true)
+  intervalMinutes           Int      @default(30)
+  maxConcurrentRepos        Int      @default(3)
+  delayBetweenReposSeconds  Int      @default(30)
+  maxRetries                Int      @default(3)
+  retryDelayMinutes         Int      @default(5)
+  notificationEnabled       Boolean  @default(true)
+  notificationRecipients    String[]
+  azureRateLimitPerMinute   Int      @default(60)
+  azureBurstLimit           Int      @default(10)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("sync_global_config")
+}
+
+// Status do scheduler
+model SchedulerStatus {
+  id                    String    @id @default("scheduler")
+  isRunning             Boolean   @default(false)
+  lastRunAt             DateTime?
+  nextRunAt             DateTime?
+  currentBatchId        String?
+  totalReposProcessed   Int       @default(0)
+  successfulSyncs       Int       @default(0)
+  failedSyncs           Int       @default(0)
+  lastError             String?
+  updatedAt             DateTime  @updatedAt
+
+  @@map("scheduler_status")
+}
+
+// Configuração de notificações
+model NotificationConfig {
+  id                      String   @id @default("notifications")
+  enabled                 Boolean  @default(true)
+  emailRecipients         String[]
+  slackWebhookUrl         String?
+  failureThreshold        Int      @default(3)
+  successNotifications    Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("notification_config")
+}
+
+// API Keys para autenticação entre serviços
+model ServiceApiKey {
+  id          String    @id @default(cuid())
+  serviceName String
+  apiKey      String    @unique
+  permissions String[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@map("service_api_keys")
+}
+
+// Logs de execução do scheduler
+model SchedulerLog {
+  id          String   @id @default(cuid())
+  batchId     String
+  level       String   // 'info', 'warn', 'error'
+  message     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@map("scheduler_logs")
+}
+
+// Métricas de performance
+model SyncMetrics {
+  id              String   @id @default(cuid())
+  repositoryId    String
+  syncType        String   // 'full', 'incremental'
+  status          String   // 'success', 'failed'
+  duration        Int      // milliseconds
+  recordsProcessed Int?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@map("sync_metrics")
+}
