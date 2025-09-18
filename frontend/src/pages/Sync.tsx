@@ -18,7 +18,7 @@ export const Sync: React.FC = () => {
   const { data: schedulerStatus, refetch: refetchSchedulerStatus } = useQuery({
     queryKey: ['scheduler-status'],
     queryFn: async () => {
-      const response = await api.get('/sync/scheduler/status')
+      const response = await api.get('/api/sync/scheduler/status')
       return response.data.data
     },
     refetchInterval: 5000, // Atualizar a cada 5 segundos
@@ -27,7 +27,7 @@ export const Sync: React.FC = () => {
   // Scheduler control mutations
   const startSchedulerMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/sync/scheduler/start')
+      const response = await api.post('/api/sync/scheduler/start')
       return response.data
     },
     onSuccess: () => {
@@ -41,7 +41,7 @@ export const Sync: React.FC = () => {
 
   const stopSchedulerMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/sync/scheduler/stop')
+      const response = await api.post('/api/sync/scheduler/stop')
       return response.data
     },
     onSuccess: () => {
@@ -55,7 +55,7 @@ export const Sync: React.FC = () => {
 
   const runNowMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/sync/scheduler/run-now')
+      const response = await api.post('/api/sync/scheduler/run-now')
       return response.data
     },
     onSuccess: () => {
