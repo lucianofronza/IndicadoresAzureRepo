@@ -8,6 +8,8 @@ import toast from 'react-hot-toast'
 export const Sync: React.FC = () => {
   const [selectedRepository, setSelectedRepository] = useState<Repository | null>(null)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [isSyncingAll, setIsSyncingAll] = useState(false)
+  const [syncingRepositories, setSyncingRepositories] = useState<Set<string>>(new Set())
   const previousStatuses = useRef<Record<string, string>>({})
 
   const queryClient = useQueryClient()
@@ -48,12 +50,14 @@ export const Sync: React.FC = () => {
         return false
       }
       
-      // Refetch every 3 seconds if there are running jobs
+      // Refetch every 2 seconds if there are running jobs OR if we have syncing repositories
       const hasRunningJobs = Array.isArray(data) && data.some((status: any) => 
         status.status === 'running' || status.status === 'pending'
       )
-      console.log('Sync status polling:', { hasRunningJobs, statuses: data })
-      return hasRunningJobs ? 3000 : false
+      const hasSyncingRepos = syncingRepositories.size > 0
+      
+      console.log('Sync status polling:', { hasRunningJobs, hasSyncingRepos, syncingRepos: Array.from(syncingRepositories) })
+      return (hasRunningJobs || hasSyncingRepos) ? 2000 : false
     },
     refetchIntervalInBackground: true,
   })
@@ -65,7 +69,10 @@ export const Sync: React.FC = () => {
       return response.data
     },
     onSuccess: (_data, { repositoryId }) => {
+      // Forçar refetch imediato do status
       queryClient.invalidateQueries({ queryKey: ['sync-statuses'] })
+      queryClient.refetchQueries({ queryKey: ['sync-statuses'] })
+      
       const repoName = repositoriesData?.data?.find((repo: Repository) => repo.id === repositoryId)?.name
       toast.success(`Sincronização iniciada para ${repoName || 'repositório'}`)
     },
@@ -86,7 +93,19 @@ export const Sync: React.FC = () => {
   })
 
   const handleSync = (repositoryId: string, syncType: 'full' | 'incremental' = 'incremental') => {
-    syncMutation.mutate({ repositoryId, syncType })
+    // Adicionar repositório à lista de sincronização
+    setSyncingRepositories(prev => new Set(prev).add(repositoryId))
+    
+    syncMutation.mutate({ repositoryId, syncType }, {
+      onSettled: () => {
+        // Remover repositório da lista de sincronização após concluir (sucesso ou erro)
+        setSyncingRepositories(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(repositoryId)
+          return newSet
+        })
+      }
+    })
   }
 
   const handleCancelSync = (repositoryId: string) => {
@@ -240,13 +259,31 @@ export const Sync: React.FC = () => {
           <button 
             className="btn btn-primary btn-md"
             onClick={() => {
-              repositoriesData?.data?.forEach((repo: Repository) => {
-                handleSync(repo.id, 'incremental')
+              if (!repositoriesData?.data) return
+              
+              setIsSyncingAll(true)
+              
+              // Contar quantos repositórios serão sincronizados
+              let completedSyncs = 0
+              const totalRepos = repositoriesData.data.length
+              
+              repositoriesData.data.forEach((repo: Repository) => {
+                // Usar handleSync personalizado que monitora conclusão
+                const originalMutation = syncMutation.mutate
+                syncMutation.mutate({ repositoryId: repo.id, syncType: 'incremental' }, {
+                  onSettled: () => {
+                    completedSyncs++
+                    // Resetar estado quando todos terminarem
+                    if (completedSyncs >= totalRepos) {
+                      setIsSyncingAll(false)
+                    }
+                  }
+                })
               })
             }}
-            disabled={syncMutation.isPending}
+            disabled={isSyncingAll}
           >
-            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
             Sincronizar Todos
           </button>
         </div>
@@ -427,9 +464,13 @@ export const Sync: React.FC = () => {
                               onClick={() => handleSync(repository.id)}
                               className="text-blue-600 hover:text-blue-900"
                               title="Sincronizar (automático: completa se nunca sincronizado, incremental se já sincronizado)"
-                              disabled={syncMutation.isPending}
+                              disabled={syncingRepositories.has(repository.id)}
                             >
-                              <Play className="h-4 w-4" />
+                              {syncingRepositories.has(repository.id) ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
                             </button>
                           )}
                           <button
