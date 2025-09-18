@@ -15,19 +15,21 @@ export const Sync: React.FC = () => {
   const queryClient = useQueryClient()
 
   // Fetch scheduler status
-  const { data: schedulerStatus, refetch: refetchSchedulerStatus } = useQuery({
+  const { data: schedulerStatus, refetch: refetchSchedulerStatus, error: schedulerError } = useQuery({
     queryKey: ['scheduler-status'],
     queryFn: async () => {
-      const response = await api.get('/api/sync/scheduler/status')
+      const response = await api.get('/sync/scheduler/status')
       return response.data.data
     },
     refetchInterval: 5000, // Atualizar a cada 5 segundos
+    retry: false, // Não tentar novamente em caso de erro de autenticação
+    enabled: !!localStorage.getItem('accessToken'), // Só executar se houver token
   })
 
   // Scheduler control mutations
   const startSchedulerMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/api/sync/scheduler/start')
+      const response = await api.post('/sync/scheduler/start')
       return response.data
     },
     onSuccess: () => {
@@ -446,7 +448,17 @@ export const Sync: React.FC = () => {
             {/* Status do Scheduler */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center">
-                {schedulerStatus?.isRunning ? (
+                {schedulerError ? (
+                  <>
+                    <XCircle className="h-5 w-5 text-red-400" />
+                    <span className="ml-2 text-sm font-medium text-red-600">Erro ao carregar</span>
+                  </>
+                ) : !schedulerStatus ? (
+                  <>
+                    <XCircle className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-sm font-medium text-gray-600">Carregando...</span>
+                  </>
+                ) : schedulerStatus.isRunning ? (
                   <>
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="ml-2 text-sm font-medium text-green-800">Ativo</span>
@@ -509,7 +521,7 @@ export const Sync: React.FC = () => {
           </div>
           
           {/* Informações adicionais */}
-          {schedulerStatus && (
+          {schedulerStatus && !schedulerError && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
