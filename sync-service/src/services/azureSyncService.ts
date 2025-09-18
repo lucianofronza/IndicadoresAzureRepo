@@ -130,8 +130,8 @@ export class AzureSyncService {
       const prRecords = await this.syncPullRequests(repository, since);
       totalRecordsProcessed += prRecords;
 
-      // Sync commits
-      const commitRecords = await this.syncCommits(repository, since);
+      // Sync commits apenas dos PRs completed
+      const commitRecords = await this.syncCommitsFromPRs(repository, since);
       totalRecordsProcessed += commitRecords;
 
       // Sync work items (if needed)
@@ -223,7 +223,8 @@ export class AzureSyncService {
       const params: any = {
         'api-version': '7.0',
         '$top': 1000, // Aumentar limite para pegar mais PRs
-        'searchCriteria.status': 'all' // Buscar PRs de todos os status (active, completed, abandoned)
+        'searchCriteria.status': 'completed' // 🎯 FILTRAR APENAS PRs COMPLETED
+        // Branch filtering será feito no código
       };
 
       // Remover filtro de data para sincronização completa
@@ -236,10 +237,23 @@ export class AzureSyncService {
       const response = await this.makeRequest('GET', url, { params });
       const allPullRequests = response.data.value || [];
       
-      // Filter by repository
-      const pullRequests = allPullRequests.filter((pr: any) => 
-        pr.repository && pr.repository.id === repository.azureId
-      );
+      // Filter by repository and target branch (master or maintenance)
+      const pullRequests = allPullRequests.filter((pr: any) => {
+        // Filtro por repositório
+        if (!pr.repository || pr.repository.id !== repository.azureId) {
+          return false;
+        }
+        
+        // Filtro por branch target (master ou maintenance)
+        return this.isValidTargetBranch(pr.targetRefName);
+      });
+
+      // Log das branches encontradas para debug
+      const branchStats = allPullRequests.reduce((stats: any, pr: any) => {
+        const branchName = pr.targetRefName?.replace('refs/heads/', '') || 'unknown';
+        stats[branchName] = (stats[branchName] || 0) + 1;
+        return stats;
+      }, {});
 
       logger.info('Azure DevOps API response', {
         repositoryId: repository.id,
@@ -249,10 +263,11 @@ export class AzureSyncService {
         allPullRequestsCount: allPullRequests.length,
         filteredPullRequestsCount: pullRequests.length,
         responseStatus: response.status,
-        samplePR: allPullRequests[0] ? {
-          id: allPullRequests[0].pullRequestId,
-          repositoryId: allPullRequests[0].repository?.id,
-          title: allPullRequests[0].title
+        branchStats, // 🎯 Estatísticas das branches encontradas
+        sampleFilteredPR: pullRequests[0] ? {
+          id: pullRequests[0].pullRequestId,
+          targetBranch: pullRequests[0].targetRefName,
+          title: pullRequests[0].title
         } : null
       });
 
@@ -283,6 +298,83 @@ export class AzureSyncService {
     }
   }
 
+  private async syncCommitsFromPRs(
+    repository: AzureRepository,
+    since?: string
+  ): Promise<number> {
+    try {
+      // 🎯 NOVA ABORDAGEM: Buscar commits apenas dos PRs completed
+      
+      // 1. Primeiro buscar PRs completed (reutilizar lógica existente)
+      const url = `/${repository.organization}/${repository.project}/_apis/git/pullrequests`;
+      const params: any = {
+        'api-version': '7.0',
+        '$top': 1000,
+        'searchCriteria.status': 'completed'
+      };
+
+      const response = await this.makeRequest('GET', url, { params });
+      const allPullRequests = response.data.value || [];
+      
+      // 2. Filtrar PRs por repositório e branch (master/maintenance)
+      const filteredPRs = allPullRequests.filter((pr: any) => {
+        if (!pr.repository || pr.repository.id !== repository.azureId) {
+          return false;
+        }
+        return this.isValidTargetBranch(pr.targetRefName);
+      });
+
+      logger.info('Fetching commits from completed PRs', {
+        repositoryId: repository.id,
+        completedPRsCount: filteredPRs.length
+      });
+
+      // 3. Buscar commits de cada PR completed
+      const allCommits: any[] = [];
+      
+      for (const pr of filteredPRs) {
+        try {
+          const prId = pr.pullRequestId;
+          const commitsUrl = `/${repository.organization}/${repository.project}/_apis/git/repositories/${repository.name}/pullRequests/${prId}/commits`;
+          const commitsResponse = await this.makeRequest('GET', commitsUrl, { params: { 'api-version': '7.1' } });
+          
+          if (commitsResponse.data?.value?.length > 0) {
+            // Adicionar commits deste PR à lista
+            commitsResponse.data.value.forEach((commit: any) => {
+              // Evitar duplicatas (mesmo commit pode estar em múltiplos PRs)
+              if (!allCommits.find(c => c.commitId === commit.commitId)) {
+                allCommits.push(commit);
+              }
+            });
+            
+            logger.info('Commits fetched from PR', {
+              prId,
+              commitsCount: commitsResponse.data.value.length,
+              totalUniqueCommits: allCommits.length
+            });
+          }
+        } catch (error) {
+          logger.warn('Failed to fetch commits for PR', {
+            prId: pr.pullRequestId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      logger.info('All commits from completed PRs fetched', {
+        repositoryId: repository.id,
+        totalCommits: allCommits.length
+      });
+
+      // 4. Processar commits (usando lógica existente)
+      return await this.processCommits(repository.id, allCommits);
+
+    } catch (error) {
+      logger.error('Failed to sync commits from PRs:', error);
+      return 0;
+    }
+  }
+
   private async syncCommits(
     repository: AzureRepository,
     since?: string
@@ -291,7 +383,8 @@ export class AzureSyncService {
       const url = `/${repository.organization}/${repository.project}/_apis/git/repositories/${repository.name}/commits`;
       const params: any = {
         'api-version': '7.0',
-        '$top': 100
+        '$top': 1000 // Aumentar limite para pegar mais commits (vamos filtrar depois)
+        // 🎯 REMOVER FILTRO DE BRANCH - vamos buscar de todas e filtrar no código
       };
 
       if (since) {
@@ -475,12 +568,59 @@ export class AzureSyncService {
       let linesAdded = 0;
       let linesDeleted = 0;
       
-      if (iterationsData?.value?.length > 0) {
-        // Pegar a última iteração (mais recente)
-        const latestIteration = iterationsData.value[iterationsData.value.length - 1];
-        filesChanged = latestIteration?.changeEntries?.length || 0;
-        linesAdded = latestIteration?.changeEntries?.reduce((sum: number, entry: any) => sum + (entry.item?.changeType === 'add' ? 1 : 0), 0) || 0;
-        linesDeleted = latestIteration?.changeEntries?.reduce((sum: number, entry: any) => sum + (entry.item?.changeType === 'delete' ? 1 : 0), 0) || 0;
+      // Sempre tentar buscar dados dos commits do PR, independente das iterations
+      try {
+        const commitsUrl = `/${repository.organization}/${repository.project}/_apis/git/repositories/${repository.name}/pullRequests/${prId}/commits`;
+        const commitsResponse = await this.makeRequest('GET', commitsUrl, { params: { 'api-version': '7.1' } });
+        
+        if (commitsResponse.data?.value?.length > 0) {
+          logger.info('Processing PR commits for file stats', { prId, commitsCount: commitsResponse.data.value.length });
+          
+          // Processar todos os commits do PR
+          for (const commit of commitsResponse.data.value) {
+            if (commit.changeCounts) {
+              linesAdded += commit.changeCounts.Add || 0;
+              linesDeleted += commit.changeCounts.Delete || 0;
+            }
+            
+            // Buscar changes de cada commit para contar arquivos
+            try {
+              const changesUrl = `/${repository.organization}/${repository.project}/_apis/git/repositories/${repository.name}/commits/${commit.commitId}/changes`;
+              const changesResponse = await this.makeRequest('GET', changesUrl, { params: { 'api-version': '7.1' } });
+              
+              if (changesResponse.data?.changes?.length > 0) {
+                filesChanged += changesResponse.data.changes.length;
+                logger.info('Commit changes processed', { 
+                  commitId: commit.commitId.substring(0, 8), 
+                  changesCount: changesResponse.data.changes.length 
+                });
+              }
+            } catch (changesError) {
+              logger.warn('Failed to get changes for commit', { 
+                commitId: commit.commitId, 
+                error: changesError instanceof Error ? changesError.message : String(changesError) 
+              });
+            }
+          }
+          
+          logger.info('PR file stats calculated', { prId, filesChanged, linesAdded, linesDeleted });
+        } else {
+          logger.warn('No commits found for PR', { prId });
+        }
+      } catch (error) {
+        logger.warn('Failed to get commit details for PR', { prId, error: error instanceof Error ? error.message : String(error) });
+        
+        // Fallback: tentar usar dados das iterations se disponível
+        if (iterationsData?.value?.length > 0) {
+          const latestIteration = iterationsData.value[iterationsData.value.length - 1];
+          if (latestIteration?.changeEntries?.length > 0) {
+            filesChanged = latestIteration.changeEntries.length;
+            linesAdded = latestIteration.changeEntries.reduce((sum: number, entry: any) => {
+              return sum + (entry.item?.gitObjectType === 'blob' ? 10 : 0); // Estimativa básica
+            }, 0);
+            logger.info('Using iteration fallback for file stats', { prId, filesChanged, linesAdded });
+          }
+        }
       }
 
       return {
@@ -573,7 +713,10 @@ export class AzureSyncService {
               linesDeleted: detailedData.linesDeleted,
               isDraft: pr.isDraft || false,
               repositoryId: repositoryId,
-              createdById: 'unknown' // TODO: Map to actual developer ID
+              createdById: pr.createdBy ? {
+                displayName: pr.createdBy.displayName || pr.createdBy.name || 'Unknown',
+                uniqueName: pr.createdBy.uniqueName || pr.createdBy.email || pr.createdBy.id || 'unknown'
+              } : 'unknown'
             };
           } catch (error) {
             logger.error('Failed to get detailed data for PR:', { 
@@ -601,7 +744,10 @@ export class AzureSyncService {
               linesDeleted: null,
               isDraft: pr.isDraft || false,
               repositoryId: repositoryId,
-              createdById: 'unknown'
+              createdById: pr.createdBy ? {
+                displayName: pr.createdBy.displayName || pr.createdBy.name || 'Unknown',
+                uniqueName: pr.createdBy.uniqueName || pr.createdBy.email || pr.createdBy.id || 'unknown'
+              } : 'unknown'
             };
           }
         });
@@ -633,6 +779,13 @@ export class AzureSyncService {
           total: pullRequests.length,
           processed: response.data.data.processed
         });
+        
+        // Processar reviews e comments dos PRs
+        // Processar reviews e comments após enviar PRs
+        // Primeiro, obter o mapeamento de azureId para databaseId dos PRs enviados
+        const prIdMapping = await this.getPullRequestIdMapping(repositoryId, mappedPullRequests);
+        await this.processReviewsAndComments(repositoryId, mappedPullRequests, prIdMapping);
+        
         return response.data.data.processed;
       } else {
         throw new Error('Backend returned unsuccessful response');
@@ -663,7 +816,10 @@ export class AzureSyncService {
         hash: commit.commitId, // Using commitId as hash
         createdAt: commit.author?.date || commit.committer?.date || new Date().toISOString(),
         repositoryId: repositoryId,
-        authorId: 'unknown' // TODO: Map to actual developer ID
+        authorId: commit.author ? {
+          displayName: commit.author.name || 'Unknown',
+          uniqueName: commit.author.email || commit.author.name || 'unknown'
+        } : 'unknown'
       }));
 
       const response = await axios.post(`${backendUrl}/api/sync-data/commits`, {
@@ -714,5 +870,283 @@ export class AzureSyncService {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Verifica se a branch target é válida (master ou maintenance)
+   * @param targetRefName - Nome da branch target (ex: refs/heads/master, refs/heads/maintenance/1.2.3)
+   * @returns true se for master ou maintenance
+   */
+  private isValidTargetBranch(targetRefName: string): boolean {
+    if (!targetRefName) {
+      return false;
+    }
+
+    // Remover o prefixo refs/heads/ para facilitar a análise
+    const branchName = targetRefName.replace('refs/heads/', '');
+    
+    // Aceitar master
+    if (branchName === 'master') {
+      return true;
+    }
+    
+    // 🎯 CORREÇÃO: Aceitar branches que começam com maintenance/ (case insensitive)
+    const lowerBranchName = branchName.toLowerCase();
+    if (lowerBranchName.startsWith('maintenance/')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  private async getPullRequestIdMapping(repositoryId: string, pullRequests: any[]): Promise<Map<number, string>> {
+    const mapping = new Map<number, string>();
+    
+    try {
+      const backendUrl = process.env['BACKEND_URL'] || 'http://localhost:8080';
+      const backendApiKey = process.env['BACKEND_API_KEY'];
+      
+      if (!backendApiKey) {
+        throw new Error('BACKEND_API_KEY not configured');
+      }
+
+      // Buscar todos os PRs do repositório para criar o mapeamento
+      const azureIds = pullRequests.map(pr => pr.azureId);
+      
+      const response = await axios.post(`${backendUrl}/api/sync-data/pull-requests/ids`, {
+        repositoryId,
+        azureIds
+      }, {
+        headers: {
+          'X-API-Key': backendApiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      if (response.data?.success && response.data?.data) {
+        response.data.data.forEach((pr: any) => {
+          mapping.set(pr.azureId, pr.id);
+        });
+      }
+      
+      logger.info('PR ID mapping created', { 
+        repositoryId, 
+        mappingSize: mapping.size 
+      });
+
+    } catch (error) {
+      logger.error('Failed to get PR ID mapping:', error);
+    }
+
+    return mapping;
+  }
+
+  private async processReviewsAndComments(repositoryId: string, pullRequests: any[], prIdMapping: Map<number, string>): Promise<void> {
+    try {
+      const repository = await this.getRepository(repositoryId);
+      if (!repository) {
+        throw new Error('Repository not found');
+      }
+
+      const backendUrl = process.env['BACKEND_URL'] || 'http://localhost:8080';
+      const backendApiKey = process.env['BACKEND_API_KEY'];
+      
+      if (!backendApiKey) {
+        throw new Error('BACKEND_API_KEY not configured');
+      }
+
+      logger.info('Processing reviews and comments', { 
+        repositoryId, 
+        pullRequestsCount: pullRequests.length 
+      });
+
+      const allReviews: any[] = [];
+      const allComments: any[] = [];
+
+      // Processar threads (reviews/comments) de cada PR
+      for (const pr of pullRequests) {
+        try {
+          const prId = pr.azureId;
+          
+          // Buscar o ID do PR no mapeamento
+          const dbPRId = prIdMapping.get(prId);
+          
+          if (!dbPRId) {
+            logger.warn('PR not found in ID mapping, skipping threads processing', { prId });
+            continue;
+          }
+          
+          const threadsUrl = `/${repository.organization}/${repository.project}/_apis/git/repositories/${repository.name}/pullRequests/${prId}/threads`;
+          const threadsResponse = await this.makeRequest('GET', threadsUrl, { params: { 'api-version': '7.1' } });
+
+          if (threadsResponse.data?.value?.length > 0) {
+            logger.info('Processing threads for PR', { 
+              prId, 
+              threadsCount: threadsResponse.data.value.length,
+              sampleThread: threadsResponse.data.value[0] ? {
+                id: threadsResponse.data.value[0].id,
+                status: threadsResponse.data.value[0].status,
+                commentsCount: threadsResponse.data.value[0].comments?.length || 0
+              } : null
+            });
+
+            for (const thread of threadsResponse.data.value) {
+              // Processar comments da thread
+              if (thread.comments?.length > 0) {
+                for (const comment of thread.comments) {
+                  // 🎯 LOGGING DETALHADO: Ver todos os comments, mesmo os filtrados
+                  logger.info('Analyzing comment from thread', {
+                    threadId: thread.id,
+                    commentId: comment.id,
+                    hasId: !!comment.id,
+                    hasContent: !!comment.content,
+                    contentLength: comment.content?.length || 0,
+                    author: comment.author?.displayName,
+                    commentType: comment.commentType,
+                    isDeleted: comment.isDeleted
+                  });
+                  
+                  if (comment.id && comment.content) {
+                    logger.info('Creating comment from thread', {
+                      threadId: thread.id,
+                      commentId: comment.id,
+                      author: comment.author?.displayName,
+                      contentPreview: comment.content?.substring(0, 50)
+                    });
+                    
+                    allComments.push({
+                      azureId: comment.id,
+                      content: comment.content,
+                      pullRequestId: dbPRId, // ID do PR real no nosso banco
+                      authorId: comment.author ? {
+                        displayName: comment.author.displayName || comment.author.name || 'Unknown',
+                        uniqueName: comment.author.uniqueName || comment.author.email || 'unknown'
+                      } : 'unknown',
+                      createdAt: comment.publishedDate || comment.lastUpdatedDate || new Date().toISOString(),
+                      updatedAt: comment.lastUpdatedDate || comment.publishedDate || new Date().toISOString()
+                    });
+                  }
+                }
+              }
+
+              // 🎯 LÓGICA MELHORADA: Processar como review se tem status OU se é um thread com vote
+              const shouldCreateReview = (
+                (thread.status && thread.status !== 'unknown') || // Thread com status
+                (thread.comments?.length > 0 && thread.comments.some((c: any) => c.commentType === 'system' && c.content?.includes('voted'))) // Thread com voto
+              );
+              
+              if (shouldCreateReview && thread.comments?.length > 0) {
+                const firstComment = thread.comments[0];
+                if (firstComment.author) {
+                  logger.info('Creating review from thread', {
+                    threadId: thread.id,
+                    status: thread.status,
+                    vote: this.mapThreadStatusToVote(thread.status),
+                    author: firstComment.author.displayName
+                  });
+                  
+                  allReviews.push({
+                    azureId: thread.id,
+                    status: thread.status || 'active',
+                    vote: this.mapThreadStatusToVote(thread.status),
+                    pullRequestId: dbPRId, // ID do PR real no nosso banco
+                    reviewerId: {
+                      displayName: firstComment.author.displayName || firstComment.author.name || 'Unknown',
+                      uniqueName: firstComment.author.uniqueName || firstComment.author.email || 'unknown'
+                    },
+                    createdAt: firstComment.publishedDate || new Date().toISOString(),
+                    updatedAt: firstComment.lastUpdatedDate || firstComment.publishedDate || new Date().toISOString()
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to process threads for PR', { 
+            prId: pr.azureId, 
+            error: error instanceof Error ? error.message : String(error) 
+          });
+        }
+      }
+
+      // Enviar reviews para o backend
+      if (allReviews.length > 0) {
+        try {
+          const reviewsResponse = await axios.post(`${backendUrl}/api/sync-data/reviews`, {
+            repositoryId,
+            reviews: allReviews
+          }, {
+            headers: {
+              'X-API-Key': backendApiKey,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000
+          });
+
+          if (reviewsResponse.data?.success) {
+            logger.info('Reviews sent to backend successfully', {
+              repositoryId,
+              total: allReviews.length,
+              processed: reviewsResponse.data.data.processed
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to send reviews to backend:', error);
+        }
+      }
+
+      // Enviar comments para o backend
+      if (allComments.length > 0) {
+        try {
+          const commentsResponse = await axios.post(`${backendUrl}/api/sync-data/comments`, {
+            repositoryId,
+            comments: allComments
+          }, {
+            headers: {
+              'X-API-Key': backendApiKey,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000
+          });
+
+          if (commentsResponse.data?.success) {
+            logger.info('Comments sent to backend successfully', {
+              repositoryId,
+              total: allComments.length,
+              processed: commentsResponse.data.data.processed
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to send comments to backend:', error);
+        }
+      }
+
+      logger.info('Reviews and comments processing completed', {
+        repositoryId,
+        reviewsCount: allReviews.length,
+        commentsCount: allComments.length,
+        reviewsSample: allReviews.slice(0, 3).map(r => ({ azureId: r.azureId, status: r.status })),
+        commentsSample: allComments.slice(0, 3).map(c => ({ azureId: c.azureId, author: c.authorId?.displayName }))
+      });
+
+    } catch (error) {
+      logger.error('Failed to process reviews and comments:', error);
+    }
+  }
+
+  private mapThreadStatusToVote(status: string): number {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return 10; // Approved
+      case 'rejected':
+        return -10; // Rejected
+      case 'waiting for author':
+        return -5; // Waiting for author
+      case 'no vote':
+        return 0; // No vote
+      default:
+        return 0;
+    }
   }
 }

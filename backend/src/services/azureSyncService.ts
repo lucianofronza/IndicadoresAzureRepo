@@ -1013,13 +1013,28 @@ export class AzureSyncService {
   private async findOrCreateDeveloper(azureUser: { displayName: string; uniqueName: string }): Promise<any> {
     try {
       logger.info({ 
-        displayName: azureUser.displayName, 
-        uniqueName: azureUser.uniqueName 
-      }, 'Finding or creating developer');
+        azureUser: JSON.stringify(azureUser, null, 2),
+        displayName: azureUser?.displayName, 
+        uniqueName: azureUser?.uniqueName,
+        hasDisplayName: !!azureUser?.displayName,
+        hasUniqueName: !!azureUser?.uniqueName,
+        userType: typeof azureUser
+      }, 'Finding or creating developer - DETAILED DEBUG');
 
-      // Try to find by login (uniqueName)
-      let developer = await prisma.developer.findUnique({
-        where: { login: azureUser.uniqueName },
+      // Normalize data to prevent duplicates
+      const normalizedUniqueName = azureUser.uniqueName?.toLowerCase() || '';
+      const normalizedDisplayName = azureUser.displayName || '';
+      
+      // Try to find by login (uniqueName) or email
+      let developer = await prisma.developer.findFirst({
+        where: {
+          OR: [
+            { login: normalizedUniqueName },
+            { email: normalizedUniqueName },
+            { login: { equals: azureUser.uniqueName, mode: 'insensitive' } },
+            { email: { equals: azureUser.uniqueName, mode: 'insensitive' } }
+          ]
+        }
       });
 
       if (!developer) {
@@ -1038,14 +1053,15 @@ export class AzureSyncService {
           throw new Error('Invalid developer data: displayName is required');
         }
 
-        // Use displayName as uniqueName if uniqueName is empty
-        const uniqueName = azureUser.uniqueName || azureUser.displayName;
+        // Use displayName as uniqueName if uniqueName is empty and normalize
+        const uniqueName = normalizedUniqueName || normalizedDisplayName.toLowerCase();
+        const emailToUse = normalizedUniqueName.includes('@') ? normalizedUniqueName : `${uniqueName}@company.com`;
 
         developer = await prisma.developer.create({
           data: {
-            name: azureUser.displayName,
+            name: normalizedDisplayName,
             login: uniqueName,
-            email: uniqueName, // Use uniqueName as email if no email provided
+            email: emailToUse,
             teamId: null, // Will need to be set manually
             roleId: null, // Will need to be set manually
           },
