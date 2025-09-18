@@ -4,6 +4,7 @@ import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Play, Square } fro
 import { Repository } from '@/types'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/hooks/useAuth'
 
 export const Sync: React.FC = () => {
   const [selectedRepository, setSelectedRepository] = useState<Repository | null>(null)
@@ -13,6 +14,7 @@ export const Sync: React.FC = () => {
   const previousStatuses = useRef<Record<string, string>>({})
 
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   // Fetch scheduler status
   const { data: schedulerStatus, refetch: refetchSchedulerStatus, error: schedulerError } = useQuery({
@@ -23,7 +25,7 @@ export const Sync: React.FC = () => {
     },
     refetchInterval: 5000, // Atualizar a cada 5 segundos
     retry: false, // Não tentar novamente em caso de erro de autenticação
-    enabled: !!localStorage.getItem('accessToken'), // Só executar se houver token
+    enabled: !!user, // Só executar se o usuário estiver logado
   })
 
   // Scheduler control mutations
