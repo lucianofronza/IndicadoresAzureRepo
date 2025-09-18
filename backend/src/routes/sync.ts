@@ -5,10 +5,12 @@ import { syncRateLimiter } from '@/middlewares/security';
 import { requireAuth } from '@/middlewares/auth';
 import { requirePermission } from '@/middlewares/permissions';
 import { SyncService } from '@/services/syncService';
+import { SyncServiceClient } from '@/services/syncServiceClient';
 import { prisma } from '@/config/database';
 
 const router = Router();
 const syncService = new SyncService();
+const syncServiceClient = new SyncServiceClient();
 
 // Start sync for repository
 router.post('/:repositoryId', 
@@ -204,6 +206,88 @@ router.get('/jobs/:jobId',
       success: true,
       data: job
     });
+  })
+);
+
+// Scheduler routes (proxy to sync-service)
+
+// Get scheduler status
+router.get('/scheduler/status',
+  requireAuth,
+  requirePermission('sync:status:read'),
+  asyncHandler(async (req, res) => {
+    try {
+      const status = await syncServiceClient.getSchedulerStatus();
+      res.json({
+        success: true,
+        data: status
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get scheduler status'
+      });
+    }
+  })
+);
+
+// Start scheduler
+router.post('/scheduler/start',
+  requireAuth,
+  requirePermission('sync:scheduler:control'),
+  asyncHandler(async (req, res) => {
+    try {
+      await syncServiceClient.startScheduler();
+      res.json({
+        success: true,
+        message: 'Scheduler started successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to start scheduler'
+      });
+    }
+  })
+);
+
+// Stop scheduler
+router.post('/scheduler/stop',
+  requireAuth,
+  requirePermission('sync:scheduler:control'),
+  asyncHandler(async (req, res) => {
+    try {
+      await syncServiceClient.stopScheduler();
+      res.json({
+        success: true,
+        message: 'Scheduler stopped successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to stop scheduler'
+      });
+    }
+  })
+);
+
+// Run scheduler immediately
+router.post('/scheduler/run-now',
+  requireAuth,
+  requirePermission('sync:scheduler:control'),
+  asyncHandler(async (req, res) => {
+    try {
+      await syncServiceClient.runSchedulerNow();
+      res.json({
+        success: true,
+        message: 'Scheduler execution started immediately'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to run scheduler now'
+      });
+    }
   })
 );
 

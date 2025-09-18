@@ -14,6 +14,59 @@ export const Sync: React.FC = () => {
 
   const queryClient = useQueryClient()
 
+  // Fetch scheduler status
+  const { data: schedulerStatus, refetch: refetchSchedulerStatus } = useQuery({
+    queryKey: ['scheduler-status'],
+    queryFn: async () => {
+      const response = await api.get('/sync/scheduler/status')
+      return response.data.data
+    },
+    refetchInterval: 5000, // Atualizar a cada 5 segundos
+  })
+
+  // Scheduler control mutations
+  const startSchedulerMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/sync/scheduler/start')
+      return response.data
+    },
+    onSuccess: () => {
+      refetchSchedulerStatus()
+      toast.success('Sincronização automática iniciada!')
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao iniciar sincronização automática: ${error.response?.data?.message || 'Erro desconhecido'}`)
+    }
+  })
+
+  const stopSchedulerMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/sync/scheduler/stop')
+      return response.data
+    },
+    onSuccess: () => {
+      refetchSchedulerStatus()
+      toast.success('Sincronização automática parada!')
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao parar sincronização automática: ${error.response?.data?.message || 'Erro desconhecido'}`)
+    }
+  })
+
+  const runNowMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/sync/scheduler/run-now')
+      return response.data
+    },
+    onSuccess: () => {
+      refetchSchedulerStatus()
+      toast.success('Sincronização imediata iniciada!')
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao executar sincronização imediata: ${error.response?.data?.message || 'Erro desconhecido'}`)
+    }
+  })
+
   // Fetch repositories
   const { data: repositoriesData, isLoading, error: reposError } = useQuery({
     queryKey: ['repositories'],
@@ -377,6 +430,111 @@ export const Sync: React.FC = () => {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Configuração de Sincronização Automática */}
+      <div className="card">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Sincronização Automática</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure a sincronização agendada para todos os repositórios
+          </p>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Status do Scheduler */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                {schedulerStatus?.isRunning ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="ml-2 text-sm font-medium text-green-800">Ativo</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-sm font-medium text-gray-600">Inativo</span>
+                  </>
+                )}
+              </div>
+              
+              {schedulerStatus?.nextRunAt && (
+                <div className="text-sm text-gray-500">
+                  <span className="font-medium">Próxima execução:</span>{' '}
+                  {new Date(schedulerStatus.nextRunAt).toLocaleString('pt-BR')}
+                </div>
+              )}
+              
+              {schedulerStatus?.intervalMinutes && (
+                <div className="text-sm text-gray-500">
+                  <span className="font-medium">Intervalo:</span>{' '}
+                  {schedulerStatus.intervalMinutes} minutos
+                </div>
+              )}
+            </div>
+
+            {/* Controles do Scheduler */}
+            <div className="flex gap-2">
+              {schedulerStatus?.isRunning ? (
+                <>
+                  <button
+                    onClick={() => runNowMutation.mutate()}
+                    className="btn btn-secondary btn-sm"
+                    disabled={runNowMutation.isPending}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${runNowMutation.isPending ? 'animate-spin' : ''}`} />
+                    Executar Agora
+                  </button>
+                  <button
+                    onClick={() => stopSchedulerMutation.mutate()}
+                    className="btn btn-danger btn-sm"
+                    disabled={stopSchedulerMutation.isPending}
+                  >
+                    <Square className="h-4 w-4" />
+                    Parar
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => startSchedulerMutation.mutate()}
+                  className="btn btn-success btn-sm"
+                  disabled={startSchedulerMutation.isPending}
+                >
+                  <Play className="h-4 w-4" />
+                  Iniciar
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Informações adicionais */}
+          {schedulerStatus && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">Status:</span>{' '}
+                  <span className={schedulerStatus.isRunning ? 'text-green-600' : 'text-gray-600'}>
+                    {schedulerStatus.isRunning ? 'Executando' : 'Parado'}
+                  </span>
+                </div>
+                {schedulerStatus.lastRunAt && (
+                  <div>
+                    <span className="font-medium text-gray-700">Última execução:</span>{' '}
+                    <span className="text-gray-600">
+                      {new Date(schedulerStatus.lastRunAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                )}
+                {schedulerStatus.config?.maxConcurrentRepos && (
+                  <div>
+                    <span className="font-medium text-gray-700">Repos simultâneos:</span>{' '}
+                    <span className="text-gray-600">{schedulerStatus.config.maxConcurrentRepos}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
