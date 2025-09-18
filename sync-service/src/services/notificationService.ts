@@ -1,6 +1,4 @@
-import { getPrisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { syncMetrics, recordNotification } from '@/utils/metrics';
 
 export interface NotificationConfig {
   id: string;
@@ -33,64 +31,32 @@ export class NotificationService {
       return this.config;
     }
 
-    const prisma = getPrisma();
-    
-    let config = await prisma.notificationConfig.findUnique({
-      where: { id: 'notifications' }
-    });
-
-    if (!config) {
-      // Create default config
-      config = await prisma.notificationConfig.create({
-        data: {
-          id: 'notifications',
-          enabled: process.env.NOTIFICATION_ENABLED === 'true',
-          emailRecipients: process.env.NOTIFICATION_EMAILS?.split(',') || [],
-          failureThreshold: 3,
-          successNotifications: false
-        }
-      });
-    }
-
+    // Create default config without database
     this.config = {
-      id: config.id,
-      enabled: config.enabled,
-      emailRecipients: config.emailRecipients,
-      slackWebhookUrl: config.slackWebhookUrl || undefined,
-      failureThreshold: config.failureThreshold,
-      successNotifications: config.successNotifications
+      id: 'notifications',
+      enabled: process.env.NOTIFICATION_ENABLED === 'true',
+      emailRecipients: process.env.NOTIFICATION_EMAILS?.split(',') || [],
+      failureThreshold: 3,
+      successNotifications: false
     };
 
     return this.config;
   }
 
   async updateConfig(config: Partial<NotificationConfig>): Promise<NotificationConfig> {
-    const prisma = getPrisma();
-    
-    const updatedConfig = await prisma.notificationConfig.upsert({
-      where: { id: 'notifications' },
-      update: {
-        ...config,
-        updatedAt: new Date()
-      },
-      create: {
+    // Update config in memory without database
+    if (this.config) {
+      this.config = { ...this.config, ...config };
+    } else {
+      this.config = {
         id: 'notifications',
         enabled: config.enabled ?? true,
         emailRecipients: config.emailRecipients ?? [],
         slackWebhookUrl: config.slackWebhookUrl,
         failureThreshold: config.failureThreshold ?? 3,
         successNotifications: config.successNotifications ?? false
-      }
-    });
-
-    this.config = {
-      id: updatedConfig.id,
-      enabled: updatedConfig.enabled,
-      emailRecipients: updatedConfig.emailRecipients,
-      slackWebhookUrl: updatedConfig.slackWebhookUrl || undefined,
-      failureThreshold: updatedConfig.failureThreshold,
-      successNotifications: updatedConfig.successNotifications
-    };
+      };
+    }
 
     return this.config;
   }

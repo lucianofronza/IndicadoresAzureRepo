@@ -1,8 +1,12 @@
 import { config } from 'dotenv';
 import path from 'path';
 
-// Load environment variables from .env.docker in the project root
-config({ path: path.resolve(__dirname, '../../.env.docker') });
+// Load environment variables - try local .env first, then fallback to .env.docker
+const envPath = process.env.NODE_ENV === 'development' 
+  ? path.resolve(__dirname, '../.env')
+  : path.resolve(__dirname, '../../.env.docker');
+
+config({ path: envPath });
 import express from 'express';
 import compression from 'compression';
 import { logger } from '@/utils/logger';
@@ -23,6 +27,7 @@ import stackRoutes from '@/routes/stacks';
 import developerRoutes from '@/routes/developers';
 import repositoryRoutes from '@/routes/repositories';
 import syncRoutes from '@/routes/sync';
+import syncDataRoutes from '@/routes/syncData';
 import schedulerRoutes from '@/routes/scheduler';
 import kpiRoutes from '@/routes/kpis';
 import azureDevOpsRoutes from '@/routes/azureDevOps';
@@ -158,6 +163,7 @@ app.use('/api/stacks', stackRoutes);
 app.use('/api/developers', developerRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/sync-data', syncDataRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/azure-devops', azureDevOpsRoutes);

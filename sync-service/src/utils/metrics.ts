@@ -150,3 +150,9 @@ export const getMetrics = async (): Promise<string> => {
 export const getRegistry = (): prometheus.Registry => {
   return prometheus.register;
 };
+
+// Metrics middleware for Express
+export const metricsMiddleware = (req: any, res: any, next: any) => {
+  // This middleware can be used to collect HTTP metrics if needed
+  next();
+};

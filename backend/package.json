@@ -20,6 +20,7 @@
     "db:create-admin": "tsx scripts/create-admin-user.ts",
     "db:create-roles": "tsx scripts/create-default-roles.ts",
     "db:setup-service-keys": "tsx scripts/setup-service-keys.ts",
+    "db:init": "tsx scripts/init-database.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "docker:build": "docker build -t indicadores-backend .",

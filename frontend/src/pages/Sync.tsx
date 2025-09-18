@@ -22,7 +22,7 @@ export const Sync: React.FC = () => {
   })
 
   // Fetch sync status for all repositories
-  const { data: syncStatuses } = useQuery({
+  const { data: syncStatuses, error: syncStatusError } = useQuery({
     queryKey: ['sync-statuses'],
     queryFn: async () => {
       const statuses = await Promise.all(
@@ -30,8 +30,12 @@ export const Sync: React.FC = () => {
           try {
             const response = await api.get(`/sync/${repo.id}/status`)
             return { repositoryId: repo.id, ...response.data.data }
-          } catch (error) {
-            return { repositoryId: repo.id, status: 'unknown' }
+          } catch (error: any) {
+            // Se for erro de permissão, retornar status específico
+            if (error.response?.status === 401) {
+              return { repositoryId: repo.id, status: 'no_permission', error: 'Sem permissão para visualizar status' }
+            }
+            return { repositoryId: repo.id, status: 'unknown', error: 'Erro ao buscar status' }
           }
         }) || []
       )
@@ -39,6 +43,11 @@ export const Sync: React.FC = () => {
     },
     enabled: !!repositoriesData?.data,
     refetchInterval: (data) => {
+      // Se há dados com status de 'no_permission', não fazer polling
+      if (Array.isArray(data) && data.some((status: any) => status.status === 'no_permission')) {
+        return false
+      }
+      
       // Refetch every 3 seconds if there are running jobs
       const hasRunningJobs = Array.isArray(data) && data.some((status: any) => 
         status.status === 'running' || status.status === 'pending'
@@ -210,6 +219,10 @@ export const Sync: React.FC = () => {
     )
   }
 
+  // Verificar se há erro de permissão específico (não bloquear toda a página)
+  const hasStatusPermissionError = syncStatusError?.response?.status === 401 || 
+    (Array.isArray(syncStatuses) && syncStatuses.some((s: any) => s.status === 'no_permission'));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -238,6 +251,28 @@ export const Sync: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Aviso sobre permissão de status */}
+      {hasStatusPermissionError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Aviso de Permissão
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>
+                  Você não tem permissão para visualizar o status detalhado de sincronização, 
+                  mas pode executar sincronizações e visualizar o histórico.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sync Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -349,10 +384,21 @@ export const Sync: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {getStatusIcon(status?.status || 'unknown')}
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status?.status || 'unknown')}`}>
-                            {getStatusText(status?.status || 'unknown')}
-                          </span>
+                          {hasStatusPermissionError ? (
+                            <>
+                              <AlertCircle className="h-4 w-4 text-gray-400" />
+                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Sem permissão
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              {getStatusIcon(status?.status || 'unknown')}
+                              <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status?.status || 'unknown')}`}>
+                                {getStatusText(status?.status || 'unknown')}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -9,7 +9,7 @@ const router = Router();
 
 // Get scheduler status
 router.get('/scheduler', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   const status = await schedulerService.getStatus();
   
   res.json({
@@ -21,7 +21,9 @@ router.get('/scheduler', asyncHandler(async (req, res) => {
 // Get sync status for a specific repository
 router.get('/sync/:repositoryId', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;
-  const syncOrchestrator = new SyncOrchestrator(new NotificationService(), req.app.get('io'));
+  const redisStorage = req.app.get('redisStorage');
+  const notificationService = req.app.get('notificationService');
+  const syncOrchestrator = new SyncOrchestrator(notificationService, req.app.get('io'), redisStorage);
   const status = await syncOrchestrator.getSyncStatus(repositoryId);
   
   res.json({
@@ -35,7 +37,9 @@ router.get('/sync/:repositoryId/history', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;
   const { page = 1, pageSize = 10 } = req.query;
   
-  const syncOrchestrator = new SyncOrchestrator(new NotificationService(), req.app.get('io'));
+  const redisStorage = req.app.get('redisStorage');
+  const notificationService = req.app.get('notificationService');
+  const syncOrchestrator = new SyncOrchestrator(notificationService, req.app.get('io'), redisStorage);
   const history = await syncOrchestrator.getSyncHistory(repositoryId, {
     page: parseInt(page as string),
     pageSize: parseInt(pageSize as string)
@@ -62,8 +66,8 @@ router.get('/rate-limit/:repositoryId', asyncHandler(async (req, res) => {
 
 // Get overall system status
 router.get('/system', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
-  const notificationService = new NotificationService();
+  const schedulerService = req.app.get('schedulerService');
+  const notificationService = req.app.get('notificationService');
   
   const [schedulerStatus, notificationConfig] = await Promise.all([
     schedulerService.getStatus(),

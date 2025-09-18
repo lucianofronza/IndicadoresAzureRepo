@@ -1,0 +1,21 @@
+sync:
+  defaultIntervalMinutes: 30
+  maxRetries: 3
+  retryDelayMinutes: 5
+  maxConcurrentRepos: 3
+  delayBetweenReposSeconds: 30
+  azure:
+    baseUrl: https://dev.azure.com
+    rateLimitPerMinute: 60
+    burstLimit: 10
+  notifications:
+    enabled: true
+    emails: []
+  logging:
+    level: info
+    enableMetrics: true
+repositories: []
+scheduler:
+  enabled: false
+  lastRun: null
+  nextRun: null

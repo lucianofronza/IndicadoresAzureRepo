@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '@/utils/logger';
-import { getPrisma } from '@/config/database';
 
 interface ServiceTokenPayload {
   iss: string;
@@ -57,27 +56,26 @@ export const serviceAuthMiddleware = (requiredPermissions: string[]) => {
       // Try API Key authentication if JWT failed
       if (!isValid && apiKey) {
         try {
-          const prisma = getPrisma();
-          const apiKeyRecord = await prisma.serviceApiKey.findUnique({
-            where: { apiKey },
-            select: {
-              serviceName: true,
-              permissions: true,
-              isActive: true,
-              expiresAt: true,
+          // For now, use hardcoded API keys since we're not using database
+          const validApiKeys: Record<string, { serviceName: string; permissions: string[] }> = {
+            [process.env.SERVICE_API_KEY || '']: {
+              serviceName: 'sync-service',
+              permissions: ['sync:read', 'sync:write', 'sync:execute', 'sync:monitor', 'sync:admin']
             },
-          });
-
-          if (apiKeyRecord && apiKeyRecord.isActive) {
-            // Check if API key is expired
-            if (!apiKeyRecord.expiresAt || apiKeyRecord.expiresAt > new Date()) {
-              serviceName = apiKeyRecord.serviceName;
-              permissions = apiKeyRecord.permissions;
-              isValid = true;
+            [process.env.BACKEND_API_KEY || '']: {
+              serviceName: 'backend',
+              permissions: ['sync:read', 'sync:write', 'sync:execute', 'sync:monitor', 'sync:admin']
             }
+          };
+
+          const apiKeyRecord = validApiKeys[apiKey];
+          if (apiKeyRecord) {
+            serviceName = apiKeyRecord.serviceName;
+            permissions = apiKeyRecord.permissions;
+            isValid = true;
           }
-        } catch (dbError) {
-          logger.error('Database error during API key validation:', dbError);
+        } catch (error) {
+          logger.error('API key validation error:', error);
         }
       }
 
@@ -166,23 +164,20 @@ export const validateApiKey = async (apiKey: string): Promise<{
   permissions?: string[];
 }> => {
   try {
-    const prisma = getPrisma();
-    const apiKeyRecord = await prisma.serviceApiKey.findUnique({
-      where: { apiKey },
-      select: {
-        serviceName: true,
-        permissions: true,
-        isActive: true,
-        expiresAt: true,
+    // For now, use hardcoded API keys since we're not using database
+    const validApiKeys: Record<string, { serviceName: string; permissions: string[] }> = {
+      [process.env.SERVICE_API_KEY || '']: {
+        serviceName: 'sync-service',
+        permissions: ['sync:read', 'sync:write', 'sync:execute', 'sync:monitor', 'sync:admin']
       },
-    });
+      [process.env.BACKEND_API_KEY || '']: {
+        serviceName: 'backend',
+        permissions: ['sync:read', 'sync:write', 'sync:execute', 'sync:monitor', 'sync:admin']
+      }
+    };
 
-    if (!apiKeyRecord || !apiKeyRecord.isActive) {
-      return { isValid: false };
-    }
-
-    // Check if API key is expired
-    if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt <= new Date()) {
+    const apiKeyRecord = validApiKeys[apiKey];
+    if (!apiKeyRecord) {
       return { isValid: false };
     }
 

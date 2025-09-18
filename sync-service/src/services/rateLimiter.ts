@@ -1,6 +1,7 @@
 import { getRedis, cacheKeys } from '@/config/redis';
 import { logger } from '@/utils/logger';
 import { syncMetrics, recordRateLimit } from '@/utils/metrics';
+import { RedisStorageService } from './RedisStorageService';
 
 export interface RateLimitConfig {
   requestsPerMinute: number;
@@ -12,17 +13,19 @@ export class RateLimiter {
   private config: RateLimitConfig;
   private requestCounts: Map<string, number[]> = new Map();
   private lastCleanup: number = Date.now();
+  private redisStorage: RedisStorageService;
 
-  constructor() {
+  constructor(redisStorage?: RedisStorageService) {
     this.config = {
       requestsPerMinute: parseInt(process.env.AZURE_RATE_LIMIT_PER_MINUTE || '60'),
       burstLimit: parseInt(process.env.AZURE_BURST_LIMIT || '10'),
       delayBetweenRequests: 1000 // 1 second between requests
     };
+    this.redisStorage = redisStorage;
   }
 
   async waitForSlot(repositoryId: string): Promise<void> {
-    const redis = getRedis();
+    const redis = this.redisStorage ? this.redisStorage.getRedis() : getRedis();
     const now = Date.now();
     const windowStart = now - 60000; // 1 minute window
 
@@ -69,7 +72,7 @@ export class RateLimiter {
     now: number,
     windowStart: number
   ): Promise<boolean> {
-    const redis = getRedis();
+    const redis = this.redisStorage ? this.redisStorage.getRedis() : getRedis();
     const key = cacheKeys.rateLimit(repositoryId);
 
     try {
@@ -112,7 +115,7 @@ export class RateLimiter {
   }
 
   private async recordRequest(repositoryId: string, timestamp: number): Promise<void> {
-    const redis = getRedis();
+    const redis = this.redisStorage ? this.redisStorage.getRedis() : getRedis();
     const key = cacheKeys.rateLimit(repositoryId);
 
     try {
@@ -189,7 +192,7 @@ export class RateLimiter {
     canMakeRequest: boolean;
     nextAvailableTime?: number;
   }> {
-    const redis = getRedis();
+    const redis = this.redisStorage ? this.redisStorage.getRedis() : getRedis();
     const now = Date.now();
     const windowStart = now - 60000;
     const burstWindowStart = now - 10000;

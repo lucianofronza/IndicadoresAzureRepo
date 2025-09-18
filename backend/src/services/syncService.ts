@@ -45,11 +45,10 @@ export class SyncService {
           data: {
             status: 'completed',
             completedAt: new Date(),
-            recordsProcessed: result.recordsProcessed,
           },
         });
 
-        // Update repository lastSyncAt
+        // Update repository lastSyncAt only on success
         await prisma.repository.update({
           where: { id: repositoryId },
           data: {
@@ -57,6 +56,7 @@ export class SyncService {
           },
         });
       } else {
+        // Mark as failed and don't update lastSyncAt
         await prisma.syncJob.update({
           where: { id: job.id },
           data: {
@@ -65,6 +65,9 @@ export class SyncService {
             error: result.error,
           },
         });
+        
+        // Don't update lastSyncAt on failure - this allows retry
+        console.log(`Sync failed for repository ${repositoryId}: ${result.error}`);
       }
 
       return {

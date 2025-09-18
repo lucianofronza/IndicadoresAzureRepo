@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { validate } from '@/middlewares/validation';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { requirePermission } from '@/middlewares/permissions';
-import { SyncService } from '@/services/syncServiceNew';
+import { SyncService } from '@/services/syncService';
 
 const router = Router();
 const syncService = new SyncService();

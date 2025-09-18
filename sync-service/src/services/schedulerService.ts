@@ -1,11 +1,10 @@
 import * as cron from 'node-cron';
 import { Server as SocketIOServer } from 'socket.io';
-import { getPrisma } from '@/config/database';
-import { getRedis, cacheKeys, acquireLock, releaseLock } from '@/config/redis';
 import { logger, logSchedulerEvent } from '@/utils/logger';
-import { syncMetrics, updateSchedulerStatus, recordSyncJob } from '@/utils/metrics';
 import { NotificationService } from './notificationService';
 import { SyncOrchestrator } from './syncOrchestrator';
+import { RedisStorageService } from './RedisStorageService';
+import { ConfigService } from './ConfigService';
 
 export interface SchedulerConfig {
   id: string;
@@ -40,18 +39,27 @@ export class SchedulerService {
   private syncOrchestrator: SyncOrchestrator;
   private notificationService: NotificationService;
   private io: SocketIOServer;
+  private redisStorage: RedisStorageService;
+  private configService: ConfigService;
 
-  constructor(notificationService: NotificationService, io: SocketIOServer) {
+  constructor(
+    notificationService: NotificationService, 
+    io: SocketIOServer,
+    redisStorage: RedisStorageService,
+    configService: ConfigService
+  ) {
     this.notificationService = notificationService;
     this.io = io;
-    this.syncOrchestrator = new SyncOrchestrator(notificationService, io);
+    this.redisStorage = redisStorage;
+    this.configService = configService;
+    this.syncOrchestrator = new SyncOrchestrator(notificationService, io, redisStorage);
   }
 
   async start(): Promise<void> {
     try {
-      const config = await this.getConfig();
+      const config = this.configService.getConfig();
       
-      if (!config.enabled) {
+      if (!config.scheduler.enabled) {
         logger.info('Scheduler is disabled in configuration');
         return;
       }
@@ -61,8 +69,17 @@ export class SchedulerService {
         return;
       }
 
+      // Check if scheduler is already running on another instance
+      const lockKey = 'scheduler:global';
+      const lockAcquired = await this.redisStorage.acquireLock(lockKey, 300); // 5 minutes lock
+      
+      if (!lockAcquired) {
+        logger.warn('Scheduler is already running on another instance');
+        return;
+      }
+
       // Create cron expression (every X minutes)
-      const cronExpression = `*/${config.intervalMinutes} * * * *`;
+      const cronExpression = `*/${config.sync.defaultIntervalMinutes} * * * *`;
       
       this.cronJob = cron.schedule(cronExpression, async () => {
         await this.executeScheduler();
@@ -74,28 +91,25 @@ export class SchedulerService {
       this.cronJob.start();
       this.isRunning = true;
 
-      await this.updateStatus({
-        isRunning: true,
-        nextRunAt: this.getNextRunTime(config.intervalMinutes)
-      });
-
-      updateSchedulerStatus(true);
-      syncMetrics.schedulerExecutions.inc({ status: 'started' });
+      // Update scheduler status in config
+      const nextRunTime = this.getNextRunTime(config.sync.defaultIntervalMinutes);
+      this.configService.updateSchedulerStatus(null, nextRunTime.toISOString());
+      await this.configService.saveConfig();
 
       logSchedulerEvent('scheduler:started', {
-        intervalMinutes: config.intervalMinutes,
+        intervalMinutes: config.sync.defaultIntervalMinutes,
         cronExpression,
-        nextRunAt: this.getNextRunTime(config.intervalMinutes)
+        nextRunAt: nextRunTime
       });
 
       // Emit WebSocket event
       this.io.to('monitoring').emit('scheduler:started', {
         timestamp: new Date().toISOString(),
-        intervalMinutes: config.intervalMinutes
+        intervalMinutes: config.sync.defaultIntervalMinutes
       });
 
       logger.info('Scheduler started successfully', {
-        intervalMinutes: config.intervalMinutes,
+        intervalMinutes: config.sync.defaultIntervalMinutes,
         cronExpression
       });
 
@@ -120,13 +134,12 @@ export class SchedulerService {
       this.isRunning = false;
       this.currentBatchId = null;
 
-      await this.updateStatus({
-        isRunning: false,
-        nextRunAt: null
-      });
+      // Release the lock
+      await this.redisStorage.releaseLock('scheduler:global');
 
-      updateSchedulerStatus(false);
-      syncMetrics.schedulerExecutions.inc({ status: 'stopped' });
+      // Update scheduler status in config
+      this.configService.updateSchedulerStatus(new Date().toISOString(), null);
+      await this.configService.saveConfig();
 
       logSchedulerEvent('scheduler:stopped', {
         timestamp: new Date().toISOString()
@@ -152,18 +165,15 @@ export class SchedulerService {
     try {
       logSchedulerEvent('scheduler:execution:started', { batchId });
 
-      const config = await this.getConfig();
-      const status = await this.getStatus();
+      const config = this.configService.getConfig();
 
       // Update status
-      await this.updateStatus({
-        lastRunAt: new Date(),
-        currentBatchId: batchId,
-        nextRunAt: this.getNextRunTime(config.intervalMinutes)
-      });
+      const nextRunTime = this.getNextRunTime(config.sync.defaultIntervalMinutes);
+      this.configService.updateSchedulerStatus(new Date().toISOString(), nextRunTime.toISOString());
+      await this.configService.saveConfig();
 
       // Get repositories that need synchronization
-      const repositories = await this.getRepositoriesToSync();
+      const repositories = this.configService.getRepositories();
 
       if (repositories.length === 0) {
         logger.info('No repositories need synchronization', { batchId });
@@ -301,69 +311,54 @@ export class SchedulerService {
   }
 
   async getConfig(): Promise<SchedulerConfig> {
-    const prisma = getPrisma();
+    const config = this.configService.getConfig();
     
-    let config = await prisma.syncGlobalConfig.findUnique({
-      where: { id: 'global' }
-    });
-
-    if (!config) {
-      // Create default config
-      config = await prisma.syncGlobalConfig.create({
-        data: {
-          id: 'global',
-          enabled: true,
-          intervalMinutes: parseInt(process.env.DEFAULT_SYNC_INTERVAL_MINUTES || '30'),
-          maxConcurrentRepos: parseInt(process.env.MAX_CONCURRENT_REPOS || '3'),
-          delayBetweenReposSeconds: parseInt(process.env.DELAY_BETWEEN_REPOS_SECONDS || '30'),
-          maxRetries: parseInt(process.env.MAX_RETRIES || '3'),
-          retryDelayMinutes: parseInt(process.env.RETRY_DELAY_MINUTES || '5'),
-          notificationEnabled: process.env.NOTIFICATION_ENABLED === 'true',
-          notificationRecipients: process.env.NOTIFICATION_EMAILS?.split(',') || [],
-          azureRateLimitPerMinute: parseInt(process.env.AZURE_RATE_LIMIT_PER_MINUTE || '60'),
-          azureBurstLimit: parseInt(process.env.AZURE_BURST_LIMIT || '10')
-        }
-      });
-    }
-
     return {
-      id: config.id,
-      enabled: config.enabled,
-      intervalMinutes: config.intervalMinutes,
-      maxConcurrentRepos: config.maxConcurrentRepos,
-      delayBetweenReposSeconds: config.delayBetweenReposSeconds,
-      maxRetries: config.maxRetries,
-      retryDelayMinutes: config.retryDelayMinutes,
-      notificationEnabled: config.notificationEnabled,
-      notificationRecipients: config.notificationRecipients,
-      azureRateLimitPerMinute: config.azureRateLimitPerMinute,
-      azureBurstLimit: config.azureBurstLimit
+      id: 'global',
+      enabled: config.scheduler.enabled,
+      intervalMinutes: config.sync.defaultIntervalMinutes,
+      maxConcurrentRepos: config.sync.maxConcurrentRepos,
+      delayBetweenReposSeconds: config.sync.delayBetweenReposSeconds,
+      maxRetries: config.sync.maxRetries,
+      retryDelayMinutes: config.sync.retryDelayMinutes,
+      notificationEnabled: config.sync.notifications.enabled,
+      notificationRecipients: config.sync.notifications.emails,
+      azureRateLimitPerMinute: config.sync.azure.rateLimitPerMinute,
+      azureBurstLimit: config.sync.azure.burstLimit
     };
   }
 
   async updateConfig(config: Partial<SchedulerConfig>): Promise<SchedulerConfig> {
-    const prisma = getPrisma();
+    const currentConfig = this.configService.getConfig();
     
-    const updatedConfig = await prisma.syncGlobalConfig.upsert({
-      where: { id: 'global' },
-      update: {
-        ...config,
-        updatedAt: new Date()
+    // Update configuration
+    this.configService.updateConfig({
+      sync: {
+        ...currentConfig.sync,
+        defaultIntervalMinutes: config.intervalMinutes ?? currentConfig.sync.defaultIntervalMinutes,
+        maxConcurrentRepos: config.maxConcurrentRepos ?? currentConfig.sync.maxConcurrentRepos,
+        delayBetweenReposSeconds: config.delayBetweenReposSeconds ?? currentConfig.sync.delayBetweenReposSeconds,
+        maxRetries: config.maxRetries ?? currentConfig.sync.maxRetries,
+        retryDelayMinutes: config.retryDelayMinutes ?? currentConfig.sync.retryDelayMinutes,
+        notifications: {
+          ...currentConfig.sync.notifications,
+          enabled: config.notificationEnabled ?? currentConfig.sync.notifications.enabled,
+          emails: config.notificationRecipients ?? currentConfig.sync.notifications.emails
+        },
+        azure: {
+          ...currentConfig.sync.azure,
+          rateLimitPerMinute: config.azureRateLimitPerMinute ?? currentConfig.sync.azure.rateLimitPerMinute,
+          burstLimit: config.azureBurstLimit ?? currentConfig.sync.azure.burstLimit
+        }
       },
-      create: {
-        id: 'global',
-        enabled: config.enabled ?? true,
-        intervalMinutes: config.intervalMinutes ?? 30,
-        maxConcurrentRepos: config.maxConcurrentRepos ?? 3,
-        delayBetweenReposSeconds: config.delayBetweenReposSeconds ?? 30,
-        maxRetries: config.maxRetries ?? 3,
-        retryDelayMinutes: config.retryDelayMinutes ?? 5,
-        notificationEnabled: config.notificationEnabled ?? true,
-        notificationRecipients: config.notificationRecipients ?? [],
-        azureRateLimitPerMinute: config.azureRateLimitPerMinute ?? 60,
-        azureBurstLimit: config.azureBurstLimit ?? 10
+      scheduler: {
+        ...currentConfig.scheduler,
+        enabled: config.enabled ?? currentConfig.scheduler.enabled
       }
     });
+
+    // Save configuration
+    await this.configService.saveConfig();
 
     // If scheduler is running and interval changed, restart it
     if (this.isRunning && config.intervalMinutes) {
@@ -376,92 +371,23 @@ export class SchedulerService {
   }
 
   async getStatus(): Promise<SchedulerStatus> {
-    const prisma = getPrisma();
+    const config = this.configService.getConfig();
+    const metrics = await this.redisStorage.getMetrics();
     
-    let status = await prisma.schedulerStatus.findUnique({
-      where: { id: 'scheduler' }
-    });
-
-    if (!status) {
-      // Create default status
-      status = await prisma.schedulerStatus.create({
-        data: {
-          id: 'scheduler',
-          isRunning: false,
-          totalReposProcessed: 0,
-          successfulSyncs: 0,
-          failedSyncs: 0
-        }
-      });
-    }
-
     return {
-      id: status.id,
+      id: 'scheduler',
       isRunning: this.isRunning,
-      lastRunAt: status.lastRunAt,
-      nextRunAt: status.nextRunAt,
+      lastRunAt: config.scheduler.lastRun ? new Date(config.scheduler.lastRun) : null,
+      nextRunAt: config.scheduler.nextRun ? new Date(config.scheduler.nextRun) : null,
       currentBatchId: this.currentBatchId,
-      totalReposProcessed: status.totalReposProcessed,
-      successfulSyncs: status.successfulSyncs,
-      failedSyncs: status.failedSyncs,
-      lastError: status.lastError
+      totalReposProcessed: metrics.totalJobs,
+      successfulSyncs: metrics.successfulJobs,
+      failedSyncs: metrics.failedJobs,
+      lastError: null // Could be stored in Redis if needed
     };
   }
 
-  private async updateStatus(updates: Partial<SchedulerStatus>): Promise<void> {
-    const prisma = getPrisma();
-    
-    await prisma.schedulerStatus.upsert({
-      where: { id: 'scheduler' },
-      update: {
-        ...updates,
-        updatedAt: new Date()
-      },
-      create: {
-        id: 'scheduler',
-        isRunning: updates.isRunning ?? false,
-        lastRunAt: updates.lastRunAt ?? null,
-        nextRunAt: updates.nextRunAt ?? null,
-        currentBatchId: updates.currentBatchId ?? null,
-        totalReposProcessed: updates.totalReposProcessed ?? 0,
-        successfulSyncs: updates.successfulSyncs ?? 0,
-        failedSyncs: updates.failedSyncs ?? 0,
-        lastError: updates.lastError ?? null
-      }
-    });
-  }
 
-  private async getRepositoriesToSync(): Promise<Array<{ id: string; name: string; lastSyncAt: Date | null }>> {
-    const prisma = getPrisma();
-    
-    // Get repositories that need synchronization
-    // Priority: never synced > failed syncs > old syncs
-    const repositories = await prisma.repository.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { lastSyncAt: null }, // Never synced
-          { 
-            lastSyncAt: {
-              lt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Older than 24 hours
-            }
-          }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        lastSyncAt: true
-      },
-      orderBy: [
-        { lastSyncAt: 'asc' }, // Never synced first
-        { name: 'asc' }
-      ],
-      take: 50 // Limit to prevent overwhelming
-    });
-
-    return repositories;
-  }
 
   private getNextRunTime(intervalMinutes: number): Date {
     const now = new Date();

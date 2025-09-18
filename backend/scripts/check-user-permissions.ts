@@ -4,33 +4,54 @@ const prisma = new PrismaClient();
 
 async function checkUserPermissions() {
   try {
-    console.log('🔍 Verificando permissões do role "user"...');
+    console.log('🔍 Verificando permissões dos usuários...\n');
 
-    // Buscar o role de user
-    const userRole = await (prisma as any).userRole.findFirst({
-      where: { name: 'user' }
+    // Buscar todos os usuários com seus roles
+    const users = await prisma.user.findMany({
+      include: {
+        role: true
+      }
     });
 
-    if (!userRole) {
-      console.log('❌ Role "user" não encontrado!');
+    if (users.length === 0) {
+      console.log('❌ Nenhum usuário encontrado no banco de dados');
       return;
     }
 
-    console.log('✅ Role "user" encontrado:');
-    console.log('📋 ID:', userRole.id);
-    console.log('📋 Nome:', userRole.name);
-    console.log('📋 Descrição:', userRole.description);
-    console.log('📋 Permissões:', userRole.permissions);
+    console.log(`📊 Encontrados ${users.length} usuário(s):\n`);
 
-    // Verificar se tem dashboard:read
-    const hasDashboardRead = userRole.permissions.includes('dashboard:read');
-    console.log('🔍 Tem dashboard:read?', hasDashboardRead ? '✅ SIM' : '❌ NÃO');
+    for (const user of users) {
+      console.log(`👤 Usuário: ${user.name} (${user.email})`);
+      console.log(`   ID: ${user.id}`);
+      console.log(`   Role: ${user.role?.name || 'Sem role'}`);
+      console.log(`   Role ID: ${user.roleId || 'N/A'}`);
+      
+      if (user.role) {
+        console.log(`   Permissões (${user.role.permissions.length}):`);
+        user.role.permissions.forEach(permission => {
+          console.log(`     - ${permission}`);
+        });
+      } else {
+        console.log('   ⚠️  Usuário sem role atribuído');
+      }
+      console.log('');
+    }
 
-    // Listar todas as permissões
-    console.log('\n📋 Todas as permissões do role "user":');
-    userRole.permissions.forEach((permission: string, index: number) => {
-      console.log(`  ${index + 1}. ${permission}`);
-    });
+    // Verificar roles disponíveis
+    console.log('📋 Roles disponíveis no sistema:');
+    const roles = await prisma.userRole.findMany();
+    
+    for (const role of roles) {
+      console.log(`\n🔐 Role: ${role.name}`);
+      console.log(`   ID: ${role.id}`);
+      console.log(`   Descrição: ${role.description}`);
+      console.log(`   É padrão: ${role.isDefault ? 'Sim' : 'Não'}`);
+      console.log(`   É sistema: ${role.isSystem ? 'Sim' : 'Não'}`);
+      console.log(`   Permissões (${role.permissions.length}):`);
+      role.permissions.forEach(permission => {
+        console.log(`     - ${permission}`);
+      });
+    }
 
   } catch (error) {
     console.error('❌ Erro ao verificar permissões:', error);
@@ -39,11 +60,11 @@ async function checkUserPermissions() {
   }
 }
 
-// Executar o script
+// Executar se chamado diretamente
 if (require.main === module) {
   checkUserPermissions()
     .then(() => {
-      console.log('🎉 Script concluído!');
+      console.log('\n🎉 Verificação concluída!');
       process.exit(0);
     })
     .catch((error) => {
@@ -51,3 +72,5 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+export { checkUserPermissions };

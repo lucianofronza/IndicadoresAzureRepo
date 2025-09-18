@@ -8,7 +8,7 @@ const router = Router();
 
 // Start scheduler
 router.post('/scheduler/start', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   await schedulerService.start();
   
   res.json({
@@ -19,7 +19,7 @@ router.post('/scheduler/start', asyncHandler(async (req, res) => {
 
 // Stop scheduler
 router.post('/scheduler/stop', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   await schedulerService.stop();
   
   res.json({
@@ -30,7 +30,7 @@ router.post('/scheduler/stop', asyncHandler(async (req, res) => {
 
 // Run scheduler immediately
 router.post('/scheduler/run-now', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   await schedulerService.runNow();
   
   res.json({
@@ -51,7 +51,9 @@ router.post('/sync/:repositoryId', asyncHandler(async (req, res) => {
     });
   }
   
-  const syncOrchestrator = new SyncOrchestrator(new NotificationService(), req.app.get('io'));
+  const redisStorage = req.app.get('redisStorage');
+  const notificationService = req.app.get('notificationService');
+  const syncOrchestrator = new SyncOrchestrator(notificationService, req.app.get('io'), redisStorage);
   const result = await syncOrchestrator.syncRepository(repositoryId, syncType);
   
   res.json({
@@ -68,7 +70,9 @@ router.post('/sync/:repositoryId', asyncHandler(async (req, res) => {
 // Cancel sync for a specific repository
 router.delete('/sync/:repositoryId', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;
-  const syncOrchestrator = new SyncOrchestrator(new NotificationService(), req.app.get('io'));
+  const redisStorage = req.app.get('redisStorage');
+  const notificationService = req.app.get('notificationService');
+  const syncOrchestrator = new SyncOrchestrator(notificationService, req.app.get('io'), redisStorage);
   await syncOrchestrator.cancelSync(repositoryId);
   
   res.json({

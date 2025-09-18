@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 import path from 'path';
 
 // Load environment variables
-config({ path: path.resolve(__dirname, '../env.example') });
+config({ path: path.resolve(__dirname, '../.env') });
 
 import express from 'express';
 import compression from 'compression';
@@ -13,8 +13,9 @@ import { Server as SocketIOServer } from 'socket.io';
 
 import { logger } from '@/utils/logger';
 import { metricsMiddleware, getMetrics } from '@/utils/metrics';
-import { connectDatabase, disconnectDatabase, healthCheck as dbHealthCheck } from '@/config/database';
-import { connectRedis, disconnectRedis, healthCheck as redisHealthCheck } from '@/config/redis';
+import { connectRedis, disconnectRedis, healthCheck as redisHealthCheck, getRedis } from '@/config/redis';
+import { configService } from '@/services/ConfigService';
+import { RedisStorageService } from '@/services/RedisStorageService';
 
 // Import services
 import { SchedulerService } from '@/services/schedulerService';
@@ -45,6 +46,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Services
 let schedulerService: SchedulerService;
 let notificationService: NotificationService;
+let redisStorage: RedisStorageService;
 
 // Graceful shutdown handling
 process.on('SIGTERM', gracefulShutdown);
@@ -59,8 +61,12 @@ async function gracefulShutdown(signal: string) {
       await schedulerService.stop();
     }
     
-    // Disconnect from services
-    await disconnectDatabase();
+    // Save configuration
+    if (configService) {
+      await configService.saveConfig();
+    }
+    
+    // Disconnect from Redis
     await disconnectRedis();
     
     // Close server
@@ -95,10 +101,10 @@ app.use(metricsMiddleware);
 // Health check endpoint (no authentication required)
 app.get('/healthz', async (req, res) => {
   try {
-    const dbHealthy = await dbHealthCheck();
     const redisHealthy = await redisHealthCheck();
+    const redisStatus = redisStorage ? await redisStorage.getHealthStatus() : { status: 'unhealthy', keys: 0 };
     
-    const status = dbHealthy && redisHealthy ? 'healthy' : 'unhealthy';
+    const status = redisHealthy && redisStatus.status === 'healthy' ? 'healthy' : 'unhealthy';
     const statusCode = status === 'healthy' ? 200 : 503;
     
     res.status(statusCode).json({
@@ -108,11 +114,12 @@ app.get('/healthz', async (req, res) => {
       version: process.env.npm_package_version || '1.0.0',
       service: 'sync-service',
       services: {
-        database: {
-          status: dbHealthy ? 'healthy' : 'unhealthy',
-        },
         redis: {
           status: redisHealthy ? 'healthy' : 'unhealthy',
+          keys: redisStatus.keys,
+        },
+        config: {
+          status: 'healthy', // File-based config is always available
         },
       },
     });
@@ -129,10 +136,9 @@ app.get('/healthz', async (req, res) => {
 // Readiness check
 app.get('/readyz', async (req, res) => {
   try {
-    const dbHealthy = await dbHealthCheck();
     const redisHealthy = await redisHealthCheck();
     
-    if (dbHealthy && redisHealthy) {
+    if (redisHealthy) {
       res.status(200).json({
         status: 'ready',
         timestamp: new Date().toISOString(),
@@ -143,8 +149,7 @@ app.get('/readyz', async (req, res) => {
         status: 'not ready',
         timestamp: new Date().toISOString(),
         services: {
-          database: dbHealthy ? 'ready' : 'not ready',
-          redis: redisHealthy ? 'not ready',
+          redis: redisHealthy ? 'ready' : 'not ready',
         },
       });
     }
@@ -213,17 +218,27 @@ app.use(errorHandler);
 // Start server
 async function startServer() {
   try {
-    // Connect to database
-    await connectDatabase();
-    logger.info('Database connected successfully');
+    // Load configuration
+    await configService.loadConfig();
+    logger.info('Configuration loaded successfully');
 
     // Connect to Redis
     await connectRedis();
     logger.info('Redis connected successfully');
 
+    // Get Redis client and initialize storage service
+    const redis = getRedis();
+    redisStorage = new RedisStorageService(redis);
+
     // Initialize services
     notificationService = new NotificationService();
-    schedulerService = new SchedulerService(notificationService, io);
+    schedulerService = new SchedulerService(notificationService, io, redisStorage, configService);
+
+    // Make services available to routes
+    app.set('redisStorage', redisStorage);
+    app.set('notificationService', notificationService);
+    app.set('schedulerService', schedulerService);
+    app.set('io', io);
 
     // Start HTTP server
     server.listen(PORT, () => {
@@ -231,6 +246,7 @@ async function startServer() {
       logger.info(`Health check: http://localhost:${PORT}/healthz`);
       logger.info(`Metrics: http://localhost:${PORT}/metrics`);
       logger.info(`WebSocket: ws://localhost:${PORT}`);
+      logger.info('Using Redis + File System storage architecture');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

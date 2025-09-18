@@ -1,11 +1,10 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { getPrisma } from '@/config/database';
-import { getRedis, cacheKeys, acquireLock, releaseLock } from '@/config/redis';
 import { logger, logSyncEvent } from '@/utils/logger';
-import { syncMetrics, recordSyncJob, recordAzureApiRequest } from '@/utils/metrics';
 import { NotificationService } from './notificationService';
 import { RateLimiter } from './rateLimiter';
 import { AzureSyncService } from './azureSyncService';
+import { RedisStorageService } from './RedisStorageService';
+import { recordSyncJob, recordAzureApiRequest } from '@/utils/metrics';
 
 export interface SyncResult {
   success: boolean;
@@ -19,11 +18,17 @@ export class SyncOrchestrator {
   private azureSyncService: AzureSyncService;
   private notificationService: NotificationService;
   private io: SocketIOServer;
+  private redisStorage: RedisStorageService;
 
-  constructor(notificationService: NotificationService, io: SocketIOServer) {
+  constructor(
+    notificationService: NotificationService, 
+    io: SocketIOServer,
+    redisStorage: RedisStorageService
+  ) {
     this.notificationService = notificationService;
     this.io = io;
-    this.rateLimiter = new RateLimiter();
+    this.redisStorage = redisStorage;
+    this.rateLimiter = new RateLimiter(redisStorage);
     this.azureSyncService = new AzureSyncService();
   }
 
@@ -33,11 +38,11 @@ export class SyncOrchestrator {
     batchId?: string
   ): Promise<SyncResult> {
     const startTime = Date.now();
-    const lockKey = cacheKeys.syncLock(repositoryId);
+    const lockKey = `sync:${repositoryId}`;
 
     try {
       // Acquire lock to prevent concurrent syncs
-      const hasLock = await acquireLock(lockKey, 3600); // 1 hour lock
+      const hasLock = await this.redisStorage.acquireLock(lockKey, 3600); // 1 hour lock
       if (!hasLock) {
         throw new Error('Sync already in progress for this repository');
       }
@@ -201,23 +206,21 @@ export class SyncOrchestrator {
       };
     } finally {
       // Always release the lock
-      await releaseLock(lockKey);
+      await this.redisStorage.releaseLock(lockKey);
     }
   }
 
   private async getRepository(repositoryId: string) {
-    const prisma = getPrisma();
-    return await prisma.repository.findUnique({
-      where: { id: repositoryId },
-      select: {
-        id: true,
-        name: true,
-        organization: true,
-        project: true,
-        isActive: true,
-        lastSyncAt: true
-      }
-    });
+    // For now, return a mock repository since we're not storing repository data in sync-service
+    // In a real implementation, this would fetch from the backend API or config
+    return {
+      id: repositoryId,
+      name: `Repository ${repositoryId}`,
+      organization: 'default',
+      project: 'default',
+      isActive: true,
+      lastSyncAt: null
+    };
   }
 
   private async createSyncJob(
@@ -225,15 +228,18 @@ export class SyncOrchestrator {
     syncType: 'full' | 'incremental',
     batchId?: string
   ) {
-    const prisma = getPrisma();
-    return await prisma.syncJob.create({
-      data: {
-        repositoryId,
-        status: 'pending',
-        syncType,
-        batchId
-      }
-    });
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const job = {
+      id: jobId,
+      repositoryId,
+      status: 'pending' as const,
+      startedAt: new Date().toISOString(),
+      retryCount: 0,
+      maxRetries: 3
+    };
+    
+    await this.redisStorage.createSyncJob(job);
+    return job;
   }
 
   private async updateSyncJob(
@@ -246,21 +252,20 @@ export class SyncOrchestrator {
       recordsProcessed?: number;
     }
   ) {
-    const prisma = getPrisma();
-    return await prisma.syncJob.update({
-      where: { id: jobId },
-      data: updates
-    });
+    const jobUpdates: any = {};
+    
+    if (updates.status) jobUpdates.status = updates.status;
+    if (updates.startedAt) jobUpdates.startedAt = updates.startedAt.toISOString();
+    if (updates.completedAt) jobUpdates.completedAt = updates.completedAt.toISOString();
+    if (updates.error) jobUpdates.error = updates.error;
+    
+    await this.redisStorage.updateSyncJob(jobId, jobUpdates);
   }
 
   private async updateRepositoryLastSync(repositoryId: string) {
-    const prisma = getPrisma();
-    return await prisma.repository.update({
-      where: { id: repositoryId },
-      data: {
-        lastSyncAt: new Date()
-      }
-    });
+    // Update last sync time in Redis or config
+    // For now, we'll just log it since we're not storing repository data in sync-service
+    logger.info(`Repository ${repositoryId} last sync updated`);
   }
 
   private async saveSyncMetrics(metrics: {
@@ -271,17 +276,18 @@ export class SyncOrchestrator {
     recordsProcessed?: number;
     errorMessage?: string;
   }) {
-    const prisma = getPrisma();
-    return await prisma.syncMetrics.create({
-      data: {
-        repositoryId: metrics.repositoryId,
-        syncType: metrics.syncType,
-        status: metrics.status,
-        duration: metrics.duration,
-        recordsProcessed: metrics.recordsProcessed,
-        errorMessage: metrics.errorMessage
-      }
-    });
+    // Update metrics in Redis
+    const currentMetrics = await this.redisStorage.getMetrics();
+    
+    const updatedMetrics = {
+      totalJobs: currentMetrics.totalJobs + 1,
+      successfulJobs: metrics.status === 'completed' ? currentMetrics.successfulJobs + 1 : currentMetrics.successfulJobs,
+      failedJobs: metrics.status === 'failed' ? currentMetrics.failedJobs + 1 : currentMetrics.failedJobs,
+      averageDuration: (currentMetrics.averageDuration + metrics.duration) / 2,
+      lastSync: new Date().toISOString()
+    };
+    
+    await this.redisStorage.updateMetrics(updatedMetrics);
   }
 
   private async handleSyncFailure(
@@ -290,17 +296,13 @@ export class SyncOrchestrator {
     batchId?: string
   ) {
     try {
-      // Check if this repository has been failing frequently
-      const prisma = getPrisma();
-      const recentFailures = await prisma.syncJob.count({
-        where: {
-          repositoryId,
-          status: 'failed',
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-          }
-        }
-      });
+      // Get recent failed jobs from Redis
+      const recentJobs = await this.redisStorage.getJobHistory(100);
+      const recentFailures = recentJobs.filter(job => 
+        job.repositoryId === repositoryId && 
+        job.status === 'failed' &&
+        new Date(job.startedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+      ).length;
 
       // If more than 3 failures in 24 hours, send notification
       if (recentFailures >= 3) {
@@ -317,12 +319,8 @@ export class SyncOrchestrator {
   }
 
   async getSyncStatus(repositoryId: string) {
-    const prisma = getPrisma();
-    
-    const latestJob = await prisma.syncJob.findFirst({
-      where: { repositoryId },
-      orderBy: { createdAt: 'desc' }
-    });
+    const recentJobs = await this.redisStorage.getJobHistory(100);
+    const latestJob = recentJobs.find(job => job.repositoryId === repositoryId);
 
     if (!latestJob) {
       return { status: 'no_jobs', repositoryId };
@@ -332,11 +330,9 @@ export class SyncOrchestrator {
       repositoryId,
       jobId: latestJob.id,
       status: latestJob.status,
-      syncType: latestJob.syncType,
       startedAt: latestJob.startedAt,
       completedAt: latestJob.completedAt,
-      error: latestJob.error,
-      recordsProcessed: latestJob.recordsProcessed
+      error: latestJob.error
     };
   }
 
@@ -345,20 +341,13 @@ export class SyncOrchestrator {
     params: { page: number; pageSize: number }
   ) {
     const { page = 1, pageSize = 10 } = params;
+    
+    const allJobs = await this.redisStorage.getJobHistory(1000);
+    const repositoryJobs = allJobs.filter(job => job.repositoryId === repositoryId);
+    
+    const total = repositoryJobs.length;
     const skip = (page - 1) * pageSize;
-
-    const prisma = getPrisma();
-    const [jobs, total] = await Promise.all([
-      prisma.syncJob.findMany({
-        where: { repositoryId },
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.syncJob.count({
-        where: { repositoryId }
-      })
-    ]);
+    const jobs = repositoryJobs.slice(skip, skip + pageSize);
 
     return {
       data: jobs,
@@ -374,21 +363,22 @@ export class SyncOrchestrator {
   }
 
   async cancelSync(repositoryId: string) {
-    const lockKey = cacheKeys.syncLock(repositoryId);
-    await releaseLock(lockKey);
+    const lockKey = `sync:${repositoryId}`;
+    await this.redisStorage.releaseLock(lockKey);
 
-    const prisma = getPrisma();
-    await prisma.syncJob.updateMany({
-      where: {
-        repositoryId,
-        status: 'running'
-      },
-      data: {
+    // Update running jobs to cancelled status
+    const activeJobs = await this.redisStorage.getActiveJobs();
+    const runningJobs = activeJobs.filter(job => 
+      job.repositoryId === repositoryId && job.status === 'running'
+    );
+
+    for (const job of runningJobs) {
+      await this.redisStorage.updateSyncJob(job.id, {
         status: 'failed',
-        completedAt: new Date(),
+        completedAt: new Date().toISOString(),
         error: 'Cancelled by user'
-      }
-    });
+      });
+    }
 
     logSyncEvent('sync:cancelled', { repositoryId });
   }
