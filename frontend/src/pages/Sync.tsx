@@ -263,17 +263,27 @@ export const Sync: React.FC = () => {
               
               setIsSyncingAll(true)
               
+              // Adicionar todos os repositórios ao estado de sincronização
+              const allRepoIds = new Set(repositoriesData.data.map(repo => repo.id))
+              setSyncingRepositories(allRepoIds)
+              
               // Contar quantos repositórios serão sincronizados
               let completedSyncs = 0
               const totalRepos = repositoriesData.data.length
               
               repositoriesData.data.forEach((repo: Repository) => {
-                // Usar handleSync personalizado que monitora conclusão
-                const originalMutation = syncMutation.mutate
                 syncMutation.mutate({ repositoryId: repo.id, syncType: 'incremental' }, {
                   onSettled: () => {
                     completedSyncs++
-                    // Resetar estado quando todos terminarem
+                    
+                    // Remover repositório específico da lista
+                    setSyncingRepositories(prev => {
+                      const newSet = new Set(prev)
+                      newSet.delete(repo.id)
+                      return newSet
+                    })
+                    
+                    // Resetar estado geral quando todos terminarem
                     if (completedSyncs >= totalRepos) {
                       setIsSyncingAll(false)
                     }
