@@ -78,6 +78,7 @@ export const Sync: React.FC = () => {
       const response = await api.get('/repositories')
       return response.data
     },
+    enabled: !!user, // Só executar se o usuário estiver logado
   })
 
   // Fetch sync status for all repositories
@@ -100,7 +101,7 @@ export const Sync: React.FC = () => {
       )
       return statuses
     },
-    enabled: !!repositoriesData?.data,
+    enabled: !!repositoriesData?.data && !!user,
     refetchInterval: (data) => {
       // Se há dados com status de 'no_permission', não fazer polling
       if (Array.isArray(data) && data.some((status: any) => status.status === 'no_permission')) {
