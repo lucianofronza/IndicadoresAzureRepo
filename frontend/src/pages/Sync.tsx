@@ -255,7 +255,7 @@ export const Sync: React.FC = () => {
   }
 
   // Verificar se há erro de permissão específico (não bloquear toda a página)
-  const hasStatusPermissionError = syncStatusError?.response?.status === 401 || 
+  const hasStatusPermissionError = (syncStatusError as any)?.response?.status === 401 || 
     (Array.isArray(syncStatuses) && syncStatuses.some((s: any) => s.status === 'no_permission'));
 
   return (
@@ -280,7 +280,7 @@ export const Sync: React.FC = () => {
               setIsSyncingAll(true)
               
               // Adicionar todos os repositórios ao estado de sincronização
-              const allRepoIds = new Set(repositoriesData.data.map(repo => repo.id))
+              const allRepoIds = new Set<string>(repositoriesData.data.map((repo: Repository) => repo.id))
               setSyncingRepositories(allRepoIds)
               
               // Contar quantos repositórios serão sincronizados
