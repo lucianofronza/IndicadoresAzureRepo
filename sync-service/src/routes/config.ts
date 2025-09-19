@@ -7,7 +7,7 @@ const router = Router();
 
 // Get global sync configuration
 router.get('/', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   const config = await schedulerService.getConfig();
   
   res.json({
@@ -18,7 +18,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Update global sync configuration
 router.put('/', asyncHandler(async (req, res) => {
-  const schedulerService = new SchedulerService(new NotificationService(), req.app.get('io'));
+  const schedulerService = req.app.get('schedulerService');
   const updatedConfig = await schedulerService.updateConfig(req.body);
   
   res.json({
