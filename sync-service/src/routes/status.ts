@@ -18,6 +18,26 @@ router.get('/scheduler', asyncHandler(async (req, res) => {
   });
 }));
 
+// DEBUG: Get scheduler status without auth
+router.get('/debug/scheduler', asyncHandler(async (req, res) => {
+  const schedulerService = req.app.get('schedulerService');
+  const status = await schedulerService.getStatus();
+  const config = schedulerService.configService.getConfig();
+  
+  res.json({
+    success: true,
+    data: {
+      status,
+      config: {
+        enabled: config.scheduler.enabled,
+        intervalMinutes: config.sync.defaultIntervalMinutes,
+        lastRun: config.scheduler.lastRun,
+        nextRun: config.scheduler.nextRun
+      }
+    }
+  });
+}));
+
 // Get sync status for a specific repository
 router.get('/sync/:repositoryId', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;

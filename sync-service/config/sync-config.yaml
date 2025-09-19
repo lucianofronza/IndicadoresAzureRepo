@@ -1,8 +1,8 @@
 sync:
-  defaultIntervalMinutes: 30
+  defaultIntervalMinutes: 40
   maxRetries: 3
   retryDelayMinutes: 5
-  maxConcurrentRepos: 3
+  maxConcurrentRepos: 4
   delayBetweenReposSeconds: 30
   azure:
     baseUrl: https://dev.azure.com
@@ -16,6 +16,6 @@ sync:
     enableMetrics: true
 repositories: []
 scheduler:
-  enabled: false
+  enabled: true
   lastRun: null
-  nextRun: null
+  nextRun: '2025-09-19T19:53:06.181Z'

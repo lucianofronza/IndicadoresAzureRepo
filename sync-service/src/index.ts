@@ -240,6 +240,17 @@ async function startServer() {
     app.set('schedulerService', schedulerService);
     app.set('io', io);
 
+    // Auto-start scheduler if enabled in configuration
+    const config = configService.getConfig();
+    if (config.scheduler.enabled) {
+      logger.info('Scheduler is enabled in configuration, starting automatically...');
+      schedulerService.start().catch(error => {
+        logger.error('Failed to auto-start scheduler:', error);
+      });
+    } else {
+      logger.info('Scheduler is disabled in configuration, not starting automatically');
+    }
+
     // Start HTTP server
     server.listen(PORT, () => {
       logger.info(`Sync Service started on port ${PORT} in ${NODE_ENV} mode`);

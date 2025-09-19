@@ -211,16 +211,40 @@ export class SyncOrchestrator {
   }
 
   private async getRepository(repositoryId: string) {
-    // For now, return a mock repository since we're not storing repository data in sync-service
-    // In a real implementation, this would fetch from the backend API or config
-    return {
-      id: repositoryId,
-      name: `Repository ${repositoryId}`,
-      organization: 'default',
-      project: 'default',
-      isActive: true,
-      lastSyncAt: null
-    };
+    try {
+      // Fetch repository from backend API
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+      const apiKey = process.env.BACKEND_API_KEY;
+      
+      const response = await fetch(`${backendUrl}/api/repositories/${repositoryId}`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch repository: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Backend error: ${result.message}`);
+      }
+
+      return result.data;
+    } catch (error) {
+      logger.error('Failed to fetch repository from backend:', error);
+      // Fallback to mock for now
+      return {
+        id: repositoryId,
+        name: `Repository ${repositoryId}`,
+        organization: 'default',
+        project: 'default',
+        isActive: true,
+        lastSyncAt: null
+      };
+    }
   }
 
   private async createSyncJob(

@@ -172,8 +172,8 @@ export class SchedulerService {
       this.configService.updateSchedulerStatus(new Date().toISOString(), nextRunTime.toISOString());
       await this.configService.saveConfig();
 
-      // Get repositories that need synchronization
-      const repositories = this.configService.getRepositories();
+      // Get repositories from backend database
+      const repositories = await this.getRepositoriesFromBackend();
 
       if (repositories.length === 0) {
         logger.info('No repositories need synchronization', { batchId });
@@ -383,6 +383,36 @@ export class SchedulerService {
     }
 
     return this.getConfig();
+  }
+
+  private async getRepositoriesFromBackend(): Promise<any[]> {
+    try {
+      // Fetch all repositories from backend API
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+      const apiKey = process.env.BACKEND_API_KEY;
+      
+      const response = await fetch(`${backendUrl}/api/repositories?page=1&limit=100`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch repositories: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Backend error: ${result.message}`);
+      }
+
+      logger.info(`Fetched ${result.data.data.length} repositories from backend`);
+      return result.data.data;
+    } catch (error) {
+      logger.error('Failed to fetch repositories from backend:', error);
+      return [];
+    }
   }
 
   async getStatus(): Promise<SchedulerStatus> {

@@ -79,6 +79,10 @@ export class ConfigService {
       throw new Error('Configuração não carregada');
     }
     this.config = { ...this.config, ...updates };
+    // Salvar no arquivo após atualizar
+    this.saveConfig().catch(error => {
+      logger.error('Erro ao salvar configuração após atualização:', error);
+    });
   }
 
   // Métodos específicos para configurações
