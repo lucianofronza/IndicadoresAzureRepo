@@ -360,10 +360,25 @@ export class SchedulerService {
     // Save configuration
     await this.configService.saveConfig();
 
+    // Auto-enable scheduler if it was disabled but user is configuring it
+    if (!currentConfig.scheduler.enabled && !this.isRunning) {
+      logger.info('Auto-enabling scheduler as user is configuring it');
+      this.configService.updateConfig({
+        scheduler: { ...currentConfig.scheduler, enabled: true }
+      });
+      await this.configService.saveConfig();
+    }
+
     // If scheduler is running and interval changed, restart it
     if (this.isRunning && config.intervalMinutes) {
       logger.info('Restarting scheduler due to interval change');
       await this.stop();
+      await this.start();
+    }
+    
+    // If scheduler is not running but should be enabled, start it
+    if (!this.isRunning && currentConfig.scheduler.enabled) {
+      logger.info('Starting scheduler as it should be enabled');
       await this.start();
     }
 
