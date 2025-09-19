@@ -43,9 +43,7 @@ export const Sync: React.FC = () => {
   // Update scheduler configuration mutation
   const updateConfigMutation = useMutation({
     mutationFn: async (config: any) => {
-      console.log('🔧 [DEBUG] Frontend sending config:', JSON.stringify(config, null, 2));
       const response = await api.put('/sync/scheduler/config', config)
-      console.log('🔧 [DEBUG] Frontend received response:', JSON.stringify(response.data, null, 2));
       return response.data
     },
     onSuccess: () => {
@@ -634,7 +632,7 @@ export const Sync: React.FC = () => {
                   e.preventDefault()
                   const formData = new FormData(e.target as HTMLFormElement)
                   const config = {
-                    defaultIntervalMinutes: parseInt(formData.get('interval') as string),
+                    intervalMinutes: parseInt(formData.get('interval') as string),
                     maxConcurrentRepos: parseInt(formData.get('maxConcurrent') as string),
                   }
                   updateConfigMutation.mutate(config)
