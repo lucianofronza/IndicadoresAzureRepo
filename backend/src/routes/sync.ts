@@ -94,6 +94,49 @@ router.post('/scheduler/run-now',
   })
 );
 
+// Scheduler configuration routes (proxy to sync-service)
+
+// Get scheduler configuration
+router.get('/scheduler/config',
+  requireAuth,
+  requirePermission('sync:config:read'),
+  asyncHandler(async (req, res) => {
+    try {
+      const config = await syncServiceClient.getConfig();
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get scheduler configuration'
+      });
+    }
+  })
+);
+
+// Update scheduler configuration
+router.put('/scheduler/config',
+  requireAuth,
+  requirePermission('sync:config:write'),
+  asyncHandler(async (req, res) => {
+    try {
+      const config = await syncServiceClient.updateConfig(req.body);
+      res.json({
+        success: true,
+        message: 'Scheduler configuration updated successfully',
+        data: config
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update scheduler configuration'
+      });
+    }
+  })
+);
+
 // Start sync for repository
 router.post('/:repositoryId', 
   requireAuth,
