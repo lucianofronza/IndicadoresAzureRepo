@@ -94,6 +94,43 @@ router.post('/scheduler/run-now',
   })
 );
 
+// Get scheduler logs
+router.get('/scheduler/logs',
+  requireAuth,
+  requirePermission('sync:status:read'),
+  asyncHandler(async (req, res) => {
+    try {
+      // Por enquanto retornamos logs mock, depois podemos implementar logs reais
+      const logs = [
+        {
+          id: 1,
+          executedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+          success: true,
+          repositoriesProcessed: 3,
+          duration: 120000, // 2 minutos
+        },
+        {
+          id: 2,
+          executedAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
+          success: true,
+          repositoriesProcessed: 3,
+          duration: 95000,
+        }
+      ];
+      
+      res.json({
+        success: true,
+        data: logs
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get scheduler logs'
+      });
+    }
+  })
+);
+
 // Scheduler configuration routes (proxy to sync-service)
 
 // Get scheduler configuration

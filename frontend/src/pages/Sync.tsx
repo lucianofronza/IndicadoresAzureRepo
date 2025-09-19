@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Play, Square } from 'lucide-react'
+import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Play, Square, Settings, X } from 'lucide-react'
 import { Repository } from '@/types'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
@@ -11,64 +11,22 @@ export const Sync: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [isSyncingAll, setIsSyncingAll] = useState(false)
   const [syncingRepositories, setSyncingRepositories] = useState<Set<string>>(new Set())
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
   const previousStatuses = useRef<Record<string, string>>({})
 
   const queryClient = useQueryClient()
   const { user } = useAuth()
 
-  // Fetch scheduler status
-  const { data: schedulerStatus, refetch: refetchSchedulerStatus, error: schedulerError } = useQuery({
-    queryKey: ['scheduler-status'],
+  // Fetch scheduler logs
+  const { data: schedulerLogs } = useQuery({
+    queryKey: ['scheduler-logs'],
     queryFn: async () => {
-      const response = await api.get('/sync/scheduler/status')
+      const response = await api.get('/sync/scheduler/logs')
       return response.data.data
     },
-    refetchInterval: 5000, // Atualizar a cada 5 segundos
-    retry: false, // Não tentar novamente em caso de erro de autenticação
-    enabled: !!user, // Só executar se o usuário estiver logado
-  })
-
-  // Scheduler control mutations
-  const startSchedulerMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/sync/scheduler/start')
-      return response.data
-    },
-    onSuccess: () => {
-      refetchSchedulerStatus()
-      toast.success('Sincronização automática iniciada!')
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao iniciar sincronização automática: ${error.response?.data?.message || 'Erro desconhecido'}`)
-    }
-  })
-
-  const stopSchedulerMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/api/sync/scheduler/stop')
-      return response.data
-    },
-    onSuccess: () => {
-      refetchSchedulerStatus()
-      toast.success('Sincronização automática parada!')
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao parar sincronização automática: ${error.response?.data?.message || 'Erro desconhecido'}`)
-    }
-  })
-
-  const runNowMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/api/sync/scheduler/run-now')
-      return response.data
-    },
-    onSuccess: () => {
-      refetchSchedulerStatus()
-      toast.success('Sincronização imediata iniciada!')
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao executar sincronização imediata: ${error.response?.data?.message || 'Erro desconhecido'}`)
-    }
+    enabled: !!user,
+    retry: false,
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
   })
 
   // Fetch scheduler configuration
@@ -90,7 +48,8 @@ export const Sync: React.FC = () => {
     },
     onSuccess: () => {
       refetchSchedulerConfig()
-      toast.success('Configuração atualizada com sucesso!')
+      setIsConfigModalOpen(false)
+      toast.success('Configuração da sincronização automática atualizada!')
     },
     onError: (error: any) => {
       toast.error(`Erro ao atualizar configuração: ${error.response?.data?.message || 'Erro desconhecido'}`)
@@ -464,246 +423,55 @@ export const Sync: React.FC = () => {
         </div>
       </div>
 
-      {/* Configuração de Sincronização Automática */}
+      {/* Sincronização Automática */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Sincronização Automática</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Configure a sincronização agendada para todos os repositórios
-          </p>
-        </div>
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Status do Scheduler */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                {schedulerError ? (
-                  <>
-                    <XCircle className="h-5 w-5 text-red-400" />
-                    <span className="ml-2 text-sm font-medium text-red-600">Erro ao carregar</span>
-                  </>
-                ) : !schedulerStatus ? (
-                  <>
-                    <XCircle className="h-5 w-5 text-gray-400" />
-                    <span className="ml-2 text-sm font-medium text-gray-600">Carregando...</span>
-                  </>
-                ) : schedulerStatus.isRunning ? (
-                  <>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="ml-2 text-sm font-medium text-green-800">Ativo</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-5 w-5 text-gray-400" />
-                    <span className="ml-2 text-sm font-medium text-gray-600">Inativo</span>
-                  </>
-                )}
-              </div>
-              
-              {schedulerStatus?.nextRunAt && (
-                <div className="text-sm text-gray-500">
-                  <span className="font-medium">Próxima execução:</span>{' '}
-                  {new Date(schedulerStatus.nextRunAt).toLocaleString('pt-BR')}
-                </div>
-              )}
-              
-              {schedulerStatus?.intervalMinutes && (
-                <div className="text-sm text-gray-500">
-                  <span className="font-medium">Intervalo:</span>{' '}
-                  {schedulerStatus.intervalMinutes} minutos
-                </div>
-              )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Sincronização Automática</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Configuração e histórico de execuções automáticas
+              </p>
             </div>
-
-            {/* Controles do Scheduler */}
-            <div className="flex gap-2">
-              {schedulerStatus?.isRunning ? (
-                <>
-                  <button
-                    onClick={() => runNowMutation.mutate()}
-                    className="btn btn-secondary btn-sm"
-                    disabled={runNowMutation.isPending}
-                  >
-                    <RefreshCw className={`h-4 w-4 ${runNowMutation.isPending ? 'animate-spin' : ''}`} />
-                    Executar Agora
-                  </button>
-                  <button
-                    onClick={() => stopSchedulerMutation.mutate()}
-                    className="btn btn-danger btn-sm"
-                    disabled={stopSchedulerMutation.isPending}
-                  >
-                    <Square className="h-4 w-4" />
-                    Parar
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => startSchedulerMutation.mutate()}
-                  className="btn btn-success btn-sm"
-                  disabled={startSchedulerMutation.isPending}
-                >
-                  <Play className="h-4 w-4" />
-                  Iniciar
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => setIsConfigModalOpen(true)}
+              className="btn btn-primary btn-sm"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configurar
+            </button>
           </div>
-          
-          {/* Informações adicionais */}
-          {schedulerStatus && !schedulerError && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">Status:</span>{' '}
-                  <span className={schedulerStatus.isRunning ? 'text-green-600' : 'text-gray-600'}>
-                    {schedulerStatus.isRunning ? 'Executando' : 'Parado'}
-                  </span>
-                </div>
-                {schedulerStatus.lastRunAt && (
-                  <div>
-                    <span className="font-medium text-gray-700">Última execução:</span>{' '}
-                    <span className="text-gray-600">
-                      {new Date(schedulerStatus.lastRunAt).toLocaleString('pt-BR')}
-                    </span>
+        </div>
+        
+        <div className="p-6">
+          {schedulerLogs && schedulerLogs.length > 0 ? (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Últimas Execuções</h4>
+              <div className="space-y-2">
+                {schedulerLogs.slice(0, 5).map((log: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      {log.success ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                      <span className="text-sm text-gray-900">
+                        {log.success ? 'Sincronização concluída' : 'Sincronização falhou'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(log.executedAt).toLocaleString('pt-BR')}
+                    </div>
                   </div>
-                )}
-                {schedulerStatus.config?.maxConcurrentRepos && (
-                  <div>
-                    <span className="font-medium text-gray-700">Repos simultâneos:</span>{' '}
-                    <span className="text-gray-600">{schedulerStatus.config.maxConcurrentRepos}</span>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Configuração do Scheduler */}
-      <div className="card">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Configuração da Sincronização</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Configure o intervalo e outras opções da sincronização automática
-          </p>
-        </div>
-        <div className="p-6">
-          {schedulerConfig ? (
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              const formData = new FormData(e.target as HTMLFormElement)
-              const config = {
-                defaultIntervalMinutes: parseInt(formData.get('interval') as string),
-                maxConcurrentRepos: parseInt(formData.get('maxConcurrent') as string),
-                delayBetweenReposSeconds: parseInt(formData.get('delayBetween') as string),
-                maxRetries: parseInt(formData.get('maxRetries') as string),
-                retryDelayMinutes: parseInt(formData.get('retryDelay') as string),
-              }
-              updateConfigMutation.mutate(config)
-            }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="interval" className="block text-sm font-medium text-gray-700 mb-2">
-                    Intervalo entre sincronizações (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    id="interval"
-                    name="interval"
-                    defaultValue={schedulerConfig.defaultIntervalMinutes || 30}
-                    min="1"
-                    max="1440"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="maxConcurrent" className="block text-sm font-medium text-gray-700 mb-2">
-                    Máximo de repositórios simultâneos
-                  </label>
-                  <input
-                    type="number"
-                    id="maxConcurrent"
-                    name="maxConcurrent"
-                    defaultValue={schedulerConfig.maxConcurrentRepos || 3}
-                    min="1"
-                    max="10"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="delayBetween" className="block text-sm font-medium text-gray-700 mb-2">
-                    Delay entre repositórios (segundos)
-                  </label>
-                  <input
-                    type="number"
-                    id="delayBetween"
-                    name="delayBetween"
-                    defaultValue={schedulerConfig.delayBetweenReposSeconds || 30}
-                    min="1"
-                    max="300"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="maxRetries" className="block text-sm font-medium text-gray-700 mb-2">
-                    Máximo de tentativas em caso de erro
-                  </label>
-                  <input
-                    type="number"
-                    id="maxRetries"
-                    name="maxRetries"
-                    defaultValue={schedulerConfig.maxRetries || 3}
-                    min="0"
-                    max="10"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="retryDelay" className="block text-sm font-medium text-gray-700 mb-2">
-                    Delay entre tentativas (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    id="retryDelay"
-                    name="retryDelay"
-                    defaultValue={schedulerConfig.retryDelayMinutes || 5}
-                    min="1"
-                    max="60"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={updateConfigMutation.isPending}
-                  className="btn btn-primary"
-                >
-                  {updateConfigMutation.isPending ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar Configuração'
-                  )}
-                </button>
-              </div>
-            </form>
           ) : (
-            <div className="text-center text-gray-500">
-              <RefreshCw className="h-8 w-8 mx-auto text-gray-400 mb-2 animate-spin" />
-              <p>Carregando configurações...</p>
+            <div className="text-center text-gray-500 py-8">
+              <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p>Nenhuma execução automática registrada</p>
+              <p className="text-sm">Configure a sincronização automática para começar</p>
             </div>
           )}
         </div>
@@ -1041,6 +809,158 @@ const SyncHistoryModal: React.FC<SyncHistoryModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal de Configuração */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">
+                Configuração da Sincronização Automática
+              </h3>
+              <button
+                onClick={() => setIsConfigModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {schedulerConfig ? (
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target as HTMLFormElement)
+                  const config = {
+                    defaultIntervalMinutes: parseInt(formData.get('interval') as string),
+                    maxConcurrentRepos: parseInt(formData.get('maxConcurrent') as string),
+                    delayBetweenReposSeconds: parseInt(formData.get('delayBetween') as string),
+                    maxRetries: parseInt(formData.get('maxRetries') as string),
+                    retryDelayMinutes: parseInt(formData.get('retryDelay') as string),
+                  }
+                  updateConfigMutation.mutate(config)
+                }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="interval" className="block text-sm font-medium text-gray-700 mb-2">
+                        Intervalo entre sincronizações (minutos)
+                      </label>
+                      <input
+                        type="number"
+                        id="interval"
+                        name="interval"
+                        defaultValue={schedulerConfig.defaultIntervalMinutes || 30}
+                        min="1"
+                        max="1440"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Entre 1 minuto e 24 horas</p>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="maxConcurrent" className="block text-sm font-medium text-gray-700 mb-2">
+                        Máximo de repositórios simultâneos
+                      </label>
+                      <input
+                        type="number"
+                        id="maxConcurrent"
+                        name="maxConcurrent"
+                        defaultValue={schedulerConfig.maxConcurrentRepos || 3}
+                        min="1"
+                        max="10"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Quantos repositórios sincronizar ao mesmo tempo</p>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="delayBetween" className="block text-sm font-medium text-gray-700 mb-2">
+                        Delay entre repositórios (segundos)
+                      </label>
+                      <input
+                        type="number"
+                        id="delayBetween"
+                        name="delayBetween"
+                        defaultValue={schedulerConfig.delayBetweenReposSeconds || 30}
+                        min="1"
+                        max="300"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Tempo de espera entre cada repositório</p>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="maxRetries" className="block text-sm font-medium text-gray-700 mb-2">
+                        Máximo de tentativas em caso de erro
+                      </label>
+                      <input
+                        type="number"
+                        id="maxRetries"
+                        name="maxRetries"
+                        defaultValue={schedulerConfig.maxRetries || 3}
+                        min="0"
+                        max="10"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Quantas vezes tentar novamente se falhar</p>
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <label htmlFor="retryDelay" className="block text-sm font-medium text-gray-700 mb-2">
+                        Delay entre tentativas (minutos)
+                      </label>
+                      <input
+                        type="number"
+                        id="retryDelay"
+                        name="retryDelay"
+                        defaultValue={schedulerConfig.retryDelayMinutes || 5}
+                        min="1"
+                        max="60"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Tempo de espera antes de tentar novamente</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsConfigModalOpen(false)}
+                      className="btn btn-secondary"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateConfigMutation.isPending}
+                      className="btn btn-primary"
+                    >
+                      {updateConfigMutation.isPending ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Salvar Configuração'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  <RefreshCw className="h-8 w-8 mx-auto text-gray-400 mb-2 animate-spin" />
+                  <p>Carregando configurações...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
