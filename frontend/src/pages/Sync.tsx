@@ -434,7 +434,10 @@ export const Sync: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setIsConfigModalOpen(true)}
+              onClick={() => {
+                console.log('Configurar clicked, setting modal to true')
+                setIsConfigModalOpen(true)
+              }}
               className="btn btn-primary btn-sm"
             >
               <Settings className="h-4 w-4 mr-2" />
@@ -812,7 +815,8 @@ const SyncHistoryModal: React.FC<SyncHistoryModalProps> = ({
 
       {/* Modal de Configuração */}
       {isConfigModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          {console.log('Modal is rendering, isConfigModalOpen:', isConfigModalOpen)}
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">
