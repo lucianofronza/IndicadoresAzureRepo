@@ -131,6 +131,16 @@ export class SyncServiceClient {
     }
   }
 
+  async getExecutionLogs(limit: number = 10): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get(`/api/status/scheduler/logs?limit=${limit}`);
+      return response.data.data;
+    } catch (error) {
+      logger.error('Failed to get execution logs:', error);
+      return [];
+    }
+  }
+
   // Status methods
   async getSchedulerStatus(): Promise<SchedulerStatus> {
     try {

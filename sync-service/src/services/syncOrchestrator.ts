@@ -287,9 +287,35 @@ export class SyncOrchestrator {
   }
 
   private async updateRepositoryLastSync(repositoryId: string) {
-    // Update last sync time in Redis or config
-    // For now, we'll just log it since we're not storing repository data in sync-service
-    logger.info(`Repository ${repositoryId} last sync updated`);
+    try {
+      // Update last sync time in backend database
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+      const apiKey = process.env.BACKEND_API_KEY;
+      
+      const response = await fetch(`${backendUrl}/api/repositories/${repositoryId}/last-sync`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          lastSyncAt: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update last sync: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Backend error: ${result.message}`);
+      }
+
+      logger.info(`Repository ${repositoryId} last sync updated successfully`);
+    } catch (error) {
+      logger.error(`Failed to update last sync for repository ${repositoryId}:`, error);
+    }
   }
 
   private async saveSyncMetrics(metrics: {

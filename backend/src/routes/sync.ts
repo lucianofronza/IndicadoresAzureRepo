@@ -100,23 +100,8 @@ router.get('/scheduler/logs',
   requirePermission('sync:status:read'),
   asyncHandler(async (req, res) => {
     try {
-      // Por enquanto retornamos logs mock, depois podemos implementar logs reais
-      const logs = [
-        {
-          id: 1,
-          executedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
-          success: true,
-          repositoriesProcessed: 3,
-          duration: 120000, // 2 minutos
-        },
-        {
-          id: 2,
-          executedAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
-          success: true,
-          repositoriesProcessed: 3,
-          duration: 95000,
-        }
-      ];
+      const limit = parseInt(req.query.limit as string) || 10;
+      const logs = await syncServiceClient.getExecutionLogs(limit);
       
       res.json({
         success: true,

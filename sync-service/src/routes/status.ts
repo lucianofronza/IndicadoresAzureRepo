@@ -38,6 +38,18 @@ router.get('/debug/scheduler', asyncHandler(async (req, res) => {
   });
 }));
 
+// Get scheduler execution logs
+router.get('/scheduler/logs', asyncHandler(async (req, res) => {
+  const schedulerService = req.app.get('schedulerService');
+  const limit = parseInt(req.query.limit as string) || 10;
+  const logs = await schedulerService.getExecutionLogs(limit);
+  
+  res.json({
+    success: true,
+    data: logs
+  });
+}));
+
 // Get sync status for a specific repository
 router.get('/sync/:repositoryId', asyncHandler(async (req, res) => {
   const { repositoryId } = req.params;

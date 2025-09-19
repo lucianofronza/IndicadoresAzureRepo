@@ -37,6 +37,15 @@ router.delete('/:id', validate(updateRepositorySchema), asyncHandler(async (req,
   res.json({ success: true, message: 'Repository deleted successfully' });
 }));
 
+// Update repository last sync time
+router.put('/:id/last-sync', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { lastSyncAt } = req.body;
+  
+  const repository = await repositoryService.update(id, { lastSyncAt: new Date(lastSyncAt) });
+  res.json({ success: true, data: repository, message: 'Repository last sync updated successfully' });
+}));
+
 router.get('/:id/stats', validate(updateRepositorySchema), asyncHandler(async (req, res) => {
   const stats = await repositoryService.getStats(req.params.id);
   res.json({ success: true, data: stats });

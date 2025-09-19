@@ -242,12 +242,18 @@ export class SchedulerService {
         lastError: null
       });
 
-      logSchedulerEvent('scheduler:execution:completed', {
+      const executionData = {
         batchId,
         processedCount,
         successCount,
-        failureCount
-      });
+        failureCount,
+        executedAt: new Date().toISOString()
+      };
+
+      logSchedulerEvent('scheduler:execution:completed', executionData);
+      
+      // Save execution log to Redis
+      await this.saveExecutionLog(executionData);
 
       // Send notification if enabled and there were failures
       if (config.notificationEnabled && failureCount > 0) {
@@ -411,6 +417,44 @@ export class SchedulerService {
       return result.data.data;
     } catch (error) {
       logger.error('Failed to fetch repositories from backend:', error);
+      return [];
+    }
+  }
+
+  private async saveExecutionLog(executionData: any): Promise<void> {
+    try {
+      // Save execution log to Redis with TTL of 30 days
+      const logKey = `scheduler:execution:${executionData.batchId}`;
+      await this.redisStorage.set(logKey, JSON.stringify(executionData), 30 * 24 * 60 * 60); // 30 days
+      
+      // Add to execution list (keep last 50 executions)
+      const listKey = 'scheduler:executions:list';
+      await this.redisStorage.lpush(listKey, executionData.batchId);
+      await this.redisStorage.ltrim(listKey, 0, 49); // Keep only last 50
+      
+      logger.info(`Execution log saved: ${executionData.batchId}`);
+    } catch (error) {
+      logger.error('Failed to save execution log:', error);
+    }
+  }
+
+  async getExecutionLogs(limit: number = 10): Promise<any[]> {
+    try {
+      const listKey = 'scheduler:executions:list';
+      const executionIds = await this.redisStorage.lrange(listKey, 0, limit - 1);
+      
+      const logs = [];
+      for (const batchId of executionIds) {
+        const logKey = `scheduler:execution:${batchId}`;
+        const logData = await this.redisStorage.get(logKey);
+        if (logData) {
+          logs.push(JSON.parse(logData));
+        }
+      }
+      
+      return logs;
+    } catch (error) {
+      logger.error('Failed to get execution logs:', error);
       return [];
     }
   }
