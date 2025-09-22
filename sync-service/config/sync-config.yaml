@@ -17,5 +17,5 @@ sync:
 repositories: []
 scheduler:
   enabled: true
-  lastRun: null
-  nextRun: '2025-09-22T17:37:42.668Z'
+  lastRun: '2025-09-22T17:00:00.736Z'
+  nextRun: '2025-09-22T17:40:00.736Z'
