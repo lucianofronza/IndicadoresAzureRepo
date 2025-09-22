@@ -177,6 +177,21 @@ export class SchedulerService {
 
       if (repositories.length === 0) {
         logger.info('No repositories need synchronization', { batchId });
+        
+        // Save execution log even when no repositories are found
+        const executionData = {
+          batchId,
+          processedCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          executedAt: new Date().toISOString(),
+          success: true,
+          message: 'No repositories found for synchronization'
+        };
+        
+        logSchedulerEvent('scheduler:execution:completed', executionData);
+        await this.saveExecutionLog(executionData);
+        
         return;
       }
 
@@ -283,6 +298,20 @@ export class SchedulerService {
 
     } catch (error) {
       logger.error('Scheduler execution failed:', { batchId, error });
+
+      // Save execution log for failed executions
+      const executionData = {
+        batchId,
+        processedCount: 0,
+        successCount: 0,
+        failureCount: 1,
+        executedAt: new Date().toISOString(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+      
+      logSchedulerEvent('scheduler:execution:failed', executionData);
+      await this.saveExecutionLog(executionData);
 
       await this.updateStatus({
         lastError: error instanceof Error ? error.message : 'Unknown error'
@@ -391,37 +420,85 @@ export class SchedulerService {
     return this.getConfig();
   }
 
-  private async getRepositoriesFromBackend(): Promise<any[]> {
+  private async getRepositoriesFromBackend(): Promise<unknown[]> {
     try {
       // Fetch all repositories from backend API
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
       const apiKey = process.env.BACKEND_API_KEY;
       
+      logger.info('Attempting to fetch repositories from backend', {
+        backendUrl,
+        hasApiKey: !!apiKey,
+        apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : 'none',
+        fullApiKey: apiKey // TEMPORARY DEBUG - remove after fixing
+      });
+      
       const response = await fetch(`${backendUrl}/api/repositories?page=1&limit=100`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'X-API-Key': `${apiKey}`,
           'Content-Type': 'application/json'
         }
       });
 
+      logger.info('Backend response received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      const responseText = await response.text();
+      logger.info('Backend response text', { 
+        responseText: responseText.substring(0, 500),
+        fullLength: responseText.length,
+        isJson: responseText.startsWith('{')
+      });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch repositories: ${response.status}`);
+        logger.error('Backend response not OK', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: responseText
+        });
+        throw new Error(`Failed to fetch repositories: ${response.status} - ${responseText}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+        logger.info('JSON parsed successfully', { 
+          hasSuccess: 'success' in result,
+          success: result.success,
+          hasData: 'data' in result,
+          dataType: typeof result.data
+        });
+      } catch (parseError) {
+        logger.error('JSON parse error', { 
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          responseText: responseText.substring(0, 200)
+        });
+        throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      }
       if (!result.success) {
+        logger.error('Backend returned unsuccessful response', {
+          success: result.success,
+          message: result.message,
+          data: result.data
+        });
         throw new Error(`Backend error: ${result.message}`);
       }
 
       logger.info(`Fetched ${result.data.data.length} repositories from backend`);
       return result.data.data;
     } catch (error) {
-      logger.error('Failed to fetch repositories from backend:', error);
+      logger.error('Failed to fetch repositories from backend:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return [];
     }
   }
 
-  private async saveExecutionLog(executionData: any): Promise<void> {
+  private async saveExecutionLog(executionData: Record<string, unknown>): Promise<void> {
     try {
       // Save execution log to Redis with TTL of 30 days
       const logKey = `scheduler:execution:${executionData.batchId}`;
@@ -438,7 +515,7 @@ export class SchedulerService {
     }
   }
 
-  async getExecutionLogs(limit: number = 10): Promise<any[]> {
+  async getExecutionLogs(limit: number = 10): Promise<Record<string, unknown>[]> {
     try {
       const listKey = 'scheduler:executions:list';
       const executionIds = await this.redisStorage.lrange(listKey, 0, limit - 1);

@@ -156,6 +156,7 @@ export class RepositoryService {
       project: data.project,
       url: data.url,
       azureId: data.azureId,
+      lastSyncAt: data.lastSyncAt,
     };
 
     // Tratar o personalAccessToken: se fornecido, criptografar; se não fornecido, manter o existente

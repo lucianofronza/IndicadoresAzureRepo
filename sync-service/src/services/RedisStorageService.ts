@@ -209,7 +209,7 @@ export class RedisStorageService {
 
   // ===== FILAS =====
   
-  async addToQueue(queueName: string, data: any): Promise<void> {
+  async addToQueue(queueName: string, data: unknown): Promise<void> {
     const key = `${this.PREFIX}queue:${queueName}`;
     await this.redis.lpush(key, JSON.stringify(data));
   }
@@ -223,6 +223,31 @@ export class RedisStorageService {
   async getQueueLength(queueName: string): Promise<number> {
     const key = `${this.PREFIX}queue:${queueName}`;
     return await this.redis.llen(key);
+  }
+
+  // ===== MÉTODOS PARA O SCHEDULER =====
+  
+  async lpush(key: string, value: string): Promise<number> {
+    return await this.redis.lpush(key, value);
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    return await this.redis.lrange(key, start, stop);
+  }
+
+  async ltrim(key: string, start: number, stop: number): Promise<string> {
+    return await this.redis.ltrim(key, start, stop);
+  }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<string> {
+    if (ttlSeconds) {
+      return await this.redis.setex(key, ttlSeconds, value);
+    }
+    return await this.redis.set(key, value);
+  }
+
+  async get(key: string): Promise<string | null> {
+    return await this.redis.get(key);
   }
 
   // ===== LIMPEZA =====

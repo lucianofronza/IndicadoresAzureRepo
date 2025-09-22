@@ -117,7 +117,7 @@ export const requireAnyPermission = (permissions: string[]) => {
  */
 async function checkUserPermission(userId: string, permission: string): Promise<boolean> {
   try {
-    const user = await (prisma as any).user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         role: true
@@ -142,7 +142,7 @@ async function checkUserPermission(userId: string, permission: string): Promise<
 export const addUserPermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (req.user) {
-      const user = await (prisma as any).user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: {
           role: true

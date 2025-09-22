@@ -1,6 +1,6 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { NotFoundError, ConflictError } from '@/middlewares/errorHandler';
+import { NotFoundError } from '@/middlewares/errorHandler';
 import { SyncServiceClient } from './syncServiceClient';
 
 export class SyncService {

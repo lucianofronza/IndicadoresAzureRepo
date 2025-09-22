@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { validate } from '@/middlewares/validation';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { requirePermission } from '@/middlewares/permissions';
 import { SyncService } from '@/services/syncService';

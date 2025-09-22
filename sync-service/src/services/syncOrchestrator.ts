@@ -213,12 +213,12 @@ export class SyncOrchestrator {
   private async getRepository(repositoryId: string) {
     try {
       // Fetch repository from backend API
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
-      const apiKey = process.env.BACKEND_API_KEY;
+      const backendUrl = process.env['BACKEND_URL'] || 'http://localhost:8080';
+      const apiKey = process.env['BACKEND_API_KEY'];
       
       const response = await fetch(`${backendUrl}/api/repositories/${repositoryId}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'X-API-Key': `${apiKey}`,
           'Content-Type': 'application/json'
         }
       });
@@ -227,7 +227,7 @@ export class SyncOrchestrator {
         throw new Error(`Failed to fetch repository: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success: boolean; message?: string; data: unknown };
       if (!result.success) {
         throw new Error(`Backend error: ${result.message}`);
       }
@@ -249,8 +249,8 @@ export class SyncOrchestrator {
 
   private async createSyncJob(
     repositoryId: string,
-    syncType: 'full' | 'incremental',
-    batchId?: string
+    _syncType: 'full' | 'incremental',
+    _batchId?: string
   ) {
     const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const job = {
@@ -276,12 +276,12 @@ export class SyncOrchestrator {
       recordsProcessed?: number;
     }
   ) {
-    const jobUpdates: any = {};
+    const jobUpdates: Record<string, string> = {};
     
-    if (updates.status) jobUpdates.status = updates.status;
-    if (updates.startedAt) jobUpdates.startedAt = updates.startedAt.toISOString();
-    if (updates.completedAt) jobUpdates.completedAt = updates.completedAt.toISOString();
-    if (updates.error) jobUpdates.error = updates.error;
+    if (updates.status) jobUpdates['status'] = updates.status;
+    if (updates.startedAt) jobUpdates['startedAt'] = updates.startedAt.toISOString();
+    if (updates.completedAt) jobUpdates['completedAt'] = updates.completedAt.toISOString();
+    if (updates.error) jobUpdates['error'] = updates.error;
     
     await this.redisStorage.updateSyncJob(jobId, jobUpdates);
   }
@@ -289,13 +289,13 @@ export class SyncOrchestrator {
   private async updateRepositoryLastSync(repositoryId: string) {
     try {
       // Update last sync time in backend database
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
-      const apiKey = process.env.BACKEND_API_KEY;
+      const backendUrl = process.env['BACKEND_URL'] || 'http://localhost:8080';
+      const apiKey = process.env['BACKEND_API_KEY'];
       
       const response = await fetch(`${backendUrl}/api/repositories/${repositoryId}/last-sync`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'X-API-Key': `${apiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -307,7 +307,7 @@ export class SyncOrchestrator {
         throw new Error(`Failed to update last sync: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success: boolean; message?: string };
       if (!result.success) {
         throw new Error(`Backend error: ${result.message}`);
       }
@@ -360,7 +360,7 @@ export class SyncOrchestrator {
           repositoryId,
           errorMessage,
           failureCount: recentFailures,
-          batchId
+          batchId: batchId || 'unknown'
         });
       }
     } catch (notificationError) {

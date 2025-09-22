@@ -38,6 +38,69 @@ router.get('/debug/scheduler', asyncHandler(async (req, res) => {
   });
 }));
 
+// DEBUG: Test backend communication
+router.get('/debug/backend', asyncHandler(async (req, res) => {
+  const schedulerService = req.app.get('schedulerService');
+  
+  try {
+    // Call the private method using reflection or make it public temporarily
+    const repositories = await (schedulerService as { getRepositoriesFromBackend: () => Promise<unknown[]> }).getRepositoriesFromBackend();
+    
+    res.json({
+      success: true,
+      data: {
+        repositories,
+        count: repositories.length,
+        backendUrl: process.env.BACKEND_URL,
+        hasApiKey: !!process.env.BACKEND_API_KEY
+      }
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      data: {
+        backendUrl: process.env.BACKEND_URL,
+        hasApiKey: !!process.env.BACKEND_API_KEY
+      }
+    });
+  }
+}));
+
+// DEBUG: Check Redis execution logs
+router.get('/debug/redis', asyncHandler(async (req, res) => {
+  const redisStorage = req.app.get('redisStorage');
+  
+  try {
+    // Check Redis execution logs directly
+    const listKey = 'scheduler:executions:list';
+    const executionIds = await redisStorage.lrange(listKey, 0, 9);
+    
+    const logs = [];
+    for (const batchId of executionIds) {
+      const logKey = `scheduler:execution:${batchId}`;
+      const logData = await redisStorage.get(logKey);
+      if (logData) {
+        logs.push(JSON.parse(logData));
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        executionIds,
+        logs,
+        count: logs.length
+      }
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}));
+
 // Get scheduler execution logs
 router.get('/scheduler/logs', asyncHandler(async (req, res) => {
   const schedulerService = req.app.get('schedulerService');
