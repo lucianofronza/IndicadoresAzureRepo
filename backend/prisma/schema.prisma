@@ -305,3 +305,16 @@ model Notification {
   
   @@map("notifications")
 }
+
+// API Keys para autenticação entre serviços
+model ServiceApiKey {
+  id          String    @id @default(cuid())
+  serviceName String
+  apiKey      String    @unique
+  permissions String[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@map("service_api_keys")
+}

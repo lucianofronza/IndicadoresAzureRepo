@@ -25,11 +25,11 @@ export class CustomError extends Error implements AppError {
 }
 
 export class ValidationError extends CustomError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 400, 'VALIDATION_ERROR');
     this.details = details;
   }
-  details?: any;
+  details?: unknown;
 }
 
 export class NotFoundError extends CustomError {
@@ -108,7 +108,7 @@ export const errorHandler = (
   }
 
   // Send error response
-  const errorResponse: any = {
+  const errorResponse: Record<string, unknown> = {
     success: false,
     error: appError.code,
     message: appError.message,
@@ -118,8 +118,8 @@ export const errorHandler = (
   };
 
   // Add request ID if available
-  if ((req as any).requestId) {
-    errorResponse.requestId = (req as any).requestId;
+  if ((req as Request & { requestId?: string }).requestId) {
+    errorResponse.requestId = (req as Request & { requestId?: string }).requestId;
   }
 
   // Add details for validation errors
@@ -162,7 +162,7 @@ export const notFoundHandler = (req: Request, res: Response): void => {
     timestamp: new Date().toISOString(),
     path: req.path,
     method: req.method,
-    requestId: (req as any).requestId,
+    requestId: (req as Request & { requestId?: string }).requestId,
   });
 };
 

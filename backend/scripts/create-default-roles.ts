@@ -35,10 +35,14 @@ async function createDefaultRoles() {
           'repositories:read',
           // Sincronização
           'sync:read',
+          'sync:status:read',
+          'sync:history:read',
+          'sync:manual:execute',
           // Azure DevOps
           'azure-devops:read'
         ],
-        isSystem: true
+        isSystem: true,
+        isDefault: true
       }
     });
 
@@ -66,6 +70,9 @@ async function createDefaultRoles() {
           'repositories:read', 'repositories:write', 'repositories:delete',
           // Sincronização
           'sync:read', 'sync:write', 'sync:execute',
+          'sync:status:read', 'sync:history:read',
+          'sync:manual:execute', 'sync:config:read', 'sync:config:write',
+          'sync:scheduler:control', 'sync:monitor:read',
           // Azure DevOps
           'azure-devops:read', 'azure-devops:write', 'azure-devops:configure'
         ],
@@ -80,7 +87,9 @@ async function createDefaultRoles() {
     // Atualizar usuários existentes para usar o role de user por padrão
     await prisma.user.updateMany({
       where: {
-        roleId: null
+        roleId: {
+          equals: null
+        }
       },
       data: {
         roleId: userRole.id

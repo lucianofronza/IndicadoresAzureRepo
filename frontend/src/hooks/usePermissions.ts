@@ -6,7 +6,7 @@ export const usePermissions = () => {
   const { user } = useAuth();
 
   // Buscar permissões do usuário
-  const { data: userPermissions = [], isLoading } = useQuery({
+  const { data: userPermissions = [], isLoading, error } = useQuery({
     queryKey: ['user-permissions', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -17,10 +17,14 @@ export const usePermissions = () => {
         return response.data.data.permissions || [];
       } catch (error) {
         console.error('Error fetching user permissions:', error);
-        return [];
+        // Se houver erro de autenticação, não retornar array vazio
+        // para evitar que o usuário seja considerado sem permissões
+        throw error;
       }
     },
     enabled: !!user,
+    retry: 1, // Tentar apenas uma vez em caso de erro
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
   });
 
   /**
@@ -28,6 +32,12 @@ export const usePermissions = () => {
    */
   const hasPermission = (permission: string): boolean => {
     if (!user || isLoading) return false;
+    // Se houver erro ao buscar permissões, não bloquear o acesso
+    // Isso evita que problemas de rede causem logout do usuário
+    if (error) {
+      console.warn('Error loading permissions, allowing access to avoid logout:', error);
+      return true; // Permitir acesso temporariamente
+    }
     return userPermissions.includes(permission);
   };
 
@@ -36,6 +46,7 @@ export const usePermissions = () => {
    */
   const hasAllPermissions = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
+    if (error) return true; // Permitir acesso temporariamente em caso de erro
     return permissions.every(permission => userPermissions.includes(permission));
   };
 
@@ -44,6 +55,7 @@ export const usePermissions = () => {
    */
   const hasAnyPermission = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
+    if (error) return true; // Permitir acesso temporariamente em caso de erro
     return permissions.some(permission => userPermissions.includes(permission));
   };
 
@@ -77,6 +89,7 @@ export const usePermissions = () => {
    */
   const canView = (module: string): boolean => {
     if (!user || isLoading) return false;
+    if (error) return true; // Permitir acesso temporariamente em caso de erro
     
     const viewPermissions = {
       dashboard: 'dashboard:read',
@@ -102,6 +115,7 @@ export const usePermissions = () => {
    */
   const canWrite = (module: string): boolean => {
     if (!user || isLoading) return false;
+    if (error) return true; // Permitir acesso temporariamente em caso de erro
     
     const writePermissions = {
       developers: 'developers:write',
@@ -126,6 +140,7 @@ export const usePermissions = () => {
    */
   const canDelete = (module: string): boolean => {
     if (!user || isLoading) return false;
+    if (error) return true; // Permitir acesso temporariamente em caso de erro
     
     const deletePermissions = {
       developers: 'developers:delete',

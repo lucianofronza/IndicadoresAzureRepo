@@ -466,18 +466,14 @@ const RepositoryStatsModal: React.FC<RepositoryStatsModalProps> = ({ repository,
               </div>
 
               {/* Estatísticas Principais */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
-                  <h4 className="text-sm font-medium text-gray-600">Pull Requests</h4>
+                  <h4 className="text-sm font-medium text-gray-600">Pull Requests Completed</h4>
                   <p className="text-2xl font-bold text-gray-900">{stats.totals.pullRequests}</p>
                 </div>
                 <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
                   <h4 className="text-sm font-medium text-gray-600">PRs Mesclados</h4>
                   <p className="text-2xl font-bold text-green-600">{stats.totals.mergedPRs}</p>
-                </div>
-                <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
-                  <h4 className="text-sm font-medium text-gray-600">PRs Abertos</h4>
-                  <p className="text-2xl font-bold text-blue-600">{stats.totals.openPRs}</p>
                 </div>
                 <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
                   <h4 className="text-sm font-medium text-gray-600">Commits</h4>

@@ -1,14 +1,13 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { acquireLock, releaseLock, cacheKeys } from '@/config/redis';
-import { NotFoundError, ConflictError } from '@/middlewares/errorHandler';
-import { AzureSyncService } from './azureSyncService';
+import { NotFoundError } from '@/middlewares/errorHandler';
+import { SyncServiceClient } from './syncServiceClient';
 
 export class SyncService {
-  private azureSync: AzureSyncService;
+  private syncServiceClient: SyncServiceClient;
 
   constructor() {
-    this.azureSync = new AzureSyncService();
+    this.syncServiceClient = new SyncServiceClient();
   }
 
   async startSync(repositoryId: string, syncType: 'full' | 'incremental' = 'incremental'): Promise<any> {
@@ -20,95 +19,86 @@ export class SyncService {
       throw new NotFoundError('Repository');
     }
 
-    // Check if sync is already running
-    const lockKey = cacheKeys.syncLock(repositoryId);
-    const hasLock = await acquireLock(lockKey, 3600); // 1 hour lock
-
-    if (!hasLock) {
-      throw new ConflictError('Sync already in progress for this repository');
-    }
-
     try {
-      // Create sync job
+      // Check if sync service is available
+      const isHealthy = await this.syncServiceClient.isHealthy();
+      if (!isHealthy) {
+        throw new Error('Sync service is not available');
+      }
+
+      // Start sync via sync service
+      const result = await this.syncServiceClient.startManualSync(repositoryId, syncType);
+
+      // Create sync job record in local database for tracking
       const job = await prisma.syncJob.create({
         data: {
           repositoryId,
-          status: 'pending',
+          status: 'running',
           syncType: syncType,
         },
       });
 
-      // Start sync in background
-      this.performSync(repositoryId, job.id, syncType).catch(error => {
-        logger.error('Sync failed:', error);
-      });
+      // Update job status based on result
+      if (result.success) {
+        await prisma.syncJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'completed',
+            completedAt: new Date(),
+          },
+        });
 
-      return job;
+        // Update repository lastSyncAt only on success
+        await prisma.repository.update({
+          where: { id: repositoryId },
+          data: {
+            lastSyncAt: new Date(),
+          },
+        });
+      } else {
+        // Mark as failed and don't update lastSyncAt
+        await prisma.syncJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'failed',
+            completedAt: new Date(),
+            error: result.error,
+          },
+        });
+        
+        // Don't update lastSyncAt on failure - this allows retry
+        console.log(`Sync failed for repository ${repositoryId}: ${result.error}`);
+      }
+
+      return {
+        ...job,
+        result
+      };
     } catch (error) {
-      await releaseLock(lockKey);
+      logger.error('Failed to start sync:', error);
       throw error;
-    }
-  }
-
-  private async performSync(repositoryId: string, jobId: string, syncType: 'full' | 'incremental' = 'incremental'): Promise<void> {
-    const lockKey = cacheKeys.syncLock(repositoryId);
-
-    try {
-      // Update job status to running
-      await prisma.syncJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'running',
-          startedAt: new Date(),
-        },
-      });
-
-      // Add timeout for the entire sync process
-      const syncPromise = this.azureSync.syncRepository(repositoryId, syncType);
-      const timeoutPromise = new Promise((_, reject) => {
-        const timeout = syncType === 'full' ? 1800000 : 900000; // 30 min for full, 15 min for incremental
-        setTimeout(() => reject(new Error(`Sync timeout: process took longer than ${timeout / 60000} minutes`)), timeout);
-      });
-
-      await Promise.race([syncPromise, timeoutPromise]);
-
-      // Update repository lastSyncAt
-      await prisma.repository.update({
-        where: { id: repositoryId },
-        data: {
-          lastSyncAt: new Date(),
-        },
-      });
-
-      // Update job status to completed
-      await prisma.syncJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'completed',
-          completedAt: new Date(),
-        },
-      });
-
-      logger.info({ repositoryId, jobId, syncType }, 'Sync completed successfully');
-    } catch (error) {
-      // Update job status to failed
-      await prisma.syncJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'failed',
-          completedAt: new Date(),
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
-
-      logger.error({ repositoryId, jobId, syncType, error }, 'Sync failed');
-      throw error;
-    } finally {
-      await releaseLock(lockKey);
     }
   }
 
   async getSyncStatus(repositoryId: string): Promise<any> {
+    try {
+      // Try to get status from sync service first
+      const syncServiceStatus = await this.syncServiceClient.getSyncStatus(repositoryId);
+      
+      // Also get local status for comparison
+      const localStatus = await this.getLocalSyncStatus(repositoryId);
+      
+      return {
+        ...localStatus,
+        syncService: syncServiceStatus
+      };
+    } catch (error) {
+      logger.warn('Failed to get sync service status, falling back to local:', error);
+      return this.getLocalSyncStatus(repositoryId);
+    }
+  }
+
+  private async getLocalSyncStatus(repositoryId: string): Promise<any> {
     const latestJob = await prisma.syncJob.findFirst({
       where: { repositoryId },
       orderBy: { createdAt: 'desc' },
@@ -129,6 +119,17 @@ export class SyncService {
   }
 
   async getSyncHistory(repositoryId: string, params: { page: number; pageSize: number }): Promise<any> {
+    try {
+      // Try to get history from sync service first
+      const syncServiceHistory = await this.syncServiceClient.getSyncHistory(repositoryId, params);
+      return syncServiceHistory;
+    } catch (error) {
+      logger.warn('Failed to get sync service history, falling back to local:', error);
+      return this.getLocalSyncHistory(repositoryId, params);
+    }
+  }
+
+  private async getLocalSyncHistory(repositoryId: string, params: { page: number; pageSize: number }): Promise<any> {
     const { page = 1, pageSize = 10 } = params;
     const skip = (page - 1) * pageSize;
 
@@ -158,23 +159,28 @@ export class SyncService {
   }
 
   async cancelSync(repositoryId: string): Promise<void> {
-    const lockKey = cacheKeys.syncLock(repositoryId);
-    await releaseLock(lockKey);
+    try {
+      // Cancel sync via sync service
+      await this.syncServiceClient.cancelSync(repositoryId);
+      
+      // Update local jobs
+      await prisma.syncJob.updateMany({
+        where: {
+          repositoryId,
+          status: 'running',
+        },
+        data: {
+          status: 'failed',
+          completedAt: new Date(),
+          error: 'Cancelled by user',
+        },
+      });
 
-    // Update running jobs to failed
-    await prisma.syncJob.updateMany({
-      where: {
-        repositoryId,
-        status: 'running',
-      },
-      data: {
-        status: 'failed',
-        completedAt: new Date(),
-        error: 'Cancelled by user',
-      },
-    });
-
-    logger.info({ repositoryId }, 'Sync cancelled');
+      logger.info({ repositoryId }, 'Sync cancelled');
+    } catch (error) {
+      logger.error('Failed to cancel sync:', error);
+      throw error;
+    }
   }
 
   async getAllJobs(params: { page: number; pageSize: number; status?: string }): Promise<any> {
@@ -218,5 +224,99 @@ export class SyncService {
         hasPrev: page > 1,
       },
     };
+  }
+
+  // Scheduler management methods
+  async getSchedulerStatus(): Promise<any> {
+    try {
+      return await this.syncServiceClient.getSchedulerStatus();
+    } catch (error) {
+      logger.error('Failed to get scheduler status:', error);
+      throw error;
+    }
+  }
+
+  async startScheduler(): Promise<void> {
+    try {
+      await this.syncServiceClient.startScheduler();
+    } catch (error) {
+      logger.error('Failed to start scheduler:', error);
+      throw error;
+    }
+  }
+
+  async stopScheduler(): Promise<void> {
+    try {
+      await this.syncServiceClient.stopScheduler();
+    } catch (error) {
+      logger.error('Failed to stop scheduler:', error);
+      throw error;
+    }
+  }
+
+  async runSchedulerNow(): Promise<void> {
+    try {
+      await this.syncServiceClient.runSchedulerNow();
+    } catch (error) {
+      logger.error('Failed to run scheduler now:', error);
+      throw error;
+    }
+  }
+
+  // Configuration methods
+  async getSyncConfig(): Promise<any> {
+    try {
+      return await this.syncServiceClient.getConfig();
+    } catch (error) {
+      logger.error('Failed to get sync config:', error);
+      throw error;
+    }
+  }
+
+  async updateSyncConfig(config: any): Promise<any> {
+    try {
+      return await this.syncServiceClient.updateConfig(config);
+    } catch (error) {
+      logger.error('Failed to update sync config:', error);
+      throw error;
+    }
+  }
+
+  // Monitoring methods
+  async getSyncMetrics(params: { days?: number } = {}): Promise<any> {
+    try {
+      return await this.syncServiceClient.getSyncMetrics(params);
+    } catch (error) {
+      logger.error('Failed to get sync metrics:', error);
+      throw error;
+    }
+  }
+
+  async getRepositoryStats(params: { repositoryId?: string; days?: number } = {}): Promise<any[]> {
+    try {
+      return await this.syncServiceClient.getRepositoryStats(params);
+    } catch (error) {
+      logger.error('Failed to get repository stats:', error);
+      throw error;
+    }
+  }
+
+  async getSystemStatus(): Promise<any> {
+    try {
+      return await this.syncServiceClient.getSystemStatus();
+    } catch (error) {
+      logger.error('Failed to get system status:', error);
+      throw error;
+    }
+  }
+
+  // Health check
+  async isSyncServiceHealthy(): Promise<boolean> {
+    try {
+      return await this.syncServiceClient.isHealthy();
+    } catch (error) {
+      logger.error('Sync service health check failed:', error);
+      return false;
+    }
   }
 }

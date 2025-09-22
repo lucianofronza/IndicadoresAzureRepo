@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Check, UserCheck, Clock, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Notification {
   id: string;
@@ -27,6 +28,10 @@ interface NotificationDropdownProps {
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+
+  // Verificar se o usuário tem permissão para ver notificações
+  const canViewNotifications = hasPermission('users:read');
 
   // Buscar contador de notificações não lidas
   const { data: unreadCount = 0 } = useQuery({
@@ -36,6 +41,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ clas
       return response.data.data.count;
     },
     refetchInterval: 30000, // Atualizar a cada 30 segundos
+    enabled: canViewNotifications, // Só buscar se tiver permissão
   });
 
   // Buscar notificações recentes
@@ -45,7 +51,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ clas
       const response = await api.get('/notifications?page=1&pageSize=5');
       return response.data.data;
     },
-    enabled: isOpen, // Só buscar quando dropdown estiver aberto
+    enabled: isOpen && canViewNotifications, // Só buscar quando dropdown estiver aberto E tiver permissão
   });
 
   // Mutação para marcar como lida
@@ -121,6 +127,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ clas
         return 'bg-gray-50 border-gray-200';
     }
   };
+
+  // Se o usuário não tem permissão para ver notificações, não renderizar o componente
+  if (!canViewNotifications) {
+    return null;
+  }
 
   return (
     <div className={`relative ${className}`}>

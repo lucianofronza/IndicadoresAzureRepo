@@ -68,6 +68,7 @@ export const requireAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -83,6 +84,7 @@ export const requireAuth = async (
     
     try {
       const user = await authService.verifyToken(token);
+      
       req.user = {
         id: user.id,
         login: user.login,
@@ -92,6 +94,7 @@ export const requireAuth = async (
         viewScope: user.viewScope
       };
       
+      
       logger.info({ 
         userId: user.id, 
         email: user.email,
@@ -100,6 +103,7 @@ export const requireAuth = async (
       
       next();
     } catch (error) {
+      
       logger.warn({ 
         error: error instanceof Error ? error.message : 'Unknown error',
         requestId: req.requestId 

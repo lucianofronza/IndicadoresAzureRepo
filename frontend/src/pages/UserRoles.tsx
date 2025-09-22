@@ -784,7 +784,11 @@ export const UserRoles: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const syncPermissions = ['sync:read', 'sync:write', 'sync:execute'];
+                            const syncPermissions = [
+                              'sync:read', 'sync:write', 'sync:execute',
+                              'sync:status:read', 'sync:history:read', 'sync:manual:execute',
+                              'sync:config:read', 'sync:config:write', 'sync:scheduler:control', 'sync:monitor:read'
+                            ];
                             const hasAllPermissions = syncPermissions.every(p => formData.permissions.includes(p));
                             if (hasAllPermissions) {
                               setFormData({
@@ -800,32 +804,165 @@ export const UserRoles: React.FC = () => {
                           }}
                           className="text-xs text-indigo-600 hover:text-indigo-800"
                         >
-                          {['sync:read', 'sync:write', 'sync:execute'].every(p => formData.permissions.includes(p)) ? 'Deselecionar' : 'Selecionar'} Todos
+                          {[
+                            'sync:read', 'sync:write', 'sync:execute',
+                            'sync:status:read', 'sync:history:read', 'sync:manual:execute',
+                            'sync:config:read', 'sync:config:write', 'sync:scheduler:control', 'sync:monitor:read'
+                          ].every(p => formData.permissions.includes(p)) ? 'Deselecionar' : 'Selecionar'} Todos
                         </button>
                       </div>
-                      {['sync:read', 'sync:write', 'sync:execute'].map((permission) => (
-                        <label key={permission} className="flex items-center mb-1">
-                          <input
-                            type="checkbox"
-                            checked={formData.permissions.includes(permission)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
+                      
+                      {/* Permissões Básicas */}
+                      <div className="mb-3">
+                        <h5 className="text-xs font-medium text-gray-600 mb-2">Permissões Básicas</h5>
+                        {[
+                          { permission: 'sync:read', label: 'Visualizar sincronização', required: true },
+                          { permission: 'sync:write', label: 'Modificar configurações de sync', required: false },
+                          { permission: 'sync:execute', label: 'Executar sincronizações automáticas', required: false }
+                        ].map(({ permission, label, required }) => (
+                          <label key={permission} className="flex items-center mb-1">
+                            <input
+                              type="checkbox"
+                              checked={formData.permissions.includes(permission)}
+                              onChange={(e) => {
+                                let newPermissions = [...formData.permissions];
+                                
+                                if (e.target.checked) {
+                                  // Adicionar permissão
+                                  if (!newPermissions.includes(permission)) {
+                                    newPermissions.push(permission);
+                                  }
+                                } else {
+                                  // Remover permissão e suas dependências
+                                  newPermissions = newPermissions.filter(p => p !== permission);
+                                  
+                                  // Se remover sync:read, remover todas as outras permissões de sync
+                                  if (permission === 'sync:read') {
+                                    newPermissions = newPermissions.filter(p => !p.startsWith('sync:'));
+                                  }
+                                  // Se remover sync:write, remover permissões que dependem dela
+                                  else if (permission === 'sync:write') {
+                                    newPermissions = newPermissions.filter(p => !['sync:config:write', 'sync:scheduler:control'].includes(p));
+                                  }
+                                  // Se remover sync:execute, remover permissões que dependem dela
+                                  else if (permission === 'sync:execute') {
+                                    newPermissions = newPermissions.filter(p => !['sync:manual:execute', 'sync:scheduler:control'].includes(p));
+                                  }
+                                }
+                                
                                 setFormData({
                                   ...formData,
-                                  permissions: [...formData.permissions, permission]
+                                  permissions: newPermissions
                                 });
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  permissions: formData.permissions.filter(p => p !== permission)
-                                });
-                              }
-                            }}
-                            className="h-4 w-4 text-indigo-600 focus:ring-primary-500 border-gray-300 rounded"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">{permission}</span>
-                        </label>
-                      ))}
+                              }}
+                              className="h-4 w-4 text-indigo-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm text-gray-700">
+                              {label}
+                              {required && <span className="text-red-500 ml-1">*</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Permissões Específicas */}
+                      <div className="mb-3">
+                        <h5 className="text-xs font-medium text-gray-600 mb-2">Permissões Específicas</h5>
+                        {[
+                          { 
+                            permission: 'sync:status:read', 
+                            label: 'Visualizar status de sincronização',
+                            dependsOn: ['sync:read'],
+                            description: 'Requer: Visualizar sincronização'
+                          },
+                          { 
+                            permission: 'sync:history:read', 
+                            label: 'Visualizar histórico de sincronização',
+                            dependsOn: ['sync:read'],
+                            description: 'Requer: Visualizar sincronização'
+                          },
+                          { 
+                            permission: 'sync:manual:execute', 
+                            label: 'Executar sincronização manual',
+                            dependsOn: ['sync:read', 'sync:execute'],
+                            description: 'Requer: Visualizar + Executar sincronizações'
+                          },
+                          { 
+                            permission: 'sync:config:read', 
+                            label: 'Visualizar configurações de sync',
+                            dependsOn: ['sync:read'],
+                            description: 'Requer: Visualizar sincronização'
+                          },
+                          { 
+                            permission: 'sync:config:write', 
+                            label: 'Modificar configurações de sync',
+                            dependsOn: ['sync:read', 'sync:write'],
+                            description: 'Requer: Visualizar + Modificar configurações'
+                          },
+                          { 
+                            permission: 'sync:scheduler:control', 
+                            label: 'Controlar agendador de sincronização',
+                            dependsOn: ['sync:read', 'sync:write', 'sync:execute'],
+                            description: 'Requer: Todas as permissões básicas'
+                          },
+                          { 
+                            permission: 'sync:monitor:read', 
+                            label: 'Visualizar monitoramento de sync',
+                            dependsOn: ['sync:read'],
+                            description: 'Requer: Visualizar sincronização'
+                          }
+                        ].map(({ permission, label, dependsOn, description }) => {
+                          const hasDependencies = dependsOn.every(dep => formData.permissions.includes(dep));
+                          const isChecked = formData.permissions.includes(permission);
+                          
+                          return (
+                            <label key={permission} className="flex items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                disabled={!hasDependencies}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    // Adicionar permissão e suas dependências se necessário
+                                    let newPermissions = [...formData.permissions];
+                                    if (!newPermissions.includes(permission)) {
+                                      newPermissions.push(permission);
+                                    }
+                                    // Adicionar dependências se não estiverem presentes
+                                    dependsOn.forEach(dep => {
+                                      if (!newPermissions.includes(dep)) {
+                                        newPermissions.push(dep);
+                                      }
+                                    });
+                                    
+                                    setFormData({
+                                      ...formData,
+                                      permissions: newPermissions
+                                    });
+                                  } else {
+                                    // Remover apenas esta permissão
+                                    setFormData({
+                                      ...formData,
+                                      permissions: formData.permissions.filter(p => p !== permission)
+                                    });
+                                  }
+                                }}
+                                className={`h-4 w-4 text-indigo-600 focus:ring-primary-500 border-gray-300 rounded ${
+                                  !hasDependencies ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                              />
+                              <span className={`ml-2 text-sm ${!hasDependencies ? 'text-gray-400' : 'text-gray-700'}`}>
+                                {label}
+                                {!hasDependencies && (
+                                  <span className="block text-xs text-gray-400 mt-1">
+                                    {description}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Permissões de Azure DevOps */}

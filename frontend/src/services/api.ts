@@ -33,6 +33,18 @@ api.interceptors.response.use(
 
     // Se o erro for 401 (não autorizado) e não for uma tentativa de refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Verificar se é um erro de permissão específica ou erro de autenticação geral
+      const isPermissionError = error.response?.data?.error === 'INSUFFICIENT_PERMISSIONS' || 
+                                error.response?.data?.error === 'ACCESS_DENIED' ||
+                                error.response?.data?.message?.includes('permissão') ||
+                                error.response?.data?.message?.includes('permission');
+      
+      // Se for erro de permissão, não tentar refresh - apenas rejeitar a promise
+      if (isPermissionError) {
+        console.warn('Permission denied for:', originalRequest.url);
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {

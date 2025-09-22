@@ -1,16 +1,61 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Play, Square } from 'lucide-react'
+import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Play, Square, Settings } from 'lucide-react'
 import { Repository } from '@/types'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/hooks/useAuth'
 
 export const Sync: React.FC = () => {
   const [selectedRepository, setSelectedRepository] = useState<Repository | null>(null)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [isSyncingAll, setIsSyncingAll] = useState(false)
+  const [syncingRepositories, setSyncingRepositories] = useState<Set<string>>(new Set())
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
   const previousStatuses = useRef<Record<string, string>>({})
 
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  // Fetch scheduler logs
+  const { data: schedulerLogs } = useQuery({
+    queryKey: ['scheduler-logs'],
+    queryFn: async () => {
+      const response = await api.get('/sync/scheduler/logs')
+      return response.data.data
+    },
+    enabled: !!user,
+    retry: false,
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  })
+
+  // Fetch scheduler configuration
+  const { data: schedulerConfig } = useQuery({
+    queryKey: ['scheduler-config'],
+    queryFn: async () => {
+      const response = await api.get('/sync/scheduler/config')
+      return response.data.data
+    },
+    enabled: !!user,
+    retry: false,
+  })
+
+  // Update scheduler configuration mutation
+  const updateConfigMutation = useMutation({
+    mutationFn: async (config: any) => {
+      const response = await api.put('/sync/scheduler/config', config)
+      return response.data
+    },
+    onSuccess: () => {
+      // Refetch a configuração para mostrar os novos valores
+      queryClient.invalidateQueries({ queryKey: ['scheduler-config'] })
+      toast.success('Configuração da sincronização automática atualizada!')
+      setIsConfigModalOpen(false)
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao atualizar configuração: ${error.response?.data?.message || 'Erro desconhecido'}`)
+    }
+  })
 
   // Fetch repositories
   const { data: repositoriesData, isLoading, error: reposError } = useQuery({
@@ -19,10 +64,11 @@ export const Sync: React.FC = () => {
       const response = await api.get('/repositories')
       return response.data
     },
+    enabled: !!user, // Só executar se o usuário estiver logado
   })
 
   // Fetch sync status for all repositories
-  const { data: syncStatuses } = useQuery({
+  const { data: syncStatuses, error: syncStatusError } = useQuery({
     queryKey: ['sync-statuses'],
     queryFn: async () => {
       const statuses = await Promise.all(
@@ -30,21 +76,32 @@ export const Sync: React.FC = () => {
           try {
             const response = await api.get(`/sync/${repo.id}/status`)
             return { repositoryId: repo.id, ...response.data.data }
-          } catch (error) {
-            return { repositoryId: repo.id, status: 'unknown' }
+          } catch (error: any) {
+            // Se for erro de permissão, retornar status específico
+            if (error.response?.status === 401) {
+              return { repositoryId: repo.id, status: 'no_permission', error: 'Sem permissão para visualizar status' }
+            }
+            return { repositoryId: repo.id, status: 'unknown', error: 'Erro ao buscar status' }
           }
         }) || []
       )
       return statuses
     },
-    enabled: !!repositoriesData?.data,
+    enabled: !!repositoriesData?.data && !!user,
     refetchInterval: (data) => {
-      // Refetch every 3 seconds if there are running jobs
+      // Se há dados com status de 'no_permission', não fazer polling
+      if (Array.isArray(data) && data.some((status: any) => status.status === 'no_permission')) {
+        return false
+      }
+      
+      // Refetch every 2 seconds if there are running jobs OR if we have syncing repositories
       const hasRunningJobs = Array.isArray(data) && data.some((status: any) => 
         status.status === 'running' || status.status === 'pending'
       )
-      console.log('Sync status polling:', { hasRunningJobs, statuses: data })
-      return hasRunningJobs ? 3000 : false
+      const hasSyncingRepos = syncingRepositories.size > 0
+      
+      console.log('Sync status polling:', { hasRunningJobs, hasSyncingRepos, syncingRepos: Array.from(syncingRepositories) })
+      return (hasRunningJobs || hasSyncingRepos) ? 2000 : false
     },
     refetchIntervalInBackground: true,
   })
@@ -56,7 +113,10 @@ export const Sync: React.FC = () => {
       return response.data
     },
     onSuccess: (_data, { repositoryId }) => {
+      // Forçar refetch imediato do status
       queryClient.invalidateQueries({ queryKey: ['sync-statuses'] })
+      queryClient.refetchQueries({ queryKey: ['sync-statuses'] })
+      
       const repoName = repositoriesData?.data?.find((repo: Repository) => repo.id === repositoryId)?.name
       toast.success(`Sincronização iniciada para ${repoName || 'repositório'}`)
     },
@@ -77,7 +137,19 @@ export const Sync: React.FC = () => {
   })
 
   const handleSync = (repositoryId: string, syncType: 'full' | 'incremental' = 'incremental') => {
-    syncMutation.mutate({ repositoryId, syncType })
+    // Adicionar repositório à lista de sincronização
+    setSyncingRepositories(prev => new Set(prev).add(repositoryId))
+    
+    syncMutation.mutate({ repositoryId, syncType }, {
+      onSettled: () => {
+        // Remover repositório da lista de sincronização após concluir (sucesso ou erro)
+        setSyncingRepositories(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(repositoryId)
+          return newSet
+        })
+      }
+    })
   }
 
   const handleCancelSync = (repositoryId: string) => {
@@ -210,6 +282,10 @@ export const Sync: React.FC = () => {
     )
   }
 
+  // Verificar se há erro de permissão específico (não bloquear toda a página)
+  const hasStatusPermissionError = (syncStatusError as any)?.response?.status === 401 || 
+    (Array.isArray(syncStatuses) && syncStatuses.some((s: any) => s.status === 'no_permission'));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -227,17 +303,67 @@ export const Sync: React.FC = () => {
           <button 
             className="btn btn-primary btn-md"
             onClick={() => {
-              repositoriesData?.data?.forEach((repo: Repository) => {
-                handleSync(repo.id, 'incremental')
+              if (!repositoriesData?.data) return
+              
+              setIsSyncingAll(true)
+              
+              // Adicionar todos os repositórios ao estado de sincronização
+              const allRepoIds = new Set<string>(repositoriesData.data.map((repo: Repository) => repo.id))
+              setSyncingRepositories(allRepoIds)
+              
+              // Contar quantos repositórios serão sincronizados
+              let completedSyncs = 0
+              const totalRepos = repositoriesData.data.length
+              
+              repositoriesData.data.forEach((repo: Repository) => {
+                syncMutation.mutate({ repositoryId: repo.id, syncType: 'incremental' }, {
+                  onSettled: () => {
+                    completedSyncs++
+                    
+                    // Remover repositório específico da lista
+                    setSyncingRepositories(prev => {
+                      const newSet = new Set(prev)
+                      newSet.delete(repo.id)
+                      return newSet
+                    })
+                    
+                    // Resetar estado geral quando todos terminarem
+                    if (completedSyncs >= totalRepos) {
+                      setIsSyncingAll(false)
+                    }
+                  }
+                })
               })
             }}
-            disabled={syncMutation.isPending}
+            disabled={isSyncingAll}
           >
-            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
             Sincronizar Todos
           </button>
         </div>
       </div>
+
+      {/* Aviso sobre permissão de status */}
+      {hasStatusPermissionError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Aviso de Permissão
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>
+                  Você não tem permissão para visualizar o status detalhado de sincronização, 
+                  mas pode executar sincronizações e visualizar o histórico.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sync Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -298,6 +424,60 @@ export const Sync: React.FC = () => {
         </div>
       </div>
 
+      {/* Sincronização Automática */}
+      <div className="card">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Sincronização Automática</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Configuração e histórico de execuções automáticas
+              </p>
+            </div>
+            <button
+              onClick={() => setIsConfigModalOpen(true)}
+              className="btn btn-primary btn-sm"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configurar
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          {schedulerLogs && schedulerLogs.length > 0 ? (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Últimas Execuções</h4>
+              <div className="space-y-2">
+                {schedulerLogs.slice(0, 5).map((log: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      {log.success ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                      <span className="text-sm text-gray-900">
+                        {log.success ? 'Sincronização concluída' : 'Sincronização falhou'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(log.executedAt).toLocaleString('pt-BR')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p>Nenhuma execução automática registrada</p>
+              <p className="text-sm">Configure a sincronização automática para começar</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Repositories List */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -349,10 +529,21 @@ export const Sync: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {getStatusIcon(status?.status || 'unknown')}
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status?.status || 'unknown')}`}>
-                            {getStatusText(status?.status || 'unknown')}
-                          </span>
+                          {hasStatusPermissionError ? (
+                            <>
+                              <AlertCircle className="h-4 w-4 text-gray-400" />
+                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Sem permissão
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              {getStatusIcon(status?.status || 'unknown')}
+                              <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status?.status || 'unknown')}`}>
+                                {getStatusText(status?.status || 'unknown')}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -381,9 +572,13 @@ export const Sync: React.FC = () => {
                               onClick={() => handleSync(repository.id)}
                               className="text-blue-600 hover:text-blue-900"
                               title="Sincronizar (automático: completa se nunca sincronizado, incremental se já sincronizado)"
-                              disabled={syncMutation.isPending}
+                              disabled={syncingRepositories.has(repository.id)}
                             >
-                              <Play className="h-4 w-4" />
+                              {syncingRepositories.has(repository.id) ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
                             </button>
                           )}
                           <button
@@ -413,6 +608,95 @@ export const Sync: React.FC = () => {
             setSelectedRepository(null)
           }}
         />
+      )}
+
+      {/* Modal de Configuração */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">
+                Configuração da Sincronização Automática
+              </h3>
+              <button
+                onClick={() => setIsConfigModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {schedulerConfig ? (
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target as HTMLFormElement)
+                  const config = {
+                    intervalMinutes: parseInt(formData.get('interval') as string),
+                    maxConcurrentRepos: parseInt(formData.get('maxConcurrent') as string),
+                  }
+                  updateConfigMutation.mutate(config)
+                }}>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="interval" className="block text-sm font-medium text-gray-700 mb-2">
+                        Intervalo entre sincronizações (minutos)
+                      </label>
+                      <input
+                        type="number"
+                        id="interval"
+                        name="interval"
+                        defaultValue={schedulerConfig.intervalMinutes || 30}
+                        min="1"
+                        max="1440"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="maxConcurrent" className="block text-sm font-medium text-gray-700 mb-2">
+                        Máximo de repositórios simultâneos
+                      </label>
+                      <input
+                        type="number"
+                        id="maxConcurrent"
+                        name="maxConcurrent"
+                        defaultValue={schedulerConfig.maxConcurrentRepos || 3}
+                        min="1"
+                        max="10"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsConfigModalOpen(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateConfigMutation.isPending}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      {updateConfigMutation.isPending ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p>Carregando configurações...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

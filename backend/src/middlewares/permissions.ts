@@ -21,11 +21,7 @@ export const requirePermission = (permission: string) => {
         throw new CustomError('Usuário não autenticado', 401, 'UNAUTHORIZED');
       }
 
-      // Buscar o role do usuário e suas permissões
       const userRole = req.user.role;
-      
-      // Por enquanto, usar lógica simples baseada no role
-      // Em uma implementação mais avançada, isso viria do banco de dados
       const hasPermission = await checkUserPermission(req.user.id, permission);
       
       if (!hasPermission) {
@@ -121,8 +117,7 @@ export const requireAnyPermission = (permissions: string[]) => {
  */
 async function checkUserPermission(userId: string, permission: string): Promise<boolean> {
   try {
-    // Buscar o usuário com seu role e permissões
-    const user = await (prisma as any).user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         role: true
@@ -132,8 +127,9 @@ async function checkUserPermission(userId: string, permission: string): Promise<
     if (!user || !user.role) {
       return false;
     }
-
-    return user.role.permissions.includes(permission);
+    
+    const hasPermission = user.role.permissions.includes(permission);
+    return hasPermission;
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error checking user permission');
     return false;
@@ -146,7 +142,7 @@ async function checkUserPermission(userId: string, permission: string): Promise<
 export const addUserPermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (req.user) {
-      const user = await (prisma as any).user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: {
           role: true

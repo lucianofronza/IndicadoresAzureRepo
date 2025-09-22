@@ -42,7 +42,8 @@ async function createAdminUser() {
       const updatedAdmin = await (prisma as any).user.update({
         where: { id: existingAdmin.id },
         data: {
-          roleId: adminRole.id
+          roleId: adminRole.id,
+          viewScope: 'all' // Admin pode ver todos os dados
         },
         include: {
           role: true
@@ -75,6 +76,7 @@ async function createAdminUser() {
         login: adminData.login,
         password: hashedPassword,
         roleId: adminRole.id, // Usar o ID do role de admin
+        viewScope: 'all', // Admin pode ver todos os dados
         isActive: true
       },
       include: {

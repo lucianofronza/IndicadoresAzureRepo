@@ -105,17 +105,17 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 // Request ID middleware
 export const requestId = (req: Request, res: Response, next: NextFunction) => {
   const requestId = req.headers['x-request-id'] || generateRequestId();
-  (req as any).requestId = requestId;
+  (req as Request & { requestId?: string }).requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
   next();
 };
 
 // IP address middleware
 export const ipAddress = (req: Request, res: Response, next: NextFunction) => {
-  (req as any).ip = req.headers['x-forwarded-for'] as string || 
+  (req as Request & { ip?: string }).ip = req.headers['x-forwarded-for'] as string || 
            req.headers['x-real-ip'] as string || 
-           (req as any).connection.remoteAddress || 
-           (req as any).socket.remoteAddress || 
+           (req as Request & { connection?: { remoteAddress?: string } }).connection?.remoteAddress || 
+           (req as Request & { socket?: { remoteAddress?: string } }).socket?.remoteAddress || 
            'unknown';
   next();
 };
