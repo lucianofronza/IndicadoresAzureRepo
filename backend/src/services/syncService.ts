@@ -45,16 +45,23 @@ export class SyncService {
           data: {
             status: 'completed',
             completedAt: new Date(),
+            recordsProcessed: result.recordsProcessed || 0,
           },
         });
 
-        // Update repository lastSyncAt only on success
-        await prisma.repository.update({
-          where: { id: repositoryId },
-          data: {
-            lastSyncAt: new Date(),
-          },
-        });
+        // Update repository lastSyncAt only if there were changes (recordsProcessed > 0)
+        // This ensures consistency with automatic sync behavior
+        if (result.recordsProcessed && result.recordsProcessed > 0) {
+          await prisma.repository.update({
+            where: { id: repositoryId },
+            data: {
+              lastSyncAt: new Date(),
+            },
+          });
+          logger.info(`Updated lastSyncAt for repository ${repositoryId} - ${result.recordsProcessed} records processed`);
+        } else {
+          logger.info(`Skipped lastSyncAt update for repository ${repositoryId} - no changes detected`);
+        }
       } else {
         // Mark as failed and don't update lastSyncAt
         await prisma.syncJob.update({
