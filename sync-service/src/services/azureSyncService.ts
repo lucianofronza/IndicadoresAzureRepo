@@ -5,6 +5,7 @@ import { recordAzureApiRequest } from '@/utils/metrics';
 export interface SyncResult {
   success: boolean;
   recordsProcessed: number;
+  hasNewData?: boolean;
   error?: string;
 }
 
@@ -146,7 +147,8 @@ export class AzureSyncService {
 
       return {
         success: true,
-        recordsProcessed: totalRecordsProcessed
+        recordsProcessed: totalRecordsProcessed,
+        hasNewData: totalRecordsProcessed > 0
       };
 
     } catch (error) {

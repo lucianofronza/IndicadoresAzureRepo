@@ -10,6 +10,7 @@ export interface SyncResult {
   success: boolean;
   duration: number;
   recordsProcessed?: number;
+  hasNewData?: boolean;
   error?: string;
 }
 
