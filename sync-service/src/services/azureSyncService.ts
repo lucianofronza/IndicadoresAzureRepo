@@ -145,10 +145,14 @@ export class AzureSyncService {
         recordsProcessed: totalRecordsProcessed
       });
 
+      // Only consider it "new data" if we actually created new records
+      // For now, we'll be conservative and assume no new data unless we can prove otherwise
+      const hasNewData = false; // TODO: Implement proper detection of new vs updated records
+      
       return {
         success: true,
         recordsProcessed: totalRecordsProcessed,
-        hasNewData: totalRecordsProcessed > 0
+        hasNewData
       };
 
     } catch (error) {
