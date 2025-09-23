@@ -45,7 +45,6 @@ export class SyncService {
           data: {
             status: 'completed',
             completedAt: new Date(),
-            recordsProcessed: result.recordsProcessed || 0,
           },
         });
 
