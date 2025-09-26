@@ -5,6 +5,7 @@ import { recordAzureApiRequest } from '@/utils/metrics';
 export interface SyncResult {
   success: boolean;
   recordsProcessed: number;
+  hasNewData?: boolean;
   error?: string;
 }
 
@@ -125,14 +126,25 @@ export class AzureSyncService {
       });
 
       let totalRecordsProcessed = 0;
+      let totalRecordsCreated = 0;
 
       // Sync pull requests
-      const prRecords = await this.syncPullRequests(repository, since);
-      totalRecordsProcessed += prRecords;
+      const prResult = await this.syncPullRequests(repository, since);
+      if (typeof prResult === 'object') {
+        totalRecordsProcessed += prResult.processed;
+        totalRecordsCreated += prResult.created;
+      } else {
+        totalRecordsProcessed += prResult;
+      }
 
       // Sync commits apenas dos PRs completed
-      const commitRecords = await this.syncCommitsFromPRs(repository, since);
-      totalRecordsProcessed += commitRecords;
+      const commitResult = await this.syncCommitsFromPRs(repository, since);
+      if (typeof commitResult === 'object') {
+        totalRecordsProcessed += commitResult.processed;
+        totalRecordsCreated += commitResult.created;
+      } else {
+        totalRecordsProcessed += commitResult;
+      }
 
       // Sync work items (if needed)
       const workItemRecords = await this.syncWorkItems(repository, since);
@@ -141,12 +153,17 @@ export class AzureSyncService {
       logger.info('Azure sync completed', {
         repositoryId,
         syncType,
-        recordsProcessed: totalRecordsProcessed
+        recordsProcessed: totalRecordsProcessed,
+        recordsCreated: totalRecordsCreated
       });
 
+      // Consider it "new data" if we actually created new records
+      const hasNewData = totalRecordsCreated > 0;
+      
       return {
         success: true,
-        recordsProcessed: totalRecordsProcessed
+        recordsProcessed: totalRecordsProcessed,
+        hasNewData
       };
 
     } catch (error) {
@@ -282,15 +299,17 @@ export class AzureSyncService {
       }
 
       // Process and save pull requests
-      const recordsProcessed = await this.processPullRequests(repository.id, pullRequests);
+      const result = await this.processPullRequests(repository.id, pullRequests);
 
       logger.info('Pull requests synced', {
         repositoryId: repository.id,
         count: pullRequests.length,
-        recordsProcessed
+        processed: typeof result === 'object' ? result.processed : result,
+        created: typeof result === 'object' ? result.created : 0,
+        updated: typeof result === 'object' ? result.updated : 0
       });
 
-      return recordsProcessed;
+      return result;
 
     } catch (error) {
       logger.error('Failed to sync pull requests:', error);
@@ -367,7 +386,17 @@ export class AzureSyncService {
       });
 
       // 4. Processar commits (usando lógica existente)
-      return await this.processCommits(repository.id, allCommits);
+      const result = await this.processCommits(repository.id, allCommits);
+      
+      logger.info('Commits from PRs synced', {
+        repositoryId: repository.id,
+        totalCommits: allCommits.length,
+        processed: typeof result === 'object' ? result.processed : result,
+        created: typeof result === 'object' ? result.created : 0,
+        updated: typeof result === 'object' ? result.updated : 0
+      });
+      
+      return result;
 
     } catch (error) {
       logger.error('Failed to sync commits from PRs:', error);
@@ -777,7 +806,9 @@ export class AzureSyncService {
         logger.info('Pull requests sent to backend successfully', {
           repositoryId,
           total: pullRequests.length,
-          processed: response.data.data.processed
+          processed: response.data.data.processed,
+          created: response.data.data.created,
+          updated: response.data.data.updated
         });
         
         // Processar reviews e comments dos PRs
@@ -786,13 +817,21 @@ export class AzureSyncService {
         const prIdMapping = await this.getPullRequestIdMapping(repositoryId, mappedPullRequests);
         await this.processReviewsAndComments(repositoryId, mappedPullRequests, prIdMapping);
         
-        return response.data.data.processed;
+        return {
+          processed: response.data.data.processed,
+          created: response.data.data.created || 0,
+          updated: response.data.data.updated || 0
+        };
       } else {
         throw new Error('Backend returned unsuccessful response');
       }
     } catch (error) {
       logger.error('Failed to send pull requests to backend:', error);
-      return 0;
+      return {
+        processed: 0,
+        created: 0,
+        updated: 0
+      };
     }
   }
 
@@ -837,15 +876,25 @@ export class AzureSyncService {
         logger.info('Commits sent to backend successfully', {
           repositoryId,
           total: commits.length,
-          processed: response.data.data.processed
+          processed: response.data.data.processed,
+          created: response.data.data.created,
+          updated: response.data.data.updated
         });
-        return response.data.data.processed;
+        return {
+          processed: response.data.data.processed,
+          created: response.data.data.created || 0,
+          updated: response.data.data.updated || 0
+        };
       } else {
         throw new Error('Backend returned unsuccessful response');
       }
     } catch (error) {
       logger.error('Failed to send commits to backend:', error);
-      return 0;
+      return {
+        processed: 0,
+        created: 0,
+        updated: 0
+      };
     }
   }
 

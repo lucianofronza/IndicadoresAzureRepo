@@ -24,6 +24,8 @@ router.post('/pull-requests',
     }
 
     let processed = 0;
+    let created = 0;
+    let updated = 0;
     const errors: any[] = [];
 
     for (const prData of pullRequests) {
@@ -58,6 +60,7 @@ router.post('/pull-requests',
               isDraft: prData.isDraft
             }
           });
+          updated++;
         } else {
           // Processar dados do desenvolvedor
           let createdById = prData.createdById;
@@ -127,6 +130,7 @@ router.post('/pull-requests',
               createdById: createdById
             }
           });
+          created++;
         }
         processed++;
       } catch (error) {
@@ -163,6 +167,8 @@ router.post('/pull-requests',
       data: {
         total: pullRequests.length,
         processed,
+        created,
+        updated,
         errors: errors.length
       }
     });
@@ -184,6 +190,8 @@ router.post('/commits',
     }
 
     let processed = 0;
+    let created = 0;
+    let updated = 0;
     const errors: any[] = [];
 
     for (const commitData of commits) {
@@ -206,6 +214,7 @@ router.post('/commits',
               createdAt: new Date(commitData.createdAt)
             }
           });
+          updated++;
         } else {
           // Processar dados do desenvolvedor
           let authorId = commitData.authorId;
@@ -262,6 +271,7 @@ router.post('/commits',
               authorId: authorId
             }
           });
+          created++;
         }
         processed++;
       } catch (error) {
@@ -298,6 +308,8 @@ router.post('/commits',
       data: {
         total: commits.length,
         processed,
+        created,
+        updated,
         errors: errors.length
       }
     });

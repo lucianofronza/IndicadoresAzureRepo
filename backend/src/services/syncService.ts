@@ -48,13 +48,19 @@ export class SyncService {
           },
         });
 
-        // Update repository lastSyncAt only on success
-        await prisma.repository.update({
-          where: { id: repositoryId },
-          data: {
-            lastSyncAt: new Date(),
-          },
-        });
+        // For manual sync, only update lastSyncAt if there was actually new data
+        // This ensures consistency with automatic sync behavior
+        if (result.hasNewData) {
+          await prisma.repository.update({
+            where: { id: repositoryId },
+            data: {
+              lastSyncAt: new Date(),
+            },
+          });
+          logger.info(`Updated lastSyncAt for repository ${repositoryId} - new data found (${result.recordsProcessed} records processed)`);
+        } else {
+          logger.info(`Skipped lastSyncAt update for repository ${repositoryId} - no new data found since last sync`);
+        }
       } else {
         // Mark as failed and don't update lastSyncAt
         await prisma.syncJob.update({
