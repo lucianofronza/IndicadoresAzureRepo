@@ -86,6 +86,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
+        // Aguardar um pouco antes de definir o usuário para garantir que o token seja propagado
+        await new Promise(resolve => setTimeout(resolve, 100));
         setUser(user);
       } else {
         // Se não tem dados processados, fazer chamada para o backend
@@ -104,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
+        // Aguardar um pouco antes de definir o usuário para garantir que o token seja propagado
+        await new Promise(resolve => setTimeout(resolve, 100));
         setUser(user);
       }
     } catch (error: any) {

@@ -12,8 +12,13 @@ export const usePermissions = () => {
       if (!user) return [];
       
       try {
-        // Pequeno delay para garantir que o token esteja configurado
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Delay maior para garantir que o token esteja configurado e o estado do usuário atualizado
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Verificar se o token está realmente configurado no axios
+        if (!api.defaults.headers.common['Authorization']) {
+          throw new Error('Token não configurado');
+        }
         
         // Buscar permissões do usuário logado
         const response = await api.get('/auth/me');
