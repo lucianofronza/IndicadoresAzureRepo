@@ -110,6 +110,7 @@ export const debugLogger = DebugLogger.getInstance();
 export const DebugLoggerComponent: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isVisible, setIsVisible] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false); // Desabilitado por padrão
 
   useEffect(() => {
     // Carregar logs existentes do localStorage
@@ -118,6 +119,11 @@ export const DebugLoggerComponent: React.FC = () => {
     const unsubscribe = debugLogger.subscribe(setLogs);
     return unsubscribe;
   }, []);
+
+  // Se não está habilitado, não renderizar nada
+  if (!isEnabled) {
+    return null;
+  }
 
   if (!isVisible) {
     return (
