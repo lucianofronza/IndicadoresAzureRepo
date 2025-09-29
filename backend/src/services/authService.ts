@@ -370,8 +370,12 @@ export class AuthService {
         throw new CustomError('Falha ao trocar código de autorização por token', 400, 'TOKEN_EXCHANGE_FAILED');
       }
 
-      const tokenData = await tokenResponse.json();
+      const tokenData = await tokenResponse.json() as { id_token?: string };
       const { id_token } = tokenData;
+      
+      if (!id_token) {
+        throw new CustomError('ID token não encontrado na resposta', 400, 'ID_TOKEN_NOT_FOUND');
+      }
 
       // Decodificar ID token para obter informações do usuário
       const idTokenPayload = JSON.parse(atob(id_token.split('.')[1]));
