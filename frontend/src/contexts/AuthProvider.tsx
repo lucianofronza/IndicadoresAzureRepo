@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           debugLogger.log('❌ AuthProvider: Nenhum token encontrado');
         }
-      } catch (error) {
+      } catch (error: any) {
         debugLogger.log('❌ AuthProvider: Erro na verificação de autenticação: ' + error.message, 'error');
         debugLogger.log('❌ AuthProvider: Status do erro: ' + error.response?.status, 'error');
         
@@ -85,14 +85,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Se não foi passado dados, fazer login com Azure AD real
       if (!userData) {
         debugLogger.log('🌐 AuthProvider: Fazendo login com Azure AD real');
-        userData = await azureAdLogin();
+        userData = await azureAdLogin() as AzureAdLoginData;
         debugLogger.log('✅ AuthProvider: Login com Azure AD concluído: ' + JSON.stringify(userData));
       }
       
       // Se userData já contém os dados processados do callback, usar diretamente
-      if (userData && userData.success && userData.data) {
+      if (userData && (userData as any).success && (userData as any).data) {
         debugLogger.log('📋 AuthProvider: Usando dados processados do callback');
-        const { user, accessToken, refreshToken, requiresApproval, message } = userData.data;
+        const { user, accessToken, refreshToken, requiresApproval, message } = (userData as any).data;
 
         // Se usuário requer aprovação, mostrar mensagem de erro
         if (requiresApproval) {
@@ -136,6 +136,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         debugLogger.log('🔑 AuthProvider: Token configurado no axios');
 
         debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
+        
+        // Aguardar um pouco para garantir que o token seja propagado
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         setUser(user);
         debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');
       }

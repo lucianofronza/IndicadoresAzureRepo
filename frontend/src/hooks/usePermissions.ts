@@ -2,14 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import api from '../services/api';
 import { debugLogger } from '../components/DebugLogger';
+import { useRef, useCallback } from 'react';
 
 export const usePermissions = () => {
   const { user } = useAuth();
+  const requestInProgress = useRef(false);
 
-  // Buscar permissões do usuário
-  const { data: userPermissions = [], isLoading, error } = useQuery({
-    queryKey: ['user-permissions', user?.id],
-    queryFn: async () => {
+  // Função debounced para buscar permissões
+  const debouncedFetchPermissions = useCallback(async () => {
+    if (requestInProgress.current) {
+      debugLogger.log('⏳ usePermissions: Requisição já em andamento, aguardando...');
+      return [];
+    }
+
+    requestInProgress.current = true;
+    
+    try {
       debugLogger.log('🔍 usePermissions: Iniciando busca de permissões para usuário: ' + user?.id);
       
       if (!user) {
@@ -17,27 +25,33 @@ export const usePermissions = () => {
         return [];
       }
       
-      try {
-        debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
-        debugLogger.log('🔑 usePermissions: Token configurado: ' + !!api.defaults.headers.common['Authorization']);
-        
-        // Buscar permissões do usuário logado
-        const response = await api.get('/auth/me');
-        debugLogger.log('✅ usePermissions: Resposta recebida: ' + JSON.stringify(response.data));
-        
-        const permissions = response.data.data.permissions || [];
-        debugLogger.log('📋 usePermissions: Permissões extraídas: ' + JSON.stringify(permissions));
-        
-        return permissions;
-      } catch (error) {
-        debugLogger.log('❌ usePermissions: Erro ao buscar permissões: ' + error.message, 'error');
-        debugLogger.log('❌ usePermissions: Status do erro: ' + error.response?.status, 'error');
-        debugLogger.log('❌ usePermissions: Dados do erro: ' + JSON.stringify(error.response?.data), 'error');
-        // Se houver erro de autenticação, não retornar array vazio
-        // para evitar que o usuário seja considerado sem permissões
-        throw error;
-      }
-    },
+      debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
+      debugLogger.log('🔑 usePermissions: Token configurado: ' + !!api.defaults.headers.common['Authorization']);
+      
+      // Buscar permissões do usuário logado
+      const response = await api.get('/auth/me');
+      debugLogger.log('✅ usePermissions: Resposta recebida: ' + JSON.stringify(response.data));
+      
+      const permissions = response.data.data.permissions || [];
+      debugLogger.log('📋 usePermissions: Permissões extraídas: ' + JSON.stringify(permissions));
+      
+      return permissions;
+    } catch (error) {
+      debugLogger.log('❌ usePermissions: Erro ao buscar permissões: ' + error.message, 'error');
+      debugLogger.log('❌ usePermissions: Status do erro: ' + error.response?.status, 'error');
+      debugLogger.log('❌ usePermissions: Dados do erro: ' + JSON.stringify(error.response?.data), 'error');
+      // Se houver erro de autenticação, não retornar array vazio
+      // para evitar que o usuário seja considerado sem permissões
+      throw error;
+    } finally {
+      requestInProgress.current = false;
+    }
+  }, [user?.id]);
+
+  // Buscar permissões do usuário
+  const { data: userPermissions = [], isLoading, error } = useQuery({
+    queryKey: ['user-permissions', user?.id],
+    queryFn: debouncedFetchPermissions,
     enabled: !!user,
     retry: 3, // Tentar 3 vezes em caso de erro
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
