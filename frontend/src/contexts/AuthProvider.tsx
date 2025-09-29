@@ -137,8 +137,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
         
-        // Aguardar um pouco para garantir que o token seja propagado
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Aguardar mais tempo para garantir que o token seja propagado
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         setUser(user);
         debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');

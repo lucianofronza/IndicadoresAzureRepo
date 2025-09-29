@@ -53,9 +53,27 @@ export const usePermissions = () => {
     queryKey: ['user-permissions', user?.id],
     queryFn: debouncedFetchPermissions,
     enabled: !!user,
-    retry: 3, // Tentar 3 vezes em caso de erro
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
+    retry: (failureCount, error: any) => {
+      // Se for erro 401 (token inválido), tentar novamente automaticamente
+      if (error?.response?.status === 401 && failureCount < 5) {
+        debugLogger.log(`🔄 usePermissions: Tentativa automática ${failureCount + 1}/5 após erro 401`, 'warning');
+        return true;
+      }
+      // Para outros erros, tentar apenas 3 vezes
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => {
+      // Delay mais rápido para erros 401 (problema de timing)
+      const error = (attemptIndex as any)?.error;
+      if (error?.response?.status === 401) {
+        return Math.min(500 * (attemptIndex + 1), 2000); // 500ms, 1000ms, 1500ms, 2000ms
+      }
+      // Delay normal para outros erros
+      return Math.min(1000 * 2 ** attemptIndex, 30000);
+    },
     staleTime: 5 * 60 * 1000, // Cache por 5 minutos
+    refetchOnWindowFocus: false, // Não refetch quando focar na janela
+    refetchOnMount: true, // Refetch quando montar o componente
   });
 
   /**
