@@ -30,9 +30,9 @@ class DebugLogger {
     
     this.logs.push(logEntry);
     
-    // Manter apenas os últimos 50 logs
-    if (this.logs.length > 50) {
-      this.logs = this.logs.slice(-50);
+    // Manter apenas os últimos 200 logs
+    if (this.logs.length > 200) {
+      this.logs = this.logs.slice(-200);
     }
     
     // Notificar listeners
@@ -56,6 +56,22 @@ class DebugLogger {
   clear() {
     this.logs = [];
     this.listeners.forEach(listener => listener([]));
+  }
+
+  downloadLogs() {
+    const logContent = this.logs.map(log => 
+      `[${log.timestamp}] ${log.type.toUpperCase()}: ${log.message}`
+    ).join('\n');
+    
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debug-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -84,8 +100,14 @@ export const DebugLoggerComponent: React.FC = () => {
   return (
     <div className="fixed bottom-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg max-w-md max-h-96 overflow-auto z-50 text-xs">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="font-bold">Debug Logs</h3>
+        <h3 className="font-bold">Debug Logs ({logs.length})</h3>
         <div className="space-x-2">
+          <button
+            onClick={() => debugLogger.downloadLogs()}
+            className="bg-blue-500 px-2 py-1 rounded text-xs"
+          >
+            Download
+          </button>
           <button
             onClick={() => debugLogger.clear()}
             className="bg-red-500 px-2 py-1 rounded text-xs"
@@ -101,7 +123,7 @@ export const DebugLoggerComponent: React.FC = () => {
         </div>
       </div>
       <div className="space-y-1">
-        {logs.slice(-20).map(log => (
+        {logs.slice(-50).map(log => (
           <div
             key={log.id}
             className={`p-1 rounded text-xs ${
