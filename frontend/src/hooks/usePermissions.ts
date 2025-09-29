@@ -25,6 +25,9 @@ export const usePermissions = () => {
         return [];
       }
       
+      // Aguardar um pouco para garantir que o token esteja disponível
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
       debugLogger.log('🔑 usePermissions: Token configurado: ' + !!api.defaults.headers.common['Authorization']);
       
@@ -54,13 +57,21 @@ export const usePermissions = () => {
     queryFn: debouncedFetchPermissions,
     enabled: !!user,
     retry: (failureCount, error: any) => {
+      debugLogger.log(`🔄 usePermissions: Retry ${failureCount + 1}, erro: ${error?.response?.status || error?.message}`, 'warning');
+      
       // Se for erro 401 (token inválido), tentar novamente automaticamente
       if (error?.response?.status === 401 && failureCount < 5) {
         debugLogger.log(`🔄 usePermissions: Tentativa automática ${failureCount + 1}/5 após erro 401`, 'warning');
         return true;
       }
-      // Para outros erros, tentar apenas 3 vezes
-      return failureCount < 3;
+      
+      // Se for erro de rede ou timeout, tentar mais vezes
+      if (error?.code === 'NETWORK_ERROR' || error?.code === 'TIMEOUT') {
+        return failureCount < 3;
+      }
+      
+      // Para outros erros, tentar apenas 1 vez
+      return failureCount < 1;
     },
     retryDelay: (attemptIndex) => {
       // Delay mais rápido para erros 401 (problema de timing)
