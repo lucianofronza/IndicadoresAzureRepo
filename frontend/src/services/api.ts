@@ -51,16 +51,18 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           const response = await axios.post('/api/auth/refresh', { refreshToken });
-          const { accessToken } = response.data.data;
+          const { accessToken, refreshToken: newRefreshToken } = response.data.data;
           
+          // CRÍTICO: Salvar AMBOS os novos tokens (accessToken E refreshToken)
           localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
           api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
           
           // Retry a requisição original
           originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
           return api(originalRequest);
         }
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         // Se o refresh falhar, não limpar localStorage imediatamente
         // Deixar para o usePermissions fazer o retry automático
         console.warn('Token refresh failed, allowing retry mechanism to handle it:', refreshError.message);
