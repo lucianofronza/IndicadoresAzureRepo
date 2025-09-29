@@ -12,14 +12,6 @@ export const usePermissions = () => {
       if (!user) return [];
       
       try {
-        // Delay maior para garantir que o token esteja configurado e o estado do usuário atualizado
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Verificar se o token está realmente configurado no axios
-        if (!api.defaults.headers.common['Authorization']) {
-          throw new Error('Token não configurado');
-        }
-        
         // Buscar permissões do usuário logado
         const response = await api.get('/auth/me');
         return response.data.data.permissions || [];
@@ -41,11 +33,11 @@ export const usePermissions = () => {
    */
   const hasPermission = (permission: string): boolean => {
     if (!user || isLoading) return false;
-    // Se houver erro ao buscar permissões, não bloquear o acesso
-    // Isso evita que problemas de rede causem logout do usuário
+    // Se houver erro ao buscar permissões, bloquear acesso
+    // Isso força uma nova tentativa de autenticação
     if (error) {
-      console.warn('Error loading permissions, allowing access to avoid logout:', error);
-      return true; // Permitir acesso temporariamente
+      console.error('Error loading permissions, blocking access:', error);
+      return false; // Bloquear acesso para forçar nova autenticação
     }
     return userPermissions.includes(permission);
   };
@@ -55,7 +47,7 @@ export const usePermissions = () => {
    */
   const hasAllPermissions = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
-    if (error) return true; // Permitir acesso temporariamente em caso de erro
+    if (error) return false; // Bloquear acesso em caso de erro
     return permissions.every(permission => userPermissions.includes(permission));
   };
 
@@ -64,7 +56,7 @@ export const usePermissions = () => {
    */
   const hasAnyPermission = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
-    if (error) return true; // Permitir acesso temporariamente em caso de erro
+    if (error) return false; // Bloquear acesso em caso de erro
     return permissions.some(permission => userPermissions.includes(permission));
   };
 
@@ -98,7 +90,7 @@ export const usePermissions = () => {
    */
   const canView = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return true; // Permitir acesso temporariamente em caso de erro
+    if (error) return false; // Bloquear acesso em caso de erro
     
     const viewPermissions = {
       dashboard: 'dashboard:read',
@@ -124,7 +116,7 @@ export const usePermissions = () => {
    */
   const canWrite = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return true; // Permitir acesso temporariamente em caso de erro
+    if (error) return false; // Bloquear acesso em caso de erro
     
     const writePermissions = {
       developers: 'developers:write',
@@ -149,7 +141,7 @@ export const usePermissions = () => {
    */
   const canDelete = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return true; // Permitir acesso temporariamente em caso de erro
+    if (error) return false; // Bloquear acesso em caso de erro
     
     const deletePermissions = {
       developers: 'developers:delete',
