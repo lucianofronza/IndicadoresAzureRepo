@@ -36,7 +36,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(response.data.data);
           debugLogger.log('👤 AuthProvider: Usuário definido após verificação');
         } else {
-          debugLogger.log('❌ AuthProvider: Nenhum token encontrado');
+          debugLogger.log('❌ AuthProvider: Nenhum token encontrado, não fazendo verificação');
+          // Não fazer nada se não há token - deixar para o login
         }
       } catch (error: any) {
         debugLogger.log('❌ AuthProvider: Erro na verificação de autenticação: ' + error.message, 'error');

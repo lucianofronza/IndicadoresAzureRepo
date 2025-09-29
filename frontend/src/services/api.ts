@@ -61,10 +61,9 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Se o refresh falhar, limpar tokens e redirecionar para login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        // Se o refresh falhar, não limpar localStorage imediatamente
+        // Deixar para o usePermissions fazer o retry automático
+        console.warn('Token refresh failed, allowing retry mechanism to handle it:', refreshError.message);
         return Promise.reject(refreshError);
       }
     }
