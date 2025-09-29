@@ -49,23 +49,34 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
+        console.log('🔄 Axios Interceptor: Tentando refresh com token:', refreshToken ? 'Token presente' : 'Token ausente');
+        
         if (refreshToken) {
+          console.log('🌐 Axios Interceptor: Fazendo requisição para /api/auth/refresh');
           const response = await axios.post('/api/auth/refresh', { refreshToken });
+          console.log('✅ Axios Interceptor: Resposta recebida:', response.data);
+          
           const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+          console.log('🔑 Axios Interceptor: Tokens extraídos - accessToken:', !!accessToken, ', newRefreshToken:', !!newRefreshToken);
           
           // CRÍTICO: Salvar AMBOS os novos tokens (accessToken E refreshToken)
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', newRefreshToken);
           api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+          console.log('💾 Axios Interceptor: Tokens salvos no localStorage');
           
           // Retry a requisição original
           originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+          console.log('🔄 Axios Interceptor: Retry da requisição original');
           return api(originalRequest);
+        } else {
+          console.warn('⚠️ Axios Interceptor: Nenhum refreshToken encontrado, rejeitando');
         }
       } catch (refreshError: any) {
         // Se o refresh falhar, não limpar localStorage imediatamente
         // Deixar para o usePermissions fazer o retry automático
-        console.warn('Token refresh failed, allowing retry mechanism to handle it:', refreshError.message);
+        console.error('❌ Axios Interceptor: Erro ao fazer refresh:', refreshError.message);
+        console.error('❌ Axios Interceptor: Response data:', refreshError.response?.data);
         return Promise.reject(refreshError);
       }
     }
