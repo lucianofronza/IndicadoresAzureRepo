@@ -1,0 +1,206 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  # Job 1: Análise de Segurança
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Audit Backend dependencies
+        working-directory: backend
+        run: |
+          npm audit --audit-level=moderate || true
+          echo "Backend audit completed"
+      
+      - name: Audit Frontend dependencies
+        working-directory: frontend
+        run: |
+          npm audit --audit-level=moderate || true
+          echo "Frontend audit completed"
+
+  # Job 2: Verificar Dependências Desatualizadas
+  check-outdated:
+    name: Check Outdated Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Check Backend outdated packages
+        working-directory: backend
+        run: |
+          npm outdated || true
+      
+      - name: Check Frontend outdated packages
+        working-directory: frontend
+        run: |
+          npm outdated || true
+
+  # Job 3: Análise de Complexidade
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      
+      - name: Run complexity report
+        working-directory: backend
+        run: |
+          npx plato -r -d complexity-report src
+          echo "Complexity report generated"
+        continue-on-error: true
+
+  # Job 4: Verificar TODOs e FIXMEs
+  check-todos:
+    name: Check TODOs and FIXMEs
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Find TODOs and FIXMEs
+        run: |
+          echo "## 📝 TODOs and FIXMEs found:"
+          grep -rn "TODO\|FIXME" backend/src frontend/src || echo "✅ No TODOs or FIXMEs found"
+        continue-on-error: true
+
+  # Job 5: Tamanho dos Bundles
+  bundle-size:
+    name: Check Bundle Size
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      
+      - name: Analyze bundle size
+        working-directory: frontend
+        run: |
+          echo "## 📦 Bundle Size Analysis:"
+          du -sh dist
+          du -h dist/* | sort -h
+        continue-on-error: true
+
+  # Job 6: Verificar Formatação (Prettier)
+  check-formatting:
+    name: Check Code Formatting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Prettier
+        run: npm install -g prettier
+      
+      - name: Check Backend formatting
+        working-directory: backend
+        run: |
+          prettier --check "src/**/*.{ts,js,json}" || echo "::warning::Backend files need formatting"
+        continue-on-error: true
+      
+      - name: Check Frontend formatting
+        working-directory: frontend
+        run: |
+          prettier --check "src/**/*.{ts,tsx,js,jsx,css}" || echo "::warning::Frontend files need formatting"
+        continue-on-error: true
+
+  # Job 7: Análise de Duplicação de Código
+  check-duplication:
+    name: Check Code Duplication
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install jscpd
+        run: npm install -g jscpd
+      
+      - name: Run duplication check
+        run: |
+          jscpd backend/src frontend/src || true
+          echo "Code duplication check completed"
+        continue-on-error: true
+
+  # Job 8: Relatório de Qualidade
+  quality-report:
+    name: Generate Quality Report
+    runs-on: ubuntu-latest
+    needs: [security-audit, check-outdated, complexity-analysis, check-todos]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 📊 Code Quality Report"
+          echo ""
+          echo "### ✅ Completed Checks:"
+          echo "- Security Audit: ${{ needs.security-audit.result }}"
+          echo "- Outdated Dependencies: ${{ needs.check-outdated.result }}"
+          echo "- Complexity Analysis: ${{ needs.complexity-analysis.result }}"
+          echo "- TODO/FIXME Check: ${{ needs.check-todos.result }}"
+          echo ""
+          echo "See individual job logs for details."

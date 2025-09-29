@@ -1,4 +1,5 @@
 version: 2
+
 updates:
   # Backend dependencies
   - package-ecosystem: "npm"
@@ -7,21 +8,20 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
     reviewers:
       - "lucianofronza"
     assignees:
       - "lucianofronza"
-    commit-message:
-      prefix: "chore(backend)"
-      include: "scope"
     labels:
       - "dependencies"
       - "backend"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
     ignore:
-      # Ignore major version updates for critical packages
-      - dependency-name: "express"
-        update-types: ["version-update:semver-major"]
+      # Ignorar atualizações major de algumas dependências críticas
       - dependency-name: "prisma"
         update-types: ["version-update:semver-major"]
       - dependency-name: "@prisma/client"
@@ -34,107 +34,82 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "lucianofronza"
-    assignees:
-      - "lucianofronza"
-    commit-message:
-      prefix: "chore(frontend)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "frontend"
-    ignore:
-      # Ignore major version updates for critical packages
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@tanstack/react-query"
-        update-types: ["version-update:semver-major"]
-
-  # Docker dependencies
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      timezone: "America/Sao_Paulo"
     open-pull-requests-limit: 5
     reviewers:
       - "lucianofronza"
     assignees:
       - "lucianofronza"
-    commit-message:
-      prefix: "chore(docker)"
-      include: "scope"
     labels:
       - "dependencies"
-      - "docker"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
     ignore:
-      # Ignore major version updates for base images
-      - dependency-name: "node"
+      # Ignorar atualizações major de React
+      - dependency-name: "react"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # Sync Service dependencies
+  - package-ecosystem: "npm"
+    directory: "/sync-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "lucianofronza"
+    assignees:
+      - "lucianofronza"
+    labels:
+      - "dependencies"
+      - "sync-service"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
+      day: "1"
       time: "09:00"
-    open-pull-requests-limit: 5
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
     reviewers:
       - "lucianofronza"
-    assignees:
-      - "lucianofronza"
-    commit-message:
-      prefix: "chore(ci)"
-      include: "scope"
     labels:
       - "dependencies"
-      - "ci-cd"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci):"
+      include: "scope"
 
-  # Security updates (run daily)
-  - package-ecosystem: "npm"
+  # Docker
+  - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
-      interval: "daily"
-      time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "lucianofronza"
-    assignees:
-      - "lucianofronza"
-    commit-message:
-      prefix: "security(backend)"
-      include: "scope"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     labels:
-      - "security"
-      - "backend"
-    allow:
-      # Allow security updates for all packages
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker):"
 
-  - package-ecosystem: "npm"
+  - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
-      interval: "daily"
-      time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "lucianofronza"
-    assignees:
-      - "lucianofronza"
-    commit-message:
-      prefix: "security(frontend)"
-      include: "scope"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     labels:
-      - "security"
-      - "frontend"
-    allow:
-      # Allow security updates for all packages
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker):"

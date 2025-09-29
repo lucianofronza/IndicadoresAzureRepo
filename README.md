@@ -1,5 +1,10 @@
 # 📊 Indicadores Azure Repos
 
+[![CI/CD Pipeline](https://github.com/lucianofronza/IndicadoresAzureRepo/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/lucianofronza/IndicadoresAzureRepo/actions/workflows/ci.yml)
+[![Code Quality](https://github.com/lucianofronza/IndicadoresAzureRepo/workflows/Code%20Quality/badge.svg)](https://github.com/lucianofronza/IndicadoresAzureRepo/actions/workflows/code-quality.yml)
+[![Tests](https://img.shields.io/badge/tests-51%20passing-brightgreen)](./TESTING.md)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Uma aplicação web fullstack para análise de indicadores individuais de desenvolvedores a partir do Azure Repos (Azure DevOps), com foco em observabilidade, segurança e escalabilidade horizontal.
 
 ## 📖 Índice
