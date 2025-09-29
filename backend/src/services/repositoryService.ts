@@ -5,7 +5,57 @@ import { Repository, CreateRepositoryDto, UpdateRepositoryDto, PaginationParams,
 import { NotFoundError } from '@/middlewares/errorHandler';
 import { encrypt, decrypt } from '@/utils/encryption';
 
+/**
+ * Serviço de gerenciamento de repositórios Azure DevOps.
+ * 
+ * Responsável por:
+ * - CRUD completo de repositórios
+ * - Criptografia/descriptografia de Personal Access Tokens
+ * - Consulta de estatísticas de repositórios
+ * - Gerenciamento de credenciais
+ * 
+ * **Segurança:**
+ * - Personal Access Tokens são armazenados criptografados (AES-256-CBC)
+ * - Tokens são descriptografados apenas quando necessário
+ * - Logs não expõem tokens
+ * 
+ * @class RepositoryService
+ * @example
+ * ```typescript
+ * const repoService = new RepositoryService();
+ * const repos = await repoService.getAll({ page: 1, pageSize: 10 });
+ * ```
+ */
 export class RepositoryService {
+  /**
+   * Lista todos os repositórios com paginação.
+   * 
+   * **Features:**
+   * - Paginação configurável
+   * - Ordenação por qualquer campo
+   * - Inclui time associado
+   * - Conta de Pull Requests
+   * - Descriptografia automática de tokens
+   * 
+   * @param {PaginationParams} params - Parâmetros de paginação e ordenação
+   * @param {number} [params.page=1] - Número da página
+   * @param {number} [params.pageSize=10] - Itens por página
+   * @param {string} [params.sortBy='name'] - Campo para ordenação
+   * @param {'asc'|'desc'} [params.sortOrder='asc'] - Direção da ordenação
+   * 
+   * @returns {Promise<PaginatedResponse<Repository>>} Lista paginada de repositórios
+   * 
+   * @example
+   * ```typescript
+   * const result = await repoService.getAll({
+   *   page: 1,
+   *   pageSize: 20,
+   *   sortBy: 'lastSyncAt',
+   *   sortOrder: 'desc'
+   * });
+   * // result: { data: [...], pagination: { total, totalPages, ... } }
+   * ```
+   */
   async getAll(params: PaginationParams): Promise<PaginatedResponse<Repository>> {
     const { page = 1, pageSize = 10, sortBy = 'name', sortOrder = 'asc' } = params;
     const skip = (page - 1) * pageSize;

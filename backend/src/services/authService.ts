@@ -17,12 +17,33 @@ import { NotificationService } from './notificationService';
 
 const prisma = new PrismaClient();
 
+/**
+ * Serviço de autenticação e gerenciamento de usuários.
+ * 
+ * Responsável por:
+ * - Registro e autenticação de usuários
+ * - Geração e validação de tokens JWT
+ * - Gerenciamento de refresh tokens
+ * - Integração com Azure AD (Microsoft Entra ID)
+ * - Gerenciamento de sessões
+ * 
+ * @class AuthService
+ * @example
+ * ```typescript
+ * const authService = new AuthService();
+ * const result = await authService.login({ email: 'user@example.com', password: 'password' });
+ * ```
+ */
 export class AuthService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
   private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
   private readonly REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
   private notificationService: NotificationService;
 
+  /**
+   * Inicializa o serviço de autenticação.
+   * Configura o serviço de notificações para eventos de autenticação.
+   */
   constructor() {
     this.notificationService = new NotificationService();
   }
@@ -52,7 +73,35 @@ export class AuthService {
   }
 
   /**
-   * Registrar um novo usuário
+   * Registra um novo usuário no sistema.
+   * 
+   * Realiza as seguintes validações:
+   * - Verifica se email já está em uso
+   * - Verifica se login já está em uso
+   * - Criptografa a senha com bcrypt (12 salt rounds)
+   * 
+   * @param {UserCreateInput} userData - Dados do usuário a ser registrado
+   * @param {string} userData.name - Nome completo do usuário
+   * @param {string} userData.email - Email único do usuário
+   * @param {string} userData.login - Login único do usuário
+   * @param {string} userData.password - Senha em texto plano (será criptografada)
+   * @param {string} userData.roleId - ID do role a ser atribuído
+   * 
+   * @returns {Promise<Omit<User, 'password'>>} Usuário criado sem a senha
+   * 
+   * @throws {CustomError} EMAIL_ALREADY_EXISTS - Se email já está cadastrado
+   * @throws {CustomError} LOGIN_ALREADY_EXISTS - Se login já está cadastrado
+   * 
+   * @example
+   * ```typescript
+   * const user = await authService.register({
+   *   name: 'John Doe',
+   *   email: 'john@example.com',
+   *   login: 'johndoe',
+   *   password: 'SecurePass123!',
+   *   roleId: 'role-uuid'
+   * });
+   * ```
    */
   async register(userData: UserCreateInput): Promise<Omit<User, 'password'>> {
     try {
@@ -105,7 +154,37 @@ export class AuthService {
   }
 
   /**
-   * Fazer login do usuário
+   * Autentica um usuário e gera tokens de acesso.
+   * 
+   * Processo de login:
+   * 1. Busca usuário pelo email
+   * 2. Verifica senha com bcrypt (timing-safe)
+   * 3. Valida status do usuário (ativo/pendente)
+   * 4. Gera access token (JWT) e refresh token
+   * 5. Armazena refresh token no banco
+   * 6. Cria sessão de usuário
+   * 
+   * **Proteções de Segurança:**
+   * - Timing-safe password verification (previne timing attacks)
+   * - Delay artificial aleatório (previne user enumeration)
+   * - Mensagens de erro genéricas
+   * 
+   * @param {LoginRequest} credentials - Credenciais de login
+   * @param {string} credentials.email - Email do usuário
+   * @param {string} credentials.password - Senha em texto plano
+   * 
+   * @returns {Promise<any>} Objeto contendo user, accessToken, refreshToken e expiresAt
+   * 
+   * @throws {CustomError} INVALID_CREDENTIALS - Se credenciais inválidas ou usuário inativo
+   * 
+   * @example
+   * ```typescript
+   * const result = await authService.login({
+   *   email: 'user@example.com',
+   *   password: 'MySecurePassword123!'
+   * });
+   * // result: { user, accessToken, refreshToken, expiresAt }
+   * ```
    */
   async login(credentials: LoginRequest): Promise<any> { // Changed return type to any as LoginResponse is removed
     try {
