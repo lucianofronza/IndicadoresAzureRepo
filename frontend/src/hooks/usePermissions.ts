@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import api from '../services/api';
 import { debugLogger } from '../components/DebugLogger';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 export const usePermissions = () => {
   const { user } = useAuth();
@@ -60,7 +60,7 @@ export const usePermissions = () => {
   }, [user?.id]);
 
   // Buscar permissões do usuário
-  const { data: userPermissions = [], isLoading, error } = useQuery({
+  const { data: userPermissions = [], isLoading, error, refetch } = useQuery({
     queryKey: ['user-permissions', user?.id],
     queryFn: debouncedFetchPermissions,
     enabled: !!user,
@@ -101,6 +101,19 @@ export const usePermissions = () => {
 
   // Logs para debug do estado do React Query
   debugLogger.log('📊 usePermissions: Estado do React Query - isLoading: ' + isLoading + ', error: ' + !!error + ', data length: ' + userPermissions.length);
+
+  // Refetch automático quando há erro 401 (token expirado)
+  useEffect(() => {
+    if (error && error.response?.status === 401 && !isLoading) {
+      debugLogger.log('🔄 usePermissions: Erro 401 detectado, fazendo refetch automático', 'warning');
+      // Aguardar um pouco antes de refetch para evitar loop infinito
+      const timer = setTimeout(() => {
+        refetch();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error, isLoading, refetch]);
 
   /**
    * Verifica se o usuário tem uma permissão específica
