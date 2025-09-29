@@ -2,6 +2,22 @@
 
 Uma aplicação web fullstack para análise de indicadores individuais de desenvolvedores a partir do Azure Repos (Azure DevOps), com foco em observabilidade, segurança e escalabilidade horizontal.
 
+## 📖 Índice
+
+- [🚀 Funcionalidades](#-funcionalidades)
+- [🏗️ Arquitetura](#️-arquitetura)
+- [📋 Pré-requisitos](#-pré-requisitos)
+- [🛠️ Instalação](#️-instalação)
+- [🔐 Configuração Azure DevOps](#-configuração-azure-devops)
+- [🚀 Deploy em Produção](#-deploy-em-produção)
+- [📊 Uso da Aplicação](#-uso-da-aplicação)
+- [🧪 Testes e Qualidade](#-testes-e-qualidade)
+- [📚 Documentação Técnica](#-documentação-técnica)
+- [🔧 Desenvolvimento](#-desenvolvimento)
+- [📈 Monitoramento](#-monitoramento)
+- [🤝 Contribuição](#-contribuição)
+- [📄 Licença](#-licença)
+
 ## 🚀 Funcionalidades
 
 ### 📈 Dashboard de Indicadores
@@ -304,6 +320,222 @@ kubectl apply -f infra/k8s/hpa-frontend.yaml
 1. **Dashboard**: Visualize métricas gerais e gráficos
 2. **Filtros**: Use os filtros por data, time, cargo, etc.
 3. **Detalhamento**: Clique nos gráficos para mais detalhes
+
+## 🧪 Testes e Qualidade
+
+### Visão Geral dos Testes
+
+Este projeto possui uma suite abrangente de testes para garantir qualidade e confiabilidade:
+
+```
+✅ Testes Unitários:      33 testes (100% passando)
+⚠️  Testes de Integração:  8 testes (estrutura criada)
+⚠️  Testes de Middleware:  10 testes (50% passando)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOTAL:                51 testes
+```
+
+### Executar Testes
+
+#### Todos os Testes
+```bash
+cd backend
+npm test
+```
+
+#### Testes Específicos
+```bash
+# Por arquivo
+npm test -- authService.test.ts
+
+# Por padrão
+npm test -- --testPathPattern=services
+
+# Por nome
+npm test -- --testNamePattern="deve criar usuário"
+```
+
+#### Modo Watch (Desenvolvimento)
+```bash
+npm test -- --watch
+```
+
+#### Cobertura de Código
+```bash
+npm test -- --coverage
+
+# Abrir relatório HTML
+open coverage/lcov-report/index.html
+```
+
+### Estrutura de Testes
+
+```
+backend/src/tests/
+├── unit/
+│   ├── services/
+│   │   ├── authService.test.ts       # ✅ 13 testes
+│   │   ├── syncService.test.ts       # ✅ 7 testes
+│   │   └── repositoryService.test.ts # ✅ 13 testes
+│   └── middlewares/
+│       └── auth.test.ts              # ⚠️ 10 testes (5/10)
+├── integration/
+│   ├── auth.test.ts                  # ⚠️ 6 testes
+│   └── sync.test.ts                  # ⚠️ 2 testes
+└── setup.ts
+```
+
+### Tipos de Testes
+
+#### 1. Testes Unitários
+Testam funções e métodos isoladamente com mocks de dependências.
+
+**Exemplo:**
+```typescript
+describe('AuthService', () => {
+  it('deve criar um novo usuário com sucesso', async () => {
+    const userData = {
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'Password123!'
+    };
+    
+    const result = await authService.register(userData);
+    
+    expect(result).toHaveProperty('id');
+    expect(result.email).toBe(userData.email);
+  });
+});
+```
+
+#### 2. Testes de Integração
+Testam a integração entre componentes (rotas + middlewares + serviços).
+
+**Exemplo:**
+```typescript
+describe('POST /api/auth/register', () => {
+  it('deve registrar um novo usuário', async () => {
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send(userData)
+      .expect(201);
+    
+    expect(response.body.success).toBe(true);
+  });
+});
+```
+
+#### 3. Testes de Middleware
+Testam a lógica de middlewares (autenticação, permissões, erros).
+
+**Exemplo:**
+```typescript
+describe('requireAuth', () => {
+  it('deve retornar 401 sem token', async () => {
+    await requireAuth(mockRequest, mockResponse, mockNext);
+    
+    expect(mockResponse.status).toHaveBeenCalledWith(401);
+  });
+});
+```
+
+### Cobertura de Código
+
+**Metas de Cobertura:**
+- Services: ≥ 80%
+- Middlewares: ≥ 70%
+- Routes: ≥ 60%
+
+**Visualizar Cobertura:**
+```bash
+npm test -- --coverage
+```
+
+### CI/CD (Planejado)
+
+Os testes serão executados automaticamente em:
+- ✅ Push para qualquer branch
+- ✅ Pull Requests
+- ✅ Deploy para staging/produção
+
+### Documentação de Testes
+
+Para mais detalhes sobre como escrever e executar testes, consulte:
+- 📖 [TESTING.md](./TESTING.md) - Guia completo de testes
+- 🏗️ [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitetura do sistema
+- 📡 [API.md](./API.md) - Documentação da API
+
+## 📚 Documentação Técnica
+
+Este projeto possui documentação técnica abrangente para facilitar o entendimento, desenvolvimento e manutenção:
+
+### 📋 Documentos Disponíveis
+
+#### 🏗️ [ARCHITECTURE.md](./ARCHITECTURE.md)
+Documentação completa da arquitetura do sistema:
+- **Visão Geral**: Stack tecnológica e objetivos
+- **Arquitetura de Alto Nível**: Diagramas e componentes
+- **Componentes Detalhados**: Frontend, Backend, Sync Service
+- **Fluxos de Dados**: 5 fluxos principais documentados
+  - Autenticação de usuário
+  - Autenticação Azure AD
+  - Sincronização manual
+  - Sincronização automática (scheduler)
+  - Consulta de KPIs
+- **Decisões Arquiteturais**: 6 decisões importantes explicadas
+  - Separação do Sync Service
+  - Criptografia de tokens
+  - JWT + Refresh tokens
+  - View Scope (visibilidade de dados)
+  - Sincronização incremental
+  - Idempotência de sync
+- **Segurança**: Autenticação, autorização e proteções
+- **Escalabilidade**: Estratégias e gargalos identificados
+- **Monitoramento**: Logs, métricas e health checks
+
+#### 🧪 [TESTING.md](./TESTING.md)
+Guia completo de testes do projeto:
+- **Estrutura de Testes**: Organização e tipos
+- **Como Executar**: Comandos e opções
+- **Escrevendo Testes**: Padrões e melhores práticas
+  - Testes unitários (33 testes)
+  - Testes de integração (8 testes)
+  - Testes de middleware (10 testes)
+- **Mocking Strategies**: Como usar Jest mocks
+- **Cobertura de Código**: Relatórios e metas
+- **Debugging**: Ferramentas e técnicas
+- **CI/CD**: Integração contínua (planejado)
+
+#### 📡 [API.md](./API.md)
+Documentação completa da API REST:
+- **Autenticação**: JWT e refresh tokens
+- **Formato de Resposta**: Padrões e estrutura
+- **Endpoints Completos**:
+  - 🔐 Auth (6 endpoints)
+  - 📦 Repositories (6 endpoints)
+  - 🔄 Sync (9 endpoints)
+  - 📊 KPIs (1 endpoint)
+  - 👥 Users (1+ endpoints)
+- **Códigos de Erro**: Tabela completa
+- **Rate Limiting**: Limites e headers
+- **Exemplos**: Requisições e respostas
+
+### 🎯 Como Usar a Documentação
+
+**Para Novos Desenvolvedores:**
+1. Comece com [ARCHITECTURE.md](./ARCHITECTURE.md) para entender o sistema
+2. Leia [TESTING.md](./TESTING.md) para contribuir com testes
+3. Consulte [API.md](./API.md) para integração
+
+**Para Desenvolvimento:**
+1. Use [API.md](./API.md) como referência de endpoints
+2. Siga [TESTING.md](./TESTING.md) ao escrever novos testes
+3. Consulte [ARCHITECTURE.md](./ARCHITECTURE.md) para decisões arquiteturais
+
+**Para Deploy:**
+1. Revise [ARCHITECTURE.md](./ARCHITECTURE.md) seção de Deploy
+2. Configure conforme [instalação](#️-instalação)
+3. Implemente [monitoramento](#-monitoramento)
 
 ## 🔧 Desenvolvimento
 
