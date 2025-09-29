@@ -7,6 +7,7 @@ import { useRef, useCallback, useEffect } from 'react';
 export const usePermissions = () => {
   const { user } = useAuth();
   const requestInProgress = useRef(false);
+  const retryCount = useRef(0);
 
   // Função debounced para buscar permissões
   const debouncedFetchPermissions = useCallback(async () => {
@@ -44,6 +45,7 @@ export const usePermissions = () => {
       debugLogger.log('📋 usePermissions: Permissões extraídas: ' + JSON.stringify(permissions));
       
       debugLogger.log('🎉 usePermissions: Busca de permissões concluída com sucesso');
+      retryCount.current = 0; // Reset retry count on success
       return permissions;
     } catch (error: any) {
       debugLogger.log('❌ usePermissions: Erro ao buscar permissões: ' + error.message, 'error');
@@ -105,7 +107,30 @@ export const usePermissions = () => {
   // Refetch automático quando há erro 401 (token expirado)
   useEffect(() => {
     if (error && error.response?.status === 401 && !isLoading) {
-      debugLogger.log('🔄 usePermissions: Erro 401 detectado, fazendo refetch automático', 'warning');
+      // Verificar se é erro de INVALID_REFRESH_TOKEN
+      const errorData = error.response?.data;
+      if (errorData?.error === 'INVALID_REFRESH_TOKEN') {
+        debugLogger.log('🚨 usePermissions: INVALID_REFRESH_TOKEN detectado, limpando tokens e redirecionando', 'error');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        delete api.defaults.headers.common['Authorization'];
+        window.location.href = '/login';
+        return;
+      }
+      
+      // Limitar número de retries para evitar loop infinito
+      if (retryCount.current >= 10) {
+        debugLogger.log('🚨 usePermissions: Limite de retries atingido (10), limpando tokens e redirecionando', 'error');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        delete api.defaults.headers.common['Authorization'];
+        window.location.href = '/login';
+        return;
+      }
+      
+      retryCount.current++;
+      debugLogger.log('🔄 usePermissions: Erro 401 detectado, fazendo refetch automático (tentativa ' + retryCount.current + '/10)', 'warning');
+      
       // Aguardar um pouco antes de refetch para evitar loop infinito
       const timer = setTimeout(() => {
         refetch();
