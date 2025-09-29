@@ -297,10 +297,11 @@ export class AuthService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
 
-      // Deletar tokens existentes do usuário antes de criar novos
-      await prisma.userToken.deleteMany({
-        where: { userId: user.id }
-      });
+      // BUGFIX: NÃO deletar tokens existentes - causa INVALID_REFRESH_TOKEN em requisições concorrentes
+      // O token antigo será automaticamente revogado quando expirar ou no refresh
+      // await prisma.userToken.deleteMany({
+      //   where: { userId: user.id }
+      // });
 
       // Salvar refresh token no banco
       await prisma.userToken.create({
