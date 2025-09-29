@@ -16,10 +16,12 @@ import { Notifications } from '@/pages/Notifications'
 import { AccessDenied } from '@/pages/AccessDenied'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { PermissionRoute } from '@/components/PermissionRoute'
+import { DebugLoggerComponent } from '@/components/DebugLogger'
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Rota pública de login */}
       <Route path="/login" element={<Login />} />
       
@@ -111,6 +113,8 @@ function App() {
         } />
       </Route>
     </Routes>
+    <DebugLoggerComponent />
+    </>
   )
 }
 

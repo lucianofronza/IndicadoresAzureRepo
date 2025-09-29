@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import api from '../services/api';
+import { debugLogger } from '../components/DebugLogger';
 
 export const usePermissions = () => {
   const { user } = useAuth();
@@ -9,29 +10,29 @@ export const usePermissions = () => {
   const { data: userPermissions = [], isLoading, error } = useQuery({
     queryKey: ['user-permissions', user?.id],
     queryFn: async () => {
-      console.log('🔍 usePermissions: Iniciando busca de permissões para usuário:', user?.id);
+      debugLogger.log('🔍 usePermissions: Iniciando busca de permissões para usuário: ' + user?.id);
       
       if (!user) {
-        console.log('❌ usePermissions: Usuário não encontrado, retornando array vazio');
+        debugLogger.log('❌ usePermissions: Usuário não encontrado, retornando array vazio');
         return [];
       }
       
       try {
-        console.log('🌐 usePermissions: Fazendo requisição para /auth/me');
-        console.log('🔑 usePermissions: Token configurado:', !!api.defaults.headers.common['Authorization']);
+        debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
+        debugLogger.log('🔑 usePermissions: Token configurado: ' + !!api.defaults.headers.common['Authorization']);
         
         // Buscar permissões do usuário logado
         const response = await api.get('/auth/me');
-        console.log('✅ usePermissions: Resposta recebida:', response.data);
+        debugLogger.log('✅ usePermissions: Resposta recebida: ' + JSON.stringify(response.data));
         
         const permissions = response.data.data.permissions || [];
-        console.log('📋 usePermissions: Permissões extraídas:', permissions);
+        debugLogger.log('📋 usePermissions: Permissões extraídas: ' + JSON.stringify(permissions));
         
         return permissions;
       } catch (error) {
-        console.error('❌ usePermissions: Erro ao buscar permissões:', error);
-        console.error('❌ usePermissions: Status do erro:', error.response?.status);
-        console.error('❌ usePermissions: Dados do erro:', error.response?.data);
+        debugLogger.log('❌ usePermissions: Erro ao buscar permissões: ' + error.message, 'error');
+        debugLogger.log('❌ usePermissions: Status do erro: ' + error.response?.status, 'error');
+        debugLogger.log('❌ usePermissions: Dados do erro: ' + JSON.stringify(error.response?.data), 'error');
         // Se houver erro de autenticação, não retornar array vazio
         // para evitar que o usuário seja considerado sem permissões
         throw error;
@@ -47,26 +48,26 @@ export const usePermissions = () => {
    * Verifica se o usuário tem uma permissão específica
    */
   const hasPermission = (permission: string): boolean => {
-    console.log('🔐 hasPermission: Verificando permissão:', permission);
-    console.log('👤 hasPermission: Usuário:', !!user);
-    console.log('⏳ hasPermission: Carregando:', isLoading);
-    console.log('❌ hasPermission: Erro:', !!error);
-    console.log('📋 hasPermission: Permissões do usuário:', userPermissions);
+    debugLogger.log('🔐 hasPermission: Verificando permissão: ' + permission);
+    debugLogger.log('👤 hasPermission: Usuário: ' + !!user);
+    debugLogger.log('⏳ hasPermission: Carregando: ' + isLoading);
+    debugLogger.log('❌ hasPermission: Erro: ' + !!error);
+    debugLogger.log('📋 hasPermission: Permissões do usuário: ' + JSON.stringify(userPermissions));
     
     if (!user || isLoading) {
-      console.log('🚫 hasPermission: Usuário não encontrado ou carregando, retornando false');
+      debugLogger.log('🚫 hasPermission: Usuário não encontrado ou carregando, retornando false');
       return false;
     }
     
     // Se houver erro ao buscar permissões, bloquear acesso
     // Isso força uma nova tentativa de autenticação
     if (error) {
-      console.error('❌ hasPermission: Erro ao carregar permissões, bloqueando acesso:', error);
+      debugLogger.log('❌ hasPermission: Erro ao carregar permissões, bloqueando acesso: ' + error.message, 'error');
       return false; // Bloquear acesso para forçar nova autenticação
     }
     
     const hasAccess = userPermissions.includes(permission);
-    console.log('✅ hasPermission: Resultado:', hasAccess);
+    debugLogger.log('✅ hasPermission: Resultado: ' + hasAccess);
     return hasAccess;
   };
 

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AuthContext, type AuthContextType, type RegisterData, type AzureAdLoginData } from './AuthContext';
 import { useAzureAd } from '../hooks/useAzureAd';
 import api from '../services/api';
+import { debugLogger } from '../components/DebugLogger';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -17,29 +18,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Verificar se há token salvo no localStorage
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('🔍 AuthProvider: Iniciando verificação de autenticação');
+      debugLogger.log('🔍 AuthProvider: Iniciando verificação de autenticação');
       try {
         const token = localStorage.getItem('accessToken');
-        console.log('🔑 AuthProvider: Token encontrado no localStorage:', !!token);
+        debugLogger.log('🔑 AuthProvider: Token encontrado no localStorage: ' + !!token);
         
         if (token) {
           // Configurar o token no axios
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          console.log('🔑 AuthProvider: Token configurado no axios para verificação');
+          debugLogger.log('🔑 AuthProvider: Token configurado no axios para verificação');
           
           // Verificar se o token ainda é válido
-          console.log('🌐 AuthProvider: Fazendo requisição para /auth/me');
+          debugLogger.log('🌐 AuthProvider: Fazendo requisição para /auth/me');
           const response = await api.get('/auth/me');
-          console.log('✅ AuthProvider: Resposta recebida:', response.data);
+          debugLogger.log('✅ AuthProvider: Resposta recebida: ' + JSON.stringify(response.data));
           
           setUser(response.data.data);
-          console.log('👤 AuthProvider: Usuário definido após verificação');
+          debugLogger.log('👤 AuthProvider: Usuário definido após verificação');
         } else {
-          console.log('❌ AuthProvider: Nenhum token encontrado');
+          debugLogger.log('❌ AuthProvider: Nenhum token encontrado');
         }
       } catch (error) {
-        console.error('❌ AuthProvider: Erro na verificação de autenticação:', error);
-        console.error('❌ AuthProvider: Status do erro:', error.response?.status);
+        debugLogger.log('❌ AuthProvider: Erro na verificação de autenticação: ' + error.message, 'error');
+        debugLogger.log('❌ AuthProvider: Status do erro: ' + error.response?.status, 'error');
         
         // Token inválido, limpar localStorage
         localStorage.removeItem('accessToken');
@@ -48,10 +49,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Limpar cache do React Query para evitar dados antigos
         queryClient.clear();
-        console.log('🧹 AuthProvider: Cache limpo após erro');
+        debugLogger.log('🧹 AuthProvider: Cache limpo após erro');
       } finally {
         setIsLoading(false);
-        console.log('✅ AuthProvider: Verificação de autenticação concluída');
+        debugLogger.log('✅ AuthProvider: Verificação de autenticação concluída');
       }
     };
 
@@ -77,53 +78,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const loginWithAzureAd = async (azureAdData?: AzureAdLoginData) => {
+    debugLogger.log('🚀 AuthProvider: Iniciando login com Azure AD');
     try {
       let userData = azureAdData;
       
       // Se não foi passado dados, fazer login com Azure AD real
       if (!userData) {
+        debugLogger.log('🌐 AuthProvider: Fazendo login com Azure AD real');
         userData = await azureAdLogin();
+        debugLogger.log('✅ AuthProvider: Login com Azure AD concluído: ' + JSON.stringify(userData));
       }
       
       // Se userData já contém os dados processados do callback, usar diretamente
       if (userData && userData.success && userData.data) {
+        debugLogger.log('📋 AuthProvider: Usando dados processados do callback');
         const { user, accessToken, refreshToken, requiresApproval, message } = userData.data;
 
         // Se usuário requer aprovação, mostrar mensagem de erro
         if (requiresApproval) {
+          debugLogger.log('❌ AuthProvider: Usuário requer aprovação', 'error');
           throw new Error(message || 'Usuário pendente de aprovação. Entre em contato com o administrador.');
         }
 
         // Salvar tokens no localStorage
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
+        debugLogger.log('💾 AuthProvider: Tokens salvos no localStorage');
 
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-        console.log('🔑 AuthProvider: Token configurado no axios');
+        debugLogger.log('🔑 AuthProvider: Token configurado no axios');
 
-        console.log('👤 AuthProvider: Definindo usuário:', user);
+        debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
         setUser(user);
+        debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');
       } else {
         // Se não tem dados processados, fazer chamada para o backend
+        debugLogger.log('🌐 AuthProvider: Fazendo chamada para /auth/azure-ad-login');
         const response = await api.post('/auth/azure-ad-login', userData);
+        debugLogger.log('✅ AuthProvider: Resposta do backend: ' + JSON.stringify(response.data));
+        
         const { user, accessToken, refreshToken, requiresApproval, message } = response.data.data;
 
         // Se usuário requer aprovação, mostrar mensagem de erro
         if (requiresApproval) {
+          debugLogger.log('❌ AuthProvider: Usuário requer aprovação', 'error');
           throw new Error(message || 'Usuário pendente de aprovação. Entre em contato com o administrador.');
         }
 
         // Salvar tokens no localStorage
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
+        debugLogger.log('💾 AuthProvider: Tokens salvos no localStorage');
 
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-        console.log('🔑 AuthProvider: Token configurado no axios');
+        debugLogger.log('🔑 AuthProvider: Token configurado no axios');
 
-        console.log('👤 AuthProvider: Definindo usuário:', user);
+        debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
         setUser(user);
+        debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');
       }
     } catch (error: any) {
       console.error('Azure AD login error:', error);
