@@ -112,6 +112,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         debugLogger.log('🔑 AuthProvider: Token configurado no axios');
 
+        // Aguardar próximo tick do event loop para garantir propagação do token
+        await new Promise(resolve => setTimeout(resolve, 0));
+        debugLogger.log('⏳ AuthProvider: Tokens propagados');
+
         debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
         setUser(user);
         debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');
@@ -138,11 +142,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         debugLogger.log('🔑 AuthProvider: Token configurado no axios');
 
+        // Aguardar próximo tick do event loop para garantir propagação do token
+        await new Promise(resolve => setTimeout(resolve, 0));
+        debugLogger.log('⏳ AuthProvider: Tokens propagados');
+
         debugLogger.log('👤 AuthProvider: Definindo usuário: ' + JSON.stringify(user));
-        
-        // Aguardar mais tempo para garantir que o token seja propagado
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
         setUser(user);
         debugLogger.log('✅ AuthProvider: Login concluído com sucesso', 'success');
       }

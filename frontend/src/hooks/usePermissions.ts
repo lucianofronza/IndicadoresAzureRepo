@@ -29,9 +29,7 @@ export const usePermissions = () => {
         return [];
       }
       
-      // Aguardar um pouco para garantir que o token esteja disponível
-      debugLogger.log('⏳ usePermissions: Aguardando 100ms para propagação do token');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Token já deve estar disponível (AuthProvider aguarda propagação)
       
       debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
       debugLogger.log('🔑 usePermissions: Token configurado: ' + !!api.defaults.headers.common['Authorization']);
