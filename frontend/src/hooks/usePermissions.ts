@@ -12,6 +12,9 @@ export const usePermissions = () => {
       if (!user) return [];
       
       try {
+        // Pequeno delay para garantir que o token esteja configurado
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Buscar permissões do usuário logado
         const response = await api.get('/auth/me');
         return response.data.data.permissions || [];
@@ -23,7 +26,8 @@ export const usePermissions = () => {
       }
     },
     enabled: !!user,
-    retry: 1, // Tentar apenas uma vez em caso de erro
+    retry: 3, // Tentar 3 vezes em caso de erro
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
     staleTime: 5 * 60 * 1000, // Cache por 5 minutos
   });
 
