@@ -1,4 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AuthContext, type AuthContextType, type RegisterData, type AzureAdLoginData } from './AuthContext';
 import { useAzureAd } from '../hooks/useAzureAd';
 import api from '../services/api';
@@ -11,6 +12,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthContextType['user']>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { loginWithAzureAd: azureAdLogin, logout: azureAdLogout } = useAzureAd();
+  const queryClient = useQueryClient();
 
   // Verificar se há token salvo no localStorage
   useEffect(() => {
@@ -30,6 +32,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         delete api.defaults.headers.common['Authorization'];
+        
+        // Limpar cache do React Query para evitar dados antigos
+        queryClient.clear();
       } finally {
         setIsLoading(false);
       }
@@ -129,6 +134,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.removeItem('refreshToken');
       delete api.defaults.headers.common['Authorization'];
       setUser(null);
+      
+      // Limpar cache do React Query para evitar dados antigos
+      queryClient.clear();
     }
   };
 
