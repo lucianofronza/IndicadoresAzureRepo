@@ -12,12 +12,38 @@ class DebugLogger {
   private logs: LogEntry[] = [];
   private listeners: ((logs: LogEntry[]) => void)[] = [];
   private nextId = 1;
+  private storageKey = 'debug-logs';
 
   static getInstance(): DebugLogger {
     if (!DebugLogger.instance) {
       DebugLogger.instance = new DebugLogger();
+      // Carregar logs do localStorage na inicialização
+      DebugLogger.instance.loadLogsFromStorage();
     }
     return DebugLogger.instance;
+  }
+
+  private loadLogsFromStorage() {
+    try {
+      const storedLogs = localStorage.getItem(this.storageKey);
+      if (storedLogs) {
+        this.logs = JSON.parse(storedLogs);
+        // Atualizar nextId baseado no último log
+        if (this.logs.length > 0) {
+          this.nextId = Math.max(...this.logs.map(log => log.id)) + 1;
+        }
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar logs do localStorage:', error);
+    }
+  }
+
+  private saveLogsToStorage() {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.logs));
+    } catch (error) {
+      console.warn('Erro ao salvar logs no localStorage:', error);
+    }
   }
 
   log(message: string, type: 'info' | 'error' | 'success' | 'warning' = 'info') {
@@ -30,10 +56,13 @@ class DebugLogger {
     
     this.logs.push(logEntry);
     
-    // Manter apenas os últimos 200 logs
-    if (this.logs.length > 200) {
-      this.logs = this.logs.slice(-200);
+    // Manter apenas os últimos 500 logs
+    if (this.logs.length > 500) {
+      this.logs = this.logs.slice(-500);
     }
+    
+    // Salvar no localStorage
+    this.saveLogsToStorage();
     
     // Notificar listeners
     this.listeners.forEach(listener => listener([...this.logs]));
@@ -55,6 +84,7 @@ class DebugLogger {
 
   clear() {
     this.logs = [];
+    localStorage.removeItem(this.storageKey);
     this.listeners.forEach(listener => listener([]));
   }
 
@@ -82,6 +112,9 @@ export const DebugLoggerComponent: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Carregar logs existentes do localStorage
+    setLogs(debugLogger.getLogs());
+    
     const unsubscribe = debugLogger.subscribe(setLogs);
     return unsubscribe;
   }, []);
