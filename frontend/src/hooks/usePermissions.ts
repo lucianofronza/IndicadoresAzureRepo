@@ -111,11 +111,14 @@ export const usePermissions = () => {
       return false;
     }
     
-    // Se houver erro ao buscar permissões, bloquear acesso
-    // Isso força uma nova tentativa de autenticação
+    // Se houver erro ao buscar permissões, permitir acesso temporário para retry
     if (error) {
-      debugLogger.log('❌ hasPermission: Erro ao carregar permissões, bloqueando acesso: ' + error.message, 'error');
-      return false; // Bloquear acesso para forçar nova autenticação
+      debugLogger.log('❌ hasPermission: Erro ao carregar permissões, permitindo acesso temporário para retry: ' + error.message, 'error');
+      // Para erro 401, permitir acesso temporário para não interromper o retry
+      if (error.response?.status === 401) {
+        return true; // Permitir acesso temporário para retry funcionar
+      }
+      return false; // Bloquear acesso para outros erros
     }
     
     const hasAccess = userPermissions.includes(permission);
@@ -128,7 +131,11 @@ export const usePermissions = () => {
    */
   const hasAllPermissions = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
-    if (error) return false; // Bloquear acesso em caso de erro
+    if (error) {
+      // Para erro 401, permitir acesso temporário para retry funcionar
+      if (error.response?.status === 401) return true;
+      return false; // Bloquear acesso para outros erros
+    }
     return permissions.every(permission => userPermissions.includes(permission));
   };
 
@@ -137,7 +144,11 @@ export const usePermissions = () => {
    */
   const hasAnyPermission = (permissions: string[]): boolean => {
     if (!user || isLoading) return false;
-    if (error) return false; // Bloquear acesso em caso de erro
+    if (error) {
+      // Para erro 401, permitir acesso temporário para retry funcionar
+      if (error.response?.status === 401) return true;
+      return false; // Bloquear acesso para outros erros
+    }
     return permissions.some(permission => userPermissions.includes(permission));
   };
 
@@ -171,7 +182,11 @@ export const usePermissions = () => {
    */
   const canView = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return false; // Bloquear acesso em caso de erro
+    if (error) {
+      // Para erro 401, permitir acesso temporário para retry funcionar
+      if (error.response?.status === 401) return true;
+      return false; // Bloquear acesso para outros erros
+    }
     
     const viewPermissions = {
       dashboard: 'dashboard:read',
@@ -197,7 +212,11 @@ export const usePermissions = () => {
    */
   const canWrite = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return false; // Bloquear acesso em caso de erro
+    if (error) {
+      // Para erro 401, permitir acesso temporário para retry funcionar
+      if (error.response?.status === 401) return true;
+      return false; // Bloquear acesso para outros erros
+    }
     
     const writePermissions = {
       developers: 'developers:write',
@@ -222,7 +241,11 @@ export const usePermissions = () => {
    */
   const canDelete = (module: string): boolean => {
     if (!user || isLoading) return false;
-    if (error) return false; // Bloquear acesso em caso de erro
+    if (error) {
+      // Para erro 401, permitir acesso temporário para retry funcionar
+      if (error.response?.status === 401) return true;
+      return false; // Bloquear acesso para outros erros
+    }
     
     const deletePermissions = {
       developers: 'developers:delete',
