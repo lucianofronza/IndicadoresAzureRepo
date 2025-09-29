@@ -17,17 +17,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Verificar se há token salvo no localStorage
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('🔍 AuthProvider: Iniciando verificação de autenticação');
       try {
         const token = localStorage.getItem('accessToken');
+        console.log('🔑 AuthProvider: Token encontrado no localStorage:', !!token);
+        
         if (token) {
           // Configurar o token no axios
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          console.log('🔑 AuthProvider: Token configurado no axios para verificação');
           
           // Verificar se o token ainda é válido
+          console.log('🌐 AuthProvider: Fazendo requisição para /auth/me');
           const response = await api.get('/auth/me');
+          console.log('✅ AuthProvider: Resposta recebida:', response.data);
+          
           setUser(response.data.data);
+          console.log('👤 AuthProvider: Usuário definido após verificação');
+        } else {
+          console.log('❌ AuthProvider: Nenhum token encontrado');
         }
       } catch (error) {
+        console.error('❌ AuthProvider: Erro na verificação de autenticação:', error);
+        console.error('❌ AuthProvider: Status do erro:', error.response?.status);
+        
         // Token inválido, limpar localStorage
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -35,8 +48,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Limpar cache do React Query para evitar dados antigos
         queryClient.clear();
+        console.log('🧹 AuthProvider: Cache limpo após erro');
       } finally {
         setIsLoading(false);
+        console.log('✅ AuthProvider: Verificação de autenticação concluída');
       }
     };
 
@@ -85,7 +100,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        console.log('🔑 AuthProvider: Token configurado no axios');
 
+        console.log('👤 AuthProvider: Definindo usuário:', user);
         setUser(user);
       } else {
         // Se não tem dados processados, fazer chamada para o backend
@@ -103,7 +120,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Configurar token no axios
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        console.log('🔑 AuthProvider: Token configurado no axios');
 
+        console.log('👤 AuthProvider: Definindo usuário:', user);
         setUser(user);
       }
     } catch (error: any) {
