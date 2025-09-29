@@ -10,12 +10,15 @@ export const usePermissions = () => {
 
   // Função debounced para buscar permissões
   const debouncedFetchPermissions = useCallback(async () => {
+    debugLogger.log('🚀 usePermissions: Iniciando debouncedFetchPermissions');
+    
     if (requestInProgress.current) {
       debugLogger.log('⏳ usePermissions: Requisição já em andamento, aguardando...');
       return [];
     }
 
     requestInProgress.current = true;
+    debugLogger.log('🔒 usePermissions: Marcando requestInProgress como true');
     
     try {
       debugLogger.log('🔍 usePermissions: Iniciando busca de permissões para usuário: ' + user?.id);
@@ -26,6 +29,7 @@ export const usePermissions = () => {
       }
       
       // Aguardar um pouco para garantir que o token esteja disponível
+      debugLogger.log('⏳ usePermissions: Aguardando 100ms para propagação do token');
       await new Promise(resolve => setTimeout(resolve, 100));
       
       debugLogger.log('🌐 usePermissions: Fazendo requisição para /auth/me');
@@ -33,20 +37,24 @@ export const usePermissions = () => {
       
       // Buscar permissões do usuário logado
       const response = await api.get('/auth/me');
-      debugLogger.log('✅ usePermissions: Resposta recebida: ' + JSON.stringify(response.data));
+      debugLogger.log('✅ usePermissions: Resposta recebida com sucesso');
+      debugLogger.log('📊 usePermissions: Dados da resposta: ' + JSON.stringify(response.data));
       
       const permissions = response.data.data.permissions || [];
       debugLogger.log('📋 usePermissions: Permissões extraídas: ' + JSON.stringify(permissions));
       
+      debugLogger.log('🎉 usePermissions: Busca de permissões concluída com sucesso');
       return permissions;
-    } catch (error) {
+    } catch (error: any) {
       debugLogger.log('❌ usePermissions: Erro ao buscar permissões: ' + error.message, 'error');
       debugLogger.log('❌ usePermissions: Status do erro: ' + error.response?.status, 'error');
       debugLogger.log('❌ usePermissions: Dados do erro: ' + JSON.stringify(error.response?.data), 'error');
+      debugLogger.log('💥 usePermissions: Lançando erro para React Query');
       // Se houver erro de autenticação, não retornar array vazio
       // para evitar que o usuário seja considerado sem permissões
       throw error;
     } finally {
+      debugLogger.log('🔓 usePermissions: Marcando requestInProgress como false');
       requestInProgress.current = false;
     }
   }, [user?.id]);
@@ -83,18 +91,16 @@ export const usePermissions = () => {
       }
     },
     retryDelay: (attemptIndex) => {
-      // Delay mais rápido para erros 401 (problema de timing)
-      const error = (attemptIndex as any)?.error;
-      if (error?.response?.status === 401) {
-        return Math.min(500 * (attemptIndex + 1), 2000); // 500ms, 1000ms, 1500ms, 2000ms
-      }
-      // Delay normal para outros erros
-      return Math.min(1000 * 2 ** attemptIndex, 30000);
+      // Delay mais rápido para retries (problema de timing)
+      return Math.min(500 * (attemptIndex + 1), 2000); // 500ms, 1000ms, 1500ms, 2000ms
     },
     staleTime: 5 * 60 * 1000, // Cache por 5 minutos
     refetchOnWindowFocus: false, // Não refetch quando focar na janela
     refetchOnMount: true, // Refetch quando montar o componente
   });
+
+  // Logs para debug do estado do React Query
+  debugLogger.log('📊 usePermissions: Estado do React Query - isLoading: ' + isLoading + ', error: ' + !!error + ', data length: ' + userPermissions.length);
 
   /**
    * Verifica se o usuário tem uma permissão específica
