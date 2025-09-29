@@ -42,14 +42,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         debugLogger.log('❌ AuthProvider: Erro na verificação de autenticação: ' + error.message, 'error');
         debugLogger.log('❌ AuthProvider: Status do erro: ' + error.response?.status, 'error');
         
-        // Token inválido, limpar localStorage
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        delete api.defaults.headers.common['Authorization'];
-        
-        // Limpar cache do React Query para evitar dados antigos
-        queryClient.clear();
-        debugLogger.log('🧹 AuthProvider: Cache limpo após erro');
+        // Só limpar localStorage se não for erro 401 (deixar retry do usePermissions funcionar)
+        if (error.response?.status !== 401) {
+          debugLogger.log('🧹 AuthProvider: Limpando localStorage para erro não-401');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          delete api.defaults.headers.common['Authorization'];
+          queryClient.clear();
+        } else {
+          debugLogger.log('🔄 AuthProvider: Erro 401 detectado, mantendo tokens para retry automático');
+        }
       } finally {
         setIsLoading(false);
         debugLogger.log('✅ AuthProvider: Verificação de autenticação concluída');

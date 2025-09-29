@@ -73,6 +73,15 @@ export const usePermissions = () => {
       // Para outros erros, tentar apenas 1 vez
       return failureCount < 1;
     },
+    onError: (error: any) => {
+      // Se todas as tentativas de retry falharam para erro 401, limpar localStorage
+      if (error?.response?.status === 401) {
+        debugLogger.log('🧹 usePermissions: Todas as tentativas de retry falharam, limpando localStorage', 'error');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        delete api.defaults.headers.common['Authorization'];
+      }
+    },
     retryDelay: (attemptIndex) => {
       // Delay mais rápido para erros 401 (problema de timing)
       const error = (attemptIndex as any)?.error;
