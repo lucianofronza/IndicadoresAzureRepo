@@ -1,8 +1,13 @@
 import { config } from 'dotenv';
 import path from 'path';
 
-// Load environment variables
-config({ path: path.resolve(__dirname, '../.env') });
+// Load environment variables (optional - Docker Compose passes them directly)
+try {
+  config({ path: path.resolve(__dirname, '../.env') });
+} catch (error) {
+  // .env file not found, using environment variables from Docker Compose
+  console.log('Using environment variables from Docker Compose');
+}
 
 import express from 'express';
 import compression from 'compression';

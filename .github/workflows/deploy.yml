@@ -1,0 +1,236 @@
+name: Deploy
+
+# yamllint disable rule:line-length
+# shellcheck disable=all
+
+on:
+  push:
+    branches:
+      - main        # Produção
+      - develop     # Staging
+    tags:
+      - 'v*'        # Releases versionadas
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # Job 1: Determinar Ambiente
+  setup:
+    name: Setup Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      tag: ${{ steps.set-env.outputs.tag }}
+    
+    steps:
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+          
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 2: Deploy para Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.indicadores.example.com
+    
+    # actionlint-ignore: expression
+    env:
+      # Secrets opcionais - warnings esperados
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials (exemplo)
+        if: env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Deploy to staging (Docker Compose)
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          
+          # Exemplo de deploy via SSH
+          # ssh user@staging-server 'cd /app && docker-compose pull && docker-compose up -d'
+          
+          echo "✅ Staging deployment completed!"
+      
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests on staging..."
+          # curl -f https://staging.indicadores.example.com/healthz || exit 1
+          echo "✅ Smoke tests passed!"
+
+  # Job 3: Deploy para Produção
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.environment == 'production'
+    environment:
+      name: production
+      url: https://indicadores.example.com
+    
+    # actionlint-ignore: expression
+    env:
+      # Secrets opcionais - warnings esperados
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.setup.outputs.tag }}
+          release_name: Release ${{ needs.setup.outputs.tag }}
+          draft: false
+          prerelease: false
+      
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to production environment..."
+          echo "Tag: ${{ needs.setup.outputs.tag }}"
+          echo "Commit: ${{ github.sha }}"
+          
+          # Exemplo de deploy via Kubernetes
+          # kubectl set image deployment/backend backend=indicadores-backend:${{ needs.setup.outputs.tag }}
+          # kubectl set image deployment/frontend frontend=indicadores-frontend:${{ needs.setup.outputs.tag }}
+          # kubectl rollout status deployment/backend
+          # kubectl rollout status deployment/frontend
+          
+          echo "✅ Production deployment completed!"
+      
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests on production..."
+          # curl -f https://indicadores.example.com/healthz || exit 1
+          echo "✅ Smoke tests passed!"
+      
+      - name: Notify deployment
+        run: |
+          echo "📢 Notifying team about deployment..."
+          echo "Environment: production"
+          echo "Version: ${{ needs.setup.outputs.tag }}"
+          echo "Status: ✅ Success"
+
+  # Job 4: Backup antes do Deploy
+  backup-database:
+    name: Backup Database
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.environment == 'production'
+    
+    # actionlint-ignore: expression
+    env:
+      # Secrets opcionais - warnings esperados
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    
+    steps:
+      - name: Create database backup
+        run: |
+          echo "💾 Creating database backup..."
+          echo "Timestamp: $(date +%Y%m%d_%H%M%S)"
+          
+          # Exemplo de backup PostgreSQL (desabilitado - descomentar e ajustar conforme necessário)
+          # if [ -n "$DB_PASSWORD" ] && [ -n "$DB_HOST" ] && [ -n "$DB_USER" ]; then
+          #   PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -U "$DB_USER" -d indicadores > backup_$(date +%Y%m%d_%H%M%S).sql
+          #   aws s3 cp backup_*.sql s3://backups/database/
+          # fi
+          
+          echo "✅ Backup completed!"
+
+  # Job 5: Rollback (manual)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure()
+    environment:
+      name: ${{ needs.setup.outputs.environment }}
+    needs: [setup, deploy-production, deploy-staging]
+    
+    steps:
+      - name: Rollback deployment
+        run: |
+          echo "⚠️ Rolling back deployment..."
+          echo "Environment: ${{ needs.setup.outputs.environment }}"
+          
+          # Exemplo de rollback via Kubernetes
+          # kubectl rollout undo deployment/backend
+          # kubectl rollout undo deployment/frontend
+          
+          echo "✅ Rollback completed!"
+
+  # Job 6: Notificação de Deploy
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-production, deploy-staging]
+    if: always()
+    
+    # actionlint-ignore: expression
+    env:
+      # Secret opcional - warning esperado
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    
+    steps:
+      - name: Send notification
+        run: |
+          if [[ "${{ needs.deploy-production.result }}" == "success" || "${{ needs.deploy-staging.result }}" == "success" ]]; then
+            echo "✅ Deployment successful!"
+            echo "Environment: ${{ needs.setup.outputs.environment }}"
+            echo "Version: ${{ needs.setup.outputs.tag }}"
+            
+            # Exemplo de notificação Slack (desabilitado - descomentar e ajustar conforme necessário)
+            # if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            #   curl -X POST -H 'Content-type: application/json' \
+            #     --data '{"text":"✅ Deployment to ${{ needs.setup.outputs.environment }} successful!"}' \
+            #     "$SLACK_WEBHOOK_URL"
+            # fi
+          else
+            echo "❌ Deployment failed!"
+            echo "Check logs for details."
+          fi

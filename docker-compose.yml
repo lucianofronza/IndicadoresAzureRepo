@@ -58,6 +58,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI}
+      SYNC_SERVICE_URL: http://sync-service:8080
+      SYNC_SERVICE_API_KEY: ${SYNC_SERVICE_API_KEY}
+      BACKEND_API_KEY: ${BACKEND_API_KEY}
     ports:
       - "${BACKEND_PORT:-8080}:${PORT:-8080}"
     depends_on:
@@ -126,6 +136,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: indicadores-frontend-prod
+    environment:
+      VITE_AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID}
+      VITE_AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID}
+      VITE_AZURE_REDIRECT_URI: ${VITE_AZURE_REDIRECT_URI}
+      VITE_API_URL: ${VITE_API_URL}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:

@@ -3,13 +3,77 @@ import { logger } from '@/utils/logger';
 import { NotFoundError } from '@/middlewares/errorHandler';
 import { SyncServiceClient } from './syncServiceClient';
 
+/**
+ * Serviço de sincronização de repositórios com Azure DevOps.
+ * 
+ * Responsável por:
+ * - Iniciar sincronizações manuais
+ * - Gerenciar jobs de sincronização
+ * - Atualizar lastSyncAt dos repositórios
+ * - Consultar status e histórico de sincronizações
+ * - Comunicação com o Sync Service (microserviço)
+ * 
+ * @class SyncService
+ * @example
+ * ```typescript
+ * const syncService = new SyncService();
+ * await syncService.startSync('repo-id-123', 'incremental');
+ * ```
+ */
 export class SyncService {
   private syncServiceClient: SyncServiceClient;
 
+  /**
+   * Inicializa o serviço de sincronização.
+   * Configura o cliente do Sync Service para comunicação HTTP.
+   */
   constructor() {
     this.syncServiceClient = new SyncServiceClient();
   }
 
+  /**
+   * Inicia uma sincronização manual de um repositório.
+   * 
+   * Fluxo de sincronização:
+   * 1. Valida existência do repositório
+   * 2. Verifica saúde do Sync Service
+   * 3. Inicia sincronização via Sync Service
+   * 4. Cria job de sincronização no banco local
+   * 5. Atualiza status do job baseado no resultado
+   * 6. Atualiza lastSyncAt apenas se houver novos dados
+   * 
+   * **Tipos de Sincronização:**
+   * - `full`: Sincroniza todos os dados (últimos 90 dias)
+   * - `incremental`: Sincroniza apenas desde lastSyncAt
+   * 
+   * **Atualização de lastSyncAt:**
+   * - ✅ Atualizado: Se `hasNewData === true`
+   * - ❌ Não atualizado: Se `hasNewData === false` ou falha
+   * 
+   * @param {string} repositoryId - ID do repositório a sincronizar
+   * @param {'full'|'incremental'} [syncType='incremental'] - Tipo de sincronização
+   * 
+   * @returns {Promise<any>} Job de sincronização com resultado
+   * 
+   * @throws {NotFoundError} Se repositório não existe
+   * @throws {Error} Se Sync Service não está disponível
+   * 
+   * @example
+   * ```typescript
+   * // Sincronização incremental (padrão)
+   * const job = await syncService.startSync('repo-123');
+   * 
+   * // Sincronização completa
+   * const fullJob = await syncService.startSync('repo-123', 'full');
+   * 
+   * // Resultado
+   * // {
+   * //   id: 'job-uuid',
+   * //   status: 'completed',
+   * //   result: { success: true, hasNewData: true, recordsProcessed: 25 }
+   * // }
+   * ```
+   */
   async startSync(repositoryId: string, syncType: 'full' | 'incremental' = 'incremental'): Promise<any> {
     const repository = await prisma.repository.findUnique({
       where: { id: repositoryId },

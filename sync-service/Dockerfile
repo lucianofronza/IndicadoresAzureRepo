@@ -17,28 +17,22 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build TypeScript
-RUN npm run build
-
-# Production image
+# Production image (running with tsx instead of building)
 FROM base AS runner
 WORKDIR /app
+
+# Install production dependencies + tsx
+COPY package*.json ./
+RUN npm ci && npm install -g tsx
+
+# Copy source code and config
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 syncservice
-
-# Copy built application
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
-
-# Copy environment file
-COPY --from=builder /app/env.example ./env.example
 
 # Set ownership
 RUN chown -R syncservice:nodejs /app
@@ -47,9 +41,10 @@ USER syncservice
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check (using Node.js)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/healthz', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the application
-CMD ["node", "-r", "tsconfig-paths/register", "dist/index.js"]
+# Start the application with tsx (TypeScript executor)
+# The .env file is not needed as environment variables are passed by docker-compose
+CMD ["tsx", "src/index.ts"]

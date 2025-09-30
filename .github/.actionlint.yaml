@@ -1,0 +1,7 @@
+# Configuração do actionlint para GitHub Actions workflows
+# Documentação: https://github.com/rhysd/actionlint
+
+# Configuração global
+self-hosted-runner:
+  # Labels personalizados para runners (se houver)
+  labels: []
