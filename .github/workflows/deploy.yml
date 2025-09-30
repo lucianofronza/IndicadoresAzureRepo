@@ -60,12 +60,12 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Configure AWS credentials (exemplo)
+        if: false  # Desabilitado, ajustar conforme infraestrutura
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-        if: false  # Desabilitado, ajustar conforme infraestrutura
       
       - name: Deploy to staging (Docker Compose)
         run: |
@@ -149,9 +149,14 @@ jobs:
           echo "💾 Creating database backup..."
           echo "Timestamp: $(date +%Y%m%d_%H%M%S)"
           
-          # Exemplo de backup PostgreSQL
-          # PGPASSWORD=${{ secrets.DB_PASSWORD }} pg_dump -h ${{ secrets.DB_HOST }} -U ${{ secrets.DB_USER }} -d indicadores > backup_$(date +%Y%m%d_%H%M%S).sql
-          # aws s3 cp backup_*.sql s3://backups/database/
+          # Exemplo de backup PostgreSQL (desabilitado - configurar secrets primeiro)
+          # DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          # DB_HOST="${{ secrets.DB_HOST }}"
+          # DB_USER="${{ secrets.DB_USER }}"
+          # if [ -n "$DB_PASSWORD" ] && [ -n "$DB_HOST" ] && [ -n "$DB_USER" ]; then
+          #   PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -U "$DB_USER" -d indicadores > backup_$(date +%Y%m%d_%H%M%S).sql
+          #   aws s3 cp backup_*.sql s3://backups/database/
+          # fi
           
           echo "✅ Backup completed!"
 
@@ -191,10 +196,13 @@ jobs:
             echo "Environment: ${{ needs.setup.outputs.environment }}"
             echo "Version: ${{ needs.setup.outputs.tag }}"
             
-            # Exemplo de notificação Slack
-            # curl -X POST -H 'Content-type: application/json' \
-            #   --data '{"text":"✅ Deployment to ${{ needs.setup.outputs.environment }} successful!"}' \
-            #   ${{ secrets.SLACK_WEBHOOK_URL }}
+            # Exemplo de notificação Slack (desabilitado - configurar SLACK_WEBHOOK_URL primeiro)
+            # SLACK_WEBHOOK="${{ secrets.SLACK_WEBHOOK_URL }}"
+            # if [ -n "$SLACK_WEBHOOK" ]; then
+            #   curl -X POST -H 'Content-type: application/json' \
+            #     --data '{"text":"✅ Deployment to ${{ needs.setup.outputs.environment }} successful!"}' \
+            #     "$SLACK_WEBHOOK"
+            # fi
           else
             echo "❌ Deployment failed!"
             echo "Check logs for details."

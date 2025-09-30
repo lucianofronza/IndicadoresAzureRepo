@@ -89,6 +89,8 @@ jobs:
           NODE_ENV: test
       
       - name: Upload coverage to Codecov
+        # Opcional: Configure CODECOV_TOKEN secret para habilitar upload
+        continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
           files: ./backend/coverage/lcov.info
@@ -163,11 +165,12 @@ jobs:
           path: frontend/dist
           retention-days: 7
 
-  # Job 6: Docker Build (apenas em main e develop)
+  # Job 6: Docker Build (apenas em main e develop com secrets configurados)
   docker-build:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
+    # Executa apenas se for push para main/develop (secrets opcionais)
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     steps:
@@ -178,6 +181,8 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Log in to Docker Hub
+        # Opcional: Configure DOCKER_USERNAME e DOCKER_PASSWORD secrets para habilitar push
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -187,7 +192,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/indicadores-backend
+          images: ${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-backend
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -199,14 +204,14 @@ jobs:
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/indicadores-backend:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/indicadores-backend:buildcache,mode=max
+          cache-from: type=registry,ref=${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-backend:buildcache
+          cache-to: type=registry,ref=${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-backend:buildcache,mode=max
       
       - name: Extract metadata (tags, labels) for Frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/indicadores-frontend
+          images: ${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-frontend
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -218,8 +223,8 @@ jobs:
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/indicadores-frontend:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/indicadores-frontend:buildcache,mode=max
+          cache-from: type=registry,ref=${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-frontend:buildcache
+          cache-to: type=registry,ref=${{ vars.DOCKER_USERNAME || 'indicadores' }}/indicadores-frontend:buildcache,mode=max
 
   # Job 7: Notificação de Sucesso
   notify-success:
