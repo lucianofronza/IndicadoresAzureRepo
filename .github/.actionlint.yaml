@@ -1,0 +1,36 @@
+# Configuração do actionlint para GitHub Actions workflows
+# Documentação: https://github.com/rhysd/actionlint
+
+# Configuração global
+self-hosted-runner:
+  # Labels personalizados para runners (se houver)
+  labels: []
+
+# Configurações de validação
+config-variables:
+  # Secrets opcionais que podem não existir
+  # Suprime warnings quando esses secrets não estão configurados
+  secrets:
+    - CODECOV_TOKEN
+    - DOCKER_USERNAME
+    - DOCKER_PASSWORD
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - DB_PASSWORD
+    - DB_HOST
+    - DB_USER
+    - SLACK_WEBHOOK_URL
+
+# Desabilitar regras específicas (se necessário)
+# disable-rules:
+#   - expression
+#   - shellcheck
+
+# Configuração de severity
+# Por padrão, todos os problemas são reportados como 'error'
+# Podemos reduzir para 'warning' ou 'none'
+severity:
+  expression: warning
+  shellcheck: warning
+  pyflakes: warning
+  action-requires: warning
